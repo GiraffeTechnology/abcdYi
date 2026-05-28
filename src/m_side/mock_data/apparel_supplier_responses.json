@@ -1,0 +1,27 @@
+{
+  "complete_response": {
+    "supplier_id": "sup_apparel_005",
+    "supplier_name": "GarmentCo Hangzhou",
+    "message": "可以做，棉布现货，颜色可以定制，最快下周三开工，样品5天，大货20天，单价USD 8.50，MOQ 200件，QC有，可提供尺寸表和洗水测试报告。FOB上海。"
+  },
+  "incomplete_response": {
+    "supplier_id": "sup_apparel_005",
+    "supplier_name": "GarmentCo Hangzhou",
+    "message": "可以做服装，需要看设计稿和尺寸表。"
+  },
+  "high_risk_response": {
+    "supplier_id": "sup_apparel_005",
+    "supplier_name": "GarmentCo Hangzhou",
+    "message": "可以做，但颜色有限制，某些特殊颜色需要外协染色，可能多5天。单价USD 9.20，MOQ 300件。"
+  },
+  "cannot_make_response": {
+    "supplier_id": "sup_apparel_005",
+    "supplier_name": "GarmentCo Hangzhou",
+    "message": "抱歉，我们不做这类服装，建议联系其他供应商。"
+  },
+  "exception_update": {
+    "supplier_id": "sup_apparel_005",
+    "supplier_name": "GarmentCo Hangzhou",
+    "message": "原材料供应商延误，面料预计延迟5天到达。方案1：等待面料；方案2：使用替代面料（稍有差异）。"
+  }
+}

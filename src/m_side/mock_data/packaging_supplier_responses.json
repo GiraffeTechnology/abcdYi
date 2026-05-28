@@ -1,0 +1,27 @@
+{
+  "complete_response": {
+    "supplier_id": "sup_packaging_004",
+    "supplier_name": "PackPro Shanghai",
+    "message": "可以做，纸板现货，可定制印刷，最快明天开工，大货7天，单价RMB 3.80每套，MOQ 500套，QC有目检。EXW上海。"
+  },
+  "incomplete_response": {
+    "supplier_id": "sup_packaging_004",
+    "supplier_name": "PackPro Shanghai",
+    "message": "可以做包装盒，需要确认尺寸和印刷文件。"
+  },
+  "high_risk_response": {
+    "supplier_id": "sup_packaging_004",
+    "supplier_name": "PackPro Shanghai",
+    "message": "可以做，但特殊颜色需要外协印刷，多3天。单价RMB 4.50，MOQ 300套。"
+  },
+  "cannot_make_response": {
+    "supplier_id": "sup_packaging_004",
+    "supplier_name": "PackPro Shanghai",
+    "message": "抱歉，这种规格超出我们设备范围，无法生产。"
+  },
+  "exception_update": {
+    "supplier_id": "sup_packaging_004",
+    "supplier_name": "PackPro Shanghai",
+    "message": "印刷机故障，预计延误2天。已安排备用供应商继续生产。"
+  }
+}

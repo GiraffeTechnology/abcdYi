@@ -1,0 +1,107 @@
+[
+  {
+    "supplier_id": "sup_cnc_strong_001",
+    "supplier_name": "Precision CNC Shenzhen (A)",
+    "contact_name": "Wang Wei",
+    "channel": "mock",
+    "external_user_id": "supplier_a_wechat_001",
+    "phone_or_handle": "+86-13800001111",
+    "language_preference": "zh",
+    "region": "Shenzhen",
+    "capability": {
+      "categories": ["cnc", "precision_machining"],
+      "materials": ["aluminum 6061", "aluminum 7075", "steel", "titanium"],
+      "processes": ["CNC milling", "CNC turning", "anodizing", "surface grinding"],
+      "max_quantity_hint": 5000,
+      "typical_lead_time_days": 22,
+      "machines_or_lines": ["Mazak 5-axis", "DMG MORI", "Fanuc"],
+      "qc_capabilities": ["CMM", "dimensional inspection", "photo/video"],
+      "export_experience": ["Germany", "USA", "EU"],
+      "notes": "Strong CNC precision supplier. ISO 9001 certified."
+    }
+  },
+  {
+    "supplier_id": "sup_cnc_mid_002",
+    "supplier_name": "FastMech Guangzhou (B)",
+    "contact_name": "Li Ming",
+    "channel": "mock",
+    "external_user_id": "supplier_b_wechat_002",
+    "phone_or_handle": "+86-13900002222",
+    "language_preference": "zh",
+    "region": "Guangzhou",
+    "capability": {
+      "categories": ["cnc", "general_machining"],
+      "materials": ["aluminum 6061", "steel"],
+      "processes": ["CNC milling", "outsourced anodizing"],
+      "max_quantity_hint": 3000,
+      "typical_lead_time_days": 30,
+      "machines_or_lines": ["Haas VF-2", "FANUC"],
+      "qc_capabilities": ["dimensional inspection"],
+      "export_experience": ["EU"],
+      "notes": "Mid-tier CNC supplier. Anodizing is outsourced."
+    }
+  },
+  {
+    "supplier_id": "sup_cnc_cannot_003",
+    "supplier_name": "BusyMetal Dongguan (C)",
+    "contact_name": "Zhang Fang",
+    "channel": "mock",
+    "external_user_id": "supplier_c_wechat_003",
+    "phone_or_handle": "+86-13700003333",
+    "language_preference": "zh",
+    "region": "Dongguan",
+    "capability": {
+      "categories": ["cnc"],
+      "materials": ["aluminum", "steel"],
+      "processes": ["CNC milling"],
+      "max_quantity_hint": 2000,
+      "typical_lead_time_days": 45,
+      "machines_or_lines": ["FANUC"],
+      "qc_capabilities": [],
+      "export_experience": [],
+      "notes": "Currently over capacity."
+    }
+  },
+  {
+    "supplier_id": "sup_packaging_004",
+    "supplier_name": "PackPro Shanghai",
+    "contact_name": "Chen Li",
+    "channel": "mock",
+    "external_user_id": "supplier_d_wechat_004",
+    "phone_or_handle": "+86-13600004444",
+    "language_preference": "zh",
+    "region": "Shanghai",
+    "capability": {
+      "categories": ["packaging"],
+      "materials": ["cardboard", "corrugated", "foam"],
+      "processes": ["box printing", "die-cutting", "foam insert"],
+      "max_quantity_hint": 50000,
+      "typical_lead_time_days": 10,
+      "machines_or_lines": ["digital printing", "offset printing"],
+      "qc_capabilities": ["visual inspection"],
+      "export_experience": ["EU", "USA"],
+      "notes": "Packaging specialist. Good MOQ and fast turnaround."
+    }
+  },
+  {
+    "supplier_id": "sup_apparel_005",
+    "supplier_name": "GarmentCo Hangzhou",
+    "contact_name": "Liu Fang",
+    "channel": "mock",
+    "external_user_id": "supplier_e_wechat_005",
+    "phone_or_handle": "+86-13500005555",
+    "language_preference": "zh",
+    "region": "Hangzhou",
+    "capability": {
+      "categories": ["apparel"],
+      "materials": ["cotton", "polyester", "nylon", "linen"],
+      "processes": ["cutting", "sewing", "embroidery", "printing"],
+      "max_quantity_hint": 10000,
+      "typical_lead_time_days": 25,
+      "machines_or_lines": ["industrial sewing", "embroidery machines"],
+      "qc_capabilities": ["fabric test", "size chart", "wash test"],
+      "export_experience": ["EU", "USA", "Japan"],
+      "notes": "Apparel specialist. Fabric and color-run capable."
+    }
+  }
+]

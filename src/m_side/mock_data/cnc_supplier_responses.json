@@ -1,0 +1,32 @@
+{
+  "complete_response": {
+    "supplier_id": "sup_cnc_strong_001",
+    "supplier_name": "Precision CNC Shenzhen (A)",
+    "message": "可以做，6061材料有现货，最快下周一开工，样品7天，大货22天，单价USD 4.80，MOQ 500，阳极氧化外协需多3天，总交期25天。QC有，可提供照片。EXW工厂。"
+  },
+  "mid_response": {
+    "supplier_id": "sup_cnc_mid_002",
+    "supplier_name": "FastMech Guangzhou (B)",
+    "message": "可以接，材料在途，预计3天到，大货28天，单价USD 4.20，MOQ 300，阳极氧化需外协，多5天，总交期33天。QC有。FOB深圳。"
+  },
+  "cannot_make_response": {
+    "supplier_id": "sup_cnc_cannot_003",
+    "supplier_name": "BusyMetal Dongguan (C)",
+    "message": "抱歉，当前产能已满，无法接单。"
+  },
+  "incomplete_response": {
+    "supplier_id": "sup_cnc_strong_001",
+    "supplier_name": "Precision CNC Shenzhen (A)",
+    "message": "可以做6061材料，需要看图纸。"
+  },
+  "high_risk_response": {
+    "supplier_id": "sup_cnc_mid_002",
+    "supplier_name": "FastMech Guangzhou (B)",
+    "message": "可以做，但材料需要外采，预计延误7天，阳极氧化外协，可能再多5天延误。单价USD 5.50，MOQ 200。"
+  },
+  "exception_update": {
+    "supplier_id": "sup_cnc_strong_001",
+    "supplier_name": "Precision CNC Shenzhen (A)",
+    "message": "抱歉通知：阳极氧化外协供应商春节假期，预计延误3天。建议方案1：接受延误；方案2：改用电泳涂装，但成本略增。"
+  }
+}
