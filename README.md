@@ -158,6 +158,37 @@ Interactive docs: `http://localhost:8000/docs`
 
 Each script verifies a complete workflow end-to-end. Run them after setup to confirm everything is wired correctly.
 
+### B/M-side DB Integration — Baseline v1 ✓
+
+The core B/M-side DB integration is reproducible from a clean checkout.
+See [`docs/BM_DB_INTEGRATION_BASELINE_v1.md`](docs/BM_DB_INTEGRATION_BASELINE_v1.md)
+for the full test report.
+
+```bash
+# DB-off mode (no database required — pure in-memory)
+GIRAFFE_DB_MODE=off python run_bm_e2e_with_db.py
+
+# DB-on mode (real SQLite repositories)
+GIRAFFE_DB_MODE=on GIRAFFE_DB_URL=sqlite:///./test.db python build_schema.py
+GIRAFFE_DB_MODE=on GIRAFFE_DB_URL=sqlite:///./test.db python run_bm_e2e_with_db.py
+
+# Reproducibility verifier — runs the full lifecycle 5 times, asserts all tables
+python verify_integration.py --db sqlite:///./test.db --runs 5
+```
+
+Latest result (2026-06-13, Baseline v1):
+
+```
+run 1/5: PASS  run 2/5: PASS  run 3/5: PASS  run 4/5: PASS  run 5/5: PASS
+PRAGMA integrity_check: ok
+PRAGMA foreign_key_check: ok
+Result: 5/5 passed
+```
+
+Reproducible integration baseline passed; ready for next-stage hardening and broader scenario testing.
+
+### MVP E2E Scripts
+
 | Script | What it verifies |
 |--------|-----------------|
 | `scripts/run_db_smoke_test.py` | Database models, migrations, seed data |
