@@ -160,9 +160,15 @@ Each script verifies a complete workflow end-to-end. Run them after setup to con
 
 ### B/M-side DB Integration — Baseline v1 ✓
 
+**Tag:** `BM_DB_INTEGRATION_BASELINE_V1` (2026-06-13)
+
 The core B/M-side DB integration is reproducible from a clean checkout.
-See [`docs/BM_DB_INTEGRATION_BASELINE_v1.md`](docs/BM_DB_INTEGRATION_BASELINE_v1.md)
-for the full test report.
+BM DB Integration Baseline v1 is a reproducible integration baseline, not yet a
+production-hardening release.
+
+Full test report: [`docs/BM_DB_INTEGRATION_BASELINE_v1.md`](docs/BM_DB_INTEGRATION_BASELINE_v1.md)  
+Machine-readable result record: [`TEST_RESULT.md`](TEST_RESULT.md)  
+Changelog entry: [`CHANGELOG.md`](CHANGELOG.md)
 
 ```bash
 # DB-off mode (no database required — pure in-memory)
@@ -176,7 +182,7 @@ GIRAFFE_DB_MODE=on GIRAFFE_DB_URL=sqlite:///./test.db python run_bm_e2e_with_db.
 python verify_integration.py --db sqlite:///./test.db --runs 5
 ```
 
-Latest result (2026-06-13, Baseline v1):
+Result (tag `BM_DB_INTEGRATION_BASELINE_V1`, 2026-06-13):
 
 ```
 run 1/5: PASS  run 2/5: PASS  run 3/5: PASS  run 4/5: PASS  run 5/5: PASS
@@ -185,7 +191,8 @@ PRAGMA foreign_key_check: ok
 Result: 5/5 passed
 ```
 
-Reproducible integration baseline passed; ready for next-stage hardening and broader scenario testing.
+DB-off mode: PASS · DB-on mode: PASS · Reproducible integration baseline passed;
+ready for next-stage hardening and broader scenario testing.
 
 ### MVP E2E Scripts
 
