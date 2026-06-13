@@ -351,3 +351,364 @@ def report_exception_endpoint(m_workspace_id: str, request: ExceptionReportReque
         "severity": exc.severity,
         "category": exc.category,
     }
+
+
+# ─── Role-switching M-side procurement routes ──────────────────────────────────
+
+class ResolveRoleRequest(BaseModel):
+    actor_id: str
+    original_buyer_actor_id: str
+    main_supplier_actor_id: str | None = None
+    edge_id: str | None = None
+    edge_type: str | None = None
+    counterparty_actor_id: str | None = None
+
+
+@app.post("/api/projects/{project_id}/resolve-role")
+def resolve_role_endpoint(project_id: str, request: ResolveRoleRequest):
+    """Resolve the contextual role of an actor within a project edge."""
+    from src.actors.role_resolver import resolve_role_context
+    rc = resolve_role_context(
+        project_id=project_id,
+        actor_id=request.actor_id,
+        original_buyer_actor_id=request.original_buyer_actor_id,
+        main_supplier_actor_id=request.main_supplier_actor_id,
+        edge_id=request.edge_id,
+        edge_type=request.edge_type,
+        counterparty_actor_id=request.counterparty_actor_id,
+    )
+    return rc.model_dump()
+
+
+class PlanDependenciesRequest(BaseModel):
+    product_summary: str
+    category: str
+    quantity: int | None = None
+    main_supplier_actor_id: str
+    candidate_fabric_ids: list[str] = []
+    candidate_trim_ids: list[str] = []
+    candidate_packaging_ids: list[str] = []
+    candidate_qc_ids: list[str] = []
+    candidate_logistics_ids: list[str] = []
+    destination: str | None = None
+
+
+@app.post("/api/m-side/{project_id}/plan-dependencies")
+def plan_dependencies_endpoint(project_id: str, request: PlanDependenciesRequest):
+    """Plan upstream dependencies for a project."""
+    from src.m_side.dependencies.dependency_planner import plan_upstream_dependencies
+    from src.m_side.upstream.upstream_store import store_dependencies
+    deps = plan_upstream_dependencies(
+        project_id=project_id,
+        product_summary=request.product_summary,
+        category=request.category,
+        quantity=request.quantity,
+        main_supplier_actor_id=request.main_supplier_actor_id,
+        candidate_fabric_ids=request.candidate_fabric_ids or None,
+        candidate_trim_ids=request.candidate_trim_ids or None,
+        candidate_packaging_ids=request.candidate_packaging_ids or None,
+        candidate_qc_ids=request.candidate_qc_ids or None,
+        candidate_logistics_ids=request.candidate_logistics_ids or None,
+        destination=request.destination,
+    )
+    deps_data = [d.model_dump() for d in deps]
+    store_dependencies(project_id, deps_data)
+    return {"project_id": project_id, "dependencies": deps_data}
+
+
+class BuildUpstreamInquiryRequest(BaseModel):
+    dependency_id: str
+    upstream_actor_id: str
+    main_supplier_actor_id: str
+    quantity: int | None = None
+    # allow passing dependency inline if not stored yet
+    dependency_type: str | None = None
+    description: str | None = None
+    required_specs: dict = {}
+
+
+@app.post("/api/m-side/{project_id}/upstream-inquiries")
+def build_upstream_inquiries_endpoint(project_id: str, request: BuildUpstreamInquiryRequest):
+    """Build and store an upstream inquiry for a dependency."""
+    from src.m_side.dependencies.dependency_planner import DependencyNeed
+    from src.m_side.upstream.inquiry_builder import build_upstream_inquiry
+    from src.m_side.upstream.upstream_store import load_dependencies, store_inquiry
+
+    # Look up dependency from store or construct from inline params
+    dep = None
+    for d in load_dependencies(project_id):
+        if d.get("dependency_id") == request.dependency_id:
+            dep = DependencyNeed.model_validate(d)
+            break
+
+    if dep is None:
+        if not request.dependency_type:
+            raise HTTPException(status_code=404,
+                                detail=f"Dependency {request.dependency_id} not found for project {project_id}. "
+                                       "Call plan-dependencies first or provide dependency_type.")
+        dep = DependencyNeed(
+            dependency_id=request.dependency_id,
+            project_id=project_id,
+            dependency_type=request.dependency_type,  # type: ignore[arg-type]
+            description=request.description or request.dependency_type,
+            required_specs=request.required_specs,
+        )
+
+    inquiry = build_upstream_inquiry(
+        dependency=dep,
+        upstream_actor_id=request.upstream_actor_id,
+        main_supplier_actor_id=request.main_supplier_actor_id,
+        quantity=request.quantity,
+    )
+    store_inquiry(project_id, inquiry.model_dump())
+    return inquiry.model_dump()
+
+
+class DispatchUpstreamInquiryRequest(BaseModel):
+    channel: str = "mock"
+    project_id: str | None = None
+
+
+@app.post("/api/m-side/upstream/{inquiry_id}/dispatch")
+def dispatch_upstream_inquiry_endpoint(inquiry_id: str, request: DispatchUpstreamInquiryRequest):
+    """Dispatch a stored upstream inquiry via the specified channel."""
+    from src.m_side.upstream.inquiry_builder import UpstreamInquiry
+    from src.m_side.upstream.dispatch_service import dispatch_upstream_inquiry
+    from src.m_side.upstream.upstream_store import load_inquiries
+
+    # Search across project if project_id provided, else scan all
+    inquiry_data = None
+    if request.project_id:
+        from src.m_side.upstream.upstream_store import load_inquiry
+        inquiry_data = load_inquiry(request.project_id, inquiry_id)
+    else:
+        # Scan data/upstream/* directories
+        import os
+        base = __import__("pathlib").Path("data/upstream")
+        if base.exists():
+            for proj_dir in base.iterdir():
+                if proj_dir.is_dir():
+                    from src.m_side.upstream.upstream_store import load_inquiry
+                    found = load_inquiry(proj_dir.name, inquiry_id)
+                    if found:
+                        inquiry_data = found
+                        break
+
+    if inquiry_data is None:
+        raise HTTPException(status_code=404, detail=f"Inquiry {inquiry_id} not found")
+
+    inquiry = UpstreamInquiry.model_validate(inquiry_data)
+    result = dispatch_upstream_inquiry(
+        inquiry=inquiry,
+        channel=request.channel,  # type: ignore[arg-type]
+    )
+    return result.model_dump()
+
+
+class SubmitUpstreamResponseRequest(BaseModel):
+    raw_message: str
+    upstream_actor_id: str
+    project_id: str
+
+
+@app.post("/api/m-side/upstream/{inquiry_id}/responses")
+def submit_upstream_response_endpoint(inquiry_id: str, request: SubmitUpstreamResponseRequest):
+    """Parse a raw upstream supplier response and store it."""
+    from src.m_side.upstream.inquiry_builder import UpstreamInquiry
+    from src.m_side.upstream.response_parser import parse_upstream_response
+    from src.m_side.upstream.upstream_store import load_inquiry, store_response
+
+    inquiry_data = load_inquiry(request.project_id, inquiry_id)
+    if inquiry_data is None:
+        raise HTTPException(status_code=404,
+                            detail=f"Inquiry {inquiry_id} not found in project {request.project_id}")
+
+    inquiry = UpstreamInquiry.model_validate(inquiry_data)
+    parsed = parse_upstream_response(
+        raw_message=request.raw_message,
+        inquiry_id=inquiry_id,
+        project_id=request.project_id,
+        upstream_actor_id=request.upstream_actor_id,
+        dependency_id=inquiry.dependency_id,
+        dependency_type=inquiry.dependency_type,
+    )
+    store_response(request.project_id, parsed.model_dump())
+    return parsed.model_dump()
+
+
+@app.get("/api/m-side/{project_id}/upstream-options")
+def get_upstream_options_endpoint(project_id: str, dependency_id: str | None = None):
+    """Generate or retrieve upstream options for a project's dependencies."""
+    from src.m_side.upstream.response_parser import UpstreamResponse
+    from src.m_side.upstream.option_engine import generate_upstream_options
+    from src.m_side.upstream.upstream_store import (
+        load_dependencies, load_responses_for_dependency,
+        load_options, store_options,
+    )
+    from src.projects.project_graph import get_project
+
+    try:
+        project = get_project(project_id)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Project {project_id} not found")
+
+    main_supplier = project.main_supplier_actor_id or "unknown"
+    deps = load_dependencies(project_id)
+    if dependency_id:
+        deps = [d for d in deps if d.get("dependency_id") == dependency_id]
+
+    all_options: list[dict] = []
+    for dep in deps:
+        dep_id = dep["dependency_id"]
+        dep_type = dep["dependency_type"]
+        resp_data = load_responses_for_dependency(project_id, dep_id)
+        if not resp_data:
+            continue
+        responses = [UpstreamResponse.model_validate(r) for r in resp_data]
+        opts = generate_upstream_options(
+            project_id=project_id,
+            dependency_id=dep_id,
+            dependency_type=dep_type,
+            responses=responses,
+            main_supplier_actor_id=main_supplier,
+        )
+        opts_data = [o.model_dump() for o in opts]
+        store_options(project_id, opts_data)
+        all_options.extend(opts_data)
+
+    return {"project_id": project_id, "options": all_options}
+
+
+class ApproveUpstreamOptionRequest(BaseModel):
+    approval_request_id: str | None = None
+    option_id: str
+    approved_by: str
+    mode: str = "human"
+    notes: str = ""
+    # allow creating approval request inline
+    dependency_id: str | None = None
+    dependency_type: str | None = None
+
+
+@app.post("/api/m-side/{project_id}/approve-upstream-option")
+def approve_upstream_option_endpoint(project_id: str, request: ApproveUpstreamOptionRequest):
+    """Approve an upstream option (create approval request if needed, then approve)."""
+    from src.m_side.upstream.option_engine import UpstreamOption
+    from src.m_side.upstream.approval_gate import (
+        request_upstream_option_approval, approve_upstream_option,
+    )
+    from src.m_side.upstream.upstream_store import (
+        load_option, load_options, load_approval_request,
+        store_approval_request, update_approval_request,
+    )
+
+    # Find the option
+    option_data = load_option(project_id, request.option_id)
+    if option_data is None:
+        raise HTTPException(status_code=404,
+                            detail=f"Option {request.option_id} not found in project {project_id}")
+    option = UpstreamOption.model_validate(option_data)
+
+    # Find or create approval request
+    approval_req = None
+    if request.approval_request_id:
+        req_data = load_approval_request(project_id, request.approval_request_id)
+        if req_data is None:
+            raise HTTPException(status_code=404,
+                                detail=f"Approval request {request.approval_request_id} not found")
+        from src.m_side.upstream.approval_gate import ApprovalRequest
+        approval_req = ApprovalRequest.model_validate(req_data)
+    else:
+        dep_id = request.dependency_id or option.dependency_id
+        dep_type = request.dependency_type or option.dependency_type
+        # Gather all options for this dependency
+        all_opts = [UpstreamOption.model_validate(o) for o in load_options(project_id)
+                    if o.get("dependency_id") == dep_id]
+        if not all_opts:
+            all_opts = [option]
+        approval_req = request_upstream_option_approval(
+            project_id=project_id,
+            dependency_id=dep_id,
+            dependency_type=dep_type,
+            options=all_opts,
+        )
+        store_approval_request(project_id, approval_req.model_dump())
+
+    result = approve_upstream_option(
+        approval_request=approval_req,
+        approved_option_id=request.option_id,
+        approved_by=request.approved_by,
+        mode=request.mode,  # type: ignore[arg-type]
+        notes=request.notes,
+    )
+
+    # Persist approval result into the approval record
+    update_approval_request(project_id, approval_req.approval_request_id, {
+        "status": "approved",
+        "approved_result": result.model_dump(),
+    })
+
+    return result.model_dump()
+
+
+class GenerateRollupRequest(BaseModel):
+    main_supplier_actor_id: str
+    product_summary: str
+    quantity: int | None = None
+    main_capacity_available: bool = True
+    main_capacity_note: str = "Internal capacity confirmed."
+    unresolved_dependency_types: list[str] = []
+
+
+@app.post("/api/m-side/{project_id}/rollup")
+def generate_rollup_endpoint(project_id: str, request: GenerateRollupRequest):
+    """Generate a SupplierResponseRollup from all approved upstream options."""
+    from src.m_side.upstream.approval_gate import ApprovalResult
+    from src.m_side.rollup.supplier_response_rollup import generate_supplier_response_rollup
+    from src.m_side.upstream.upstream_store import load_approval_results, store_rollup
+
+    approval_data = load_approval_results(project_id)
+    if not approval_data:
+        raise HTTPException(status_code=400,
+                            detail="No approved upstream options found. Approve at least one option first.")
+
+    approval_results = [ApprovalResult.model_validate(a) for a in approval_data]
+    rollup = generate_supplier_response_rollup(
+        project_id=project_id,
+        main_supplier_actor_id=request.main_supplier_actor_id,
+        approval_results=approval_results,
+        product_summary=request.product_summary,
+        quantity=request.quantity,
+        main_capacity_available=request.main_capacity_available,
+        main_capacity_note=request.main_capacity_note,
+        unresolved_dependency_types=request.unresolved_dependency_types or None,
+    )
+    rollup_data = rollup.model_dump(mode="json")
+    store_rollup(project_id, rollup_data)
+    return rollup_data
+
+
+class SubmitRollupRequest(BaseModel):
+    b_workspace_id: str
+    supplier_name: str = "Manufacturer M"
+
+
+@app.post("/api/m-side/{project_id}/submit-rollup-to-b-side")
+def submit_rollup_to_b_side_endpoint(project_id: str, request: SubmitRollupRequest):
+    """Submit the generated rollup to the B-side workspace."""
+    from src.m_side.rollup.supplier_response_rollup import SupplierResponseRollup
+    from src.m_side.bridge.submit_rollup_to_b_side import submit_rollup_to_b_side
+    from src.m_side.upstream.upstream_store import load_rollup
+
+    rollup_data = load_rollup(project_id)
+    if rollup_data is None:
+        raise HTTPException(status_code=400,
+                            detail="No rollup found for this project. Call /rollup first.")
+
+    rollup = SupplierResponseRollup.model_validate(rollup_data)
+    result = submit_rollup_to_b_side(
+        rollup=rollup,
+        b_workspace_id=request.b_workspace_id,
+        supplier_name=request.supplier_name,
+    )
+    return result.model_dump()
