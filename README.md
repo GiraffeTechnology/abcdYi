@@ -1,7 +1,7 @@
 # Giraffe Agent
 
-> **Project-aware, role-switching procurement execution agent for SMEs.**
-> AI Buyer + AI Merchandiser + Industrial Execution Graph.
+> **OpenClaw-compatible AI-native industrial order execution agent.**
+> AI Buyer + AI Merchandiser + Qwen QC Intelligence + Industrial Execution Graph.
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green.svg)](https://fastapi.tiangolo.com/)
@@ -12,20 +12,52 @@
 
 ## What Is Giraffe Agent?
 
-Giraffe Agent is the **missing execution layer** between IM-based industrial procurement and structured order delivery. It is *not* a CRM, ERP, marketplace, or chatbot.
+Giraffe Agent is the **missing execution layer** between IM/email-based industrial procurement and structured order delivery. It is *not* a CRM, ERP, marketplace, or chatbot.
 
-It solves three problems that classical procurement software does not:
+It is an **OpenClaw-compatible skill layer** that turns buyer/supplier conversations, production updates, QC evidence, logistics events, and buyer sign-off into a structured **Industrial Execution Graph**.
 
-1. **Pre-confirmation decision support** — the **AI Buyer** structures buyer requirements from IM messages, drafts bilingual supplier inquiries, ingests supplier replies, and simulates Top-3 delivery paths.
-2. **Recursive role switching** — a manufacturer is M-side to its buyer *and* B-side to its own fabric/material/subcontract/logistics suppliers in the *same* project. Giraffe Agent identifies these roles per procurement edge and rolls upstream evidence into a credible buyer-facing response.
-3. **Post-confirmation execution** — the **AI Merchandiser** handles supplier acceptance, production milestones, media confirmation, exception reporting, logistics handover, shipment tracking (Cainiao-like aggregator), buyer sign-off, and Supplier Memory updates.
+Four main capabilities:
+
+1. **AI Buyer** — structures buyer requirements, drafts supplier inquiries, compares supplier responses, and ranks delivery paths.
+2. **Role-switching M-side** — lets a manufacturer act as supplier to the buyer *and* buyer to its own upstream suppliers in the same project.
+3. **AI Merchandiser** — handles post-confirmation execution: acceptance, milestones, QC evidence, exceptions, logistics, and buyer sign-off.
+4. **Qwen QC Intelligence** — compares supplier images/video frames against reference images and process cards, generates Chinese-first M-side feedback, and escalates serious issues to buyer/human review.
 
 ```
 AI Buyer        = pre-confirmation decision support
 AI Merchandiser = post-confirmation execution support
+Qwen QC         = evidence-based quality verification
 ```
 
 Together they form the **Industrial Execution Graph v0.1** — a project-aware, event-sourced graph that records what *actually happened* in the supply chain, not what was promised.
+
+---
+
+## Current Validation Status
+
+Latest main branch validation:
+
+- Unit tests: `525 passed`
+- B-side independent flow: PASS
+- M-side independent flow: PASS
+- B/M E2E: PASS
+- AI Merchandiser post-confirmation: PASS
+- Logistics ingestion: PASS
+- QC Qwen interface: PASS
+- QC mock fallback: PASS
+- OpenClaw WeChat simulated events: PASS
+- DB-off mode: PASS
+- DB-on mode: PASS
+- 3x clean-state validation: PASS
+
+External-service status:
+
+- Real Qwen call: SKIPPED unless `DASHSCOPE_API_KEY` / `QWEN_API_KEY` is configured.
+- Real OpenClaw WeChat bridge: SKIPPED unless live OpenClaw channel credentials are configured.
+
+Verdict: **PASS WITH GAPS** — all internal interfaces and mock paths pass; external production calls require credentials.
+
+See [`MAIN_3X_VALIDATION_REPORT.md`](MAIN_3X_VALIDATION_REPORT.md).
 
 ---
 
@@ -50,57 +82,75 @@ Every workflow is **project-aware** and **edge-aware**.
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│ IM / OpenClaw Layer                                                 │
-│   OpenClaw skill manifest · WeChat / WhatsApp / Web adapters        │
-├─────────────────────────────────────────────────────────────────────┤
-│ Conversation Orchestration Layer                                    │
-│   Session resolution · Role-aware IM router · Intent routing        │
-├─────────────────────────────────────────────────────────────────────┤
-│ Workflow Layer                                                      │
-│   B-side: AI Buyer (requirement → inquiry → feasibility)            │
-│   M-side: Supplier Response Agent + Role-Switching Agent            │
-│   M-side: Professional Free CAD↔CNC matching                        │
-│   AI Merchandiser: milestones · media · exceptions · logistics      │
-│   Cainiao-like logistics ingestion                                  │
-├─────────────────────────────────────────────────────────────────────┤
-│ Bridge Layer                                                        │
-│   Inquiry Dispatcher (B→M) · Response Bridge (M→B) · Order Bridge  │
-├─────────────────────────────────────────────────────────────────────┤
-│ Persistence Layer                                                   │
-│   SQLite (local) / PostgreSQL (production-portable)                 │
-│   Actors · Projects · Edges · RoleContexts · Requirements           │
-│   Inquiries · Responses · Rollups · Milestones · Shipments          │
-├─────────────────────────────────────────────────────────────────────┤
-│ Industrial Execution Graph v0.1                                     │
-│   Append-only ExecutionEvent log + procurement_edges                │
-└─────────────────────────────────────────────────────────────────────┘
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Channel Runtime Layer                                                       │
+│   OpenClaw / compatible IM-email runtime                                    │
+│   WeChat · WhatsApp · Email · Web adapters                                  │
+│   Giraffe does not store IM platform credentials directly                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ OpenClaw Skill Layer                                                        │
+│   /api/skill/invoke                                                         │
+│   normalized event adapter · role-aware router · B/M action dispatcher      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Workflow Layer                                                              │
+│   B-side: AI Buyer                                                          │
+│   M-side: Supplier Response Agent + Role-Switching Agent                    │
+│   M-side: Professional Free CAD↔CNC matching                                │
+│   AI Merchandiser: milestones · media · exceptions · logistics              │
+│   Qwen QC Intelligence: image/video/process-card comparison                 │
+│   Cainiao-like logistics ingestion                                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ LLM / Intelligence Layer                                                    │
+│   Default requested provider: Qwen / Tongyi Qianwen                         │
+│   Mock fallback for local/CI                                                │
+│   Provider registry: Qwen · Mock · OpenAI · Anthropic · DeepSeek            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Bridge Layer                                                                │
+│   Inquiry Dispatcher · Response Bridge · Order Bridge                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Persistence Layer                                                           │
+│   JSON runtime stores · SQLite local · PostgreSQL-portable ORM              │
+│   Actors · Projects · Edges · RoleContexts · Requirements                   │
+│   Inquiries · Responses · Rollups · Milestones · QC Reports · Shipments     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Industrial Execution Graph v0.1                                             │
+│   Append-only ExecutionEvent log + procurement_edges                        │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 **End-to-end flow:**
 
 ```mermaid
 flowchart TD
-    A[Buyer IM Input] --> B[B-side Enquiry Workspace]
+    A[Buyer IM / WeChat / Email] --> O[OpenClaw Channel Runtime]
+    O --> S[/api/skill/invoke]
+    S --> B[B-side AI Buyer Workspace]
     B --> C[Structured Requirement]
     C --> D{Missing fields?}
     D -- yes --> E[Clarification via IM] --> C
     D -- no --> F[Bilingual Supplier Inquiry Draft]
-    F --> G[Dispatch to N suppliers]
-    G --> H[M-side Workspace per supplier]
-    H --> I{Main supplier needs upstream?}
-    I -- no --> J[SupplierResponsePacket]
-    I -- yes --> K[Plan upstream dependencies]
-    K --> L[M switches to UPSTREAM_B_SIDE]
-    L --> M[Upstream inquiries dispatched]
-    M --> N[Upstream responses parsed]
-    N --> O[SupplierResponseRollup]
-    O --> P[B-side Feasibility Report + Top-3 paths]
-    P --> Q[Buyer confirms order]
-    Q --> R[AI Merchandiser]
-    R --> S[Milestones · QC · Exceptions · Logistics]
-    S --> T[Buyer sign-off + Supplier Memory update]
+    F --> G[Dispatch to Suppliers]
+    G --> H[M-side Workspace]
+    H --> I{Need upstream suppliers?}
+    I -- yes --> J[Role Switch: M becomes UPSTREAM_B_SIDE]
+    J --> K[Upstream Inquiry + Rollup]
+    I -- no --> L[SupplierResponsePacket]
+    K --> M[SupplierResponseRollup]
+    L --> N[B-side Feasibility Report]
+    M --> N
+    N --> P[Buyer Confirms Order]
+    P --> Q[AI Merchandiser Execution Plan]
+    Q --> R[Production Milestones]
+    R --> QC[Qwen QC Intelligence]
+    QC --> QC1[Compare image/video frames vs reference + process card]
+    QC1 --> QC2[M-side Chinese Feedback]
+    QC1 --> QC3{Serious issue?}
+    QC3 -- yes --> QC4[Buyer/Human Review]
+    QC3 -- no --> T[Logistics Handover]
+    T --> U[Cainiao-like Tracking]
+    U --> V[Buyer Sign-off]
+    V --> W[Supplier Memory + Industrial Execution Graph]
 ```
 
 ---
@@ -109,16 +159,19 @@ flowchart TD
 
 | # | Module | Phase |
 |---|--------|-------|
-| 1 | **AI Buyer** — structures requirements, drafts bilingual supplier inquiries, runs delivery feasibility simulation | Pre-confirmation |
-| 2 | **Supplier Response Agent** — M-side intake, normalization, SupplierResponsePacket | Pre-confirmation |
-| 3 | **Role-Switching Procurement Agent** — recursive UPSTREAM_B_SIDE logic, upstream inquiry builder, option engine, approval gate | Pre-confirmation |
-| 4 | **Professional Free CAD↔CNC Matching** — CAD Requirement Packet, Capability Fit Report, machine profile matching (no encryption, no watermarking) | Pre-confirmation |
-| 5 | **AI Merchandiser** — post-confirmation milestones, production/QC/exception updates, logistics handover, buyer sign-off | Post-confirmation |
-| 6 | **Send/Receive Role Switching** — M-side send/receive mode transitions | Post-confirmation |
-| 7 | **Cainiao-like Logistics Ingestion** — carrier API normalization, shipment tracking ingestion | Post-confirmation |
-| 8 | **Database Layer** — SQLAlchemy models, Alembic migrations, SQLite→PostgreSQL portable | Cross-cutting |
-| 9 | **Dynamic Self-Learning Schema** — AI observes and proposes new fields without altering physical tables at runtime | Cross-cutting |
-| 10 | **Industrial Execution Graph v0.1** — append-only event log for every state transition across all actors | Cross-cutting |
+| 1 | **OpenClaw Skill Layer** — normalized IM/email/WeChat event intake through `/api/skill/invoke` | Channel / Runtime |
+| 2 | **AI Buyer** — structures requirements, drafts bilingual supplier inquiries, runs delivery feasibility simulation | Pre-confirmation |
+| 3 | **Supplier Response Agent** — M-side intake, normalization, SupplierResponsePacket | Pre-confirmation |
+| 4 | **Role-Switching Procurement Agent** — recursive UPSTREAM_B_SIDE logic, upstream inquiry builder, option engine, approval gate | Pre-confirmation |
+| 5 | **Professional Free CAD↔CNC Matching** — CAD Requirement Packet, Capability Fit Report, machine profile matching | Pre-confirmation |
+| 6 | **AI Merchandiser** — post-confirmation milestones, production/QC/exception updates, logistics handover, buyer sign-off | Post-confirmation |
+| 7 | **Qwen QC Intelligence Layer** — image/video-frame comparison against reference images and process cards; M-side feedback and buyer escalation | Post-confirmation |
+| 8 | **Send/Receive Role Switching** — M-side send/receive mode transitions | Post-confirmation |
+| 9 | **Cainiao-like Logistics Ingestion** — carrier API normalization, shipment tracking ingestion | Post-confirmation |
+| 10 | **LLM Provider Layer** — Qwen default provider, mock fallback, optional OpenAI/Anthropic/DeepSeek providers | Cross-cutting |
+| 11 | **Database Layer** — SQLAlchemy models, Alembic migrations, SQLite→PostgreSQL portable | Cross-cutting |
+| 12 | **Dynamic Self-Learning Schema** — AI observes and proposes new fields without altering physical tables at runtime | Cross-cutting |
+| 13 | **Industrial Execution Graph v0.1** — append-only event log for every state transition across all actors | Cross-cutting |
 
 ---
 
@@ -149,8 +202,149 @@ uv run python scripts/seed_mvp_data.py
 uv run uvicorn api.main:app --reload
 ```
 
-The API will be available at `http://localhost:8000`.  
+The API will be available at `http://localhost:8000`.
 Interactive docs: `http://localhost:8000/docs`
+
+---
+
+## LLM Configuration
+
+Giraffe Agent uses **Qwen / Tongyi Qianwen** as the default requested LLM provider.
+
+Local and CI behavior:
+
+```bash
+LLM_PROVIDER=qwen
+QC_AUTO_COMPARE_PROVIDER=qwen
+LLM_ENABLE_REAL_CALLS=false
+QC_ALLOW_EXTERNAL_LLM=false
+```
+
+When no Qwen API key is available, the provider registry falls back to the deterministic mock provider. Reports still record:
+
+```json
+{
+  "requested_provider": "qwen",
+  "provider_name": "mock",
+  "fallback_used": true
+}
+```
+
+To enable real Qwen calls:
+
+```bash
+export DASHSCOPE_API_KEY="..."
+# or
+export QWEN_API_KEY="..."
+export LLM_ENABLE_REAL_CALLS=true
+export QC_ALLOW_EXTERNAL_LLM=true
+export LLM_PROVIDER=qwen
+export QC_AUTO_COMPARE_PROVIDER=qwen
+```
+
+Safety defaults:
+
+```bash
+QC_ALLOW_EXTERNAL_LLM=false
+QC_ALLOW_CAD_TO_LLM=false
+QC_ALLOW_BOM_TO_LLM=false
+QC_REDACT_PROCESS_CARD=true
+```
+
+By default, confidential CAD/BOM/contract/pricing information is not sent to external LLMs.
+
+---
+
+## Qwen QC Intelligence Layer
+
+The QC Intelligence Layer compares supplier-submitted production/QC evidence against approved references and process cards.
+
+**Inputs:**
+- Supplier production image
+- Supplier QC image
+- Sample/reference/golden image
+- Video frames
+- Process card / 工艺卡
+- Order requirements
+
+**Outputs:**
+- `QCComparisonReport`
+- Chinese-first M-side feedback
+- English summary
+- Severity classification
+- Buyer escalation decision
+- Human review flag
+- Industrial Execution Graph event
+
+**Typical flow:**
+
+```text
+M-side uploads QC image/video
+→ Giraffe loads reference image + process card
+→ Qwen provider is requested
+→ Mock fallback is used if no key is configured
+→ QCComparisonReport is generated
+→ M-side receives corrective feedback
+→ buyer review is triggered only for serious issues
+```
+
+Run QC validation:
+
+```bash
+uv run python scripts/run_qc_llm_comparison_mvp.py
+uv run python scripts/run_qwen_qc_smoke_test.py
+```
+
+Expected local behavior without Qwen key:
+
+```
+QC LLM COMPARISON MVP COMPLETE: 26 passed, 0 failed
+QWEN REAL CALL SKIPPED: missing API key
+```
+
+---
+
+## OpenClaw / WeChat / IM Integration
+
+Giraffe Agent is designed as an **OpenClaw-compatible skill layer**.
+
+The channel architecture is:
+
+```text
+WeChat / WhatsApp / Email / IM
+→ OpenClaw or compatible channel runtime
+→ normalized event
+→ POST /api/skill/invoke
+→ OpenClaw event adapter
+→ Giraffe B-side / M-side / QC / logistics workflow
+```
+
+Giraffe Agent **does not directly store WeChat credentials**. WeChat account control, message sending, and message receiving are expected to be handled by OpenClaw or a compatible runtime.
+
+The OpenClaw event adapter supports simulated WeChat events through normalized payload fields such as:
+
+```json
+{
+  "source": "openclaw",
+  "channel": "wechat",
+  "channel_account_id": "wechat-account-test",
+  "conversation_id": "wechat-conv-buyer-test",
+  "sender_id": "wechat-user-buyer-001",
+  "sender_display_name": "Buyer WeChat Test",
+  "message_text": "I need 100 cotton polo shirts within 45 days.",
+  "message_type": "text",
+  "attachments": [],
+  "mode": "b_side"
+}
+```
+
+Run OpenClaw validation:
+
+```bash
+uv run pytest tests/test_openclaw_integration.py
+```
+
+Real WeChat bridge validation requires live OpenClaw channel credentials and is not enabled by default.
 
 ---
 
@@ -166,8 +360,8 @@ The core B/M-side DB integration is reproducible from a clean checkout.
 BM DB Integration Baseline v1 is a reproducible integration baseline, not yet a
 production-hardening release.
 
-Full test report: [`docs/BM_DB_INTEGRATION_BASELINE_v1.md`](docs/BM_DB_INTEGRATION_BASELINE_v1.md)  
-Machine-readable result record: [`TEST_RESULT.md`](TEST_RESULT.md)  
+Full test report: [`docs/BM_DB_INTEGRATION_BASELINE_v1.md`](docs/BM_DB_INTEGRATION_BASELINE_v1.md)
+Machine-readable result record: [`TEST_RESULT.md`](TEST_RESULT.md)
 Changelog entry: [`CHANGELOG.md`](CHANGELOG.md)
 
 ```bash
@@ -225,6 +419,8 @@ Expected output: `LEAD TIME MODEL DEMO: PASS`
 | `scripts/run_logistics_cainiao_like_api_mvp.py` | Logistics ingestion and normalization |
 | `scripts/run_integrated_post_confirmation_mvp.py` | Integrated post-confirmation (56 checks) |
 | `scripts/run_lead_time_model_demo.py` | Lead Time Path Model deterministic verification |
+| `scripts/run_qc_llm_comparison_mvp.py` | Qwen-requested QC comparison with mock fallback, reference image, process card, image/video-frame checks |
+| `scripts/run_qwen_qc_smoke_test.py` | Real Qwen smoke test if key exists; safe skip if no key |
 
 ```bash
 # Run all E2E scripts in sequence
@@ -236,6 +432,8 @@ uv run python scripts/run_merchandiser_e2e_mvp.py
 uv run python scripts/run_logistics_cainiao_like_api_mvp.py
 uv run python scripts/run_integrated_post_confirmation_mvp.py
 uv run python scripts/run_lead_time_model_demo.py
+uv run python scripts/run_qc_llm_comparison_mvp.py
+uv run python scripts/run_qwen_qc_smoke_test.py
 ```
 
 ### Unit Tests
@@ -243,6 +441,30 @@ uv run python scripts/run_lead_time_model_demo.py
 ```bash
 uv run pytest
 ```
+
+### Main Branch 3x Validation
+
+Latest main has been validated with three clean-state runs.
+
+Summary:
+- Unit tests: `525 passed`
+- B-side independent flow: PASS
+- M-side independent flow: PASS
+- B/M E2E: PASS
+- AI Merchandiser: PASS
+- Logistics: PASS
+- QC Qwen interface: PASS
+- OpenClaw WeChat simulated events: PASS
+- DB-off: PASS
+- DB-on: PASS
+
+Verdict: `PASS WITH GAPS`
+
+Gaps:
+- Real Qwen call requires `DASHSCOPE_API_KEY` or `QWEN_API_KEY`
+- Real OpenClaw WeChat bridge requires live OpenClaw channel credentials
+
+See [`MAIN_3X_VALIDATION_REPORT.md`](MAIN_3X_VALIDATION_REPORT.md).
 
 ---
 
@@ -255,7 +477,7 @@ The FastAPI server exposes the following route groups:
 | Prefix | Description |
 |--------|-------------|
 | `GET /health` | Health check |
-| `POST /api/skill/invoke` | OpenClaw skill invocation (routes to B-side or M-side handlers) |
+| `POST /api/skill/invoke` | OpenClaw skill invocation for normalized IM/email/WeChat events |
 | `POST /api/b-side/workspaces` | Create a B-side Enquiry Workspace |
 | `POST /api/b-side/workspaces/{id}/structure-requirement` | Structure raw buyer requirement |
 | `POST /api/b-side/workspaces/{id}/draft-inquiry` | Draft bilingual supplier inquiry |
@@ -268,6 +490,15 @@ The FastAPI server exposes the following route groups:
 | `POST /api/m-side/orders/{id}/production-update` | Submit production update |
 | `POST /api/m-side/orders/{id}/qc-update` | Submit QC confirmation |
 | `POST /api/m-side/orders/{id}/logistics-update` | Submit logistics handover |
+| `GET /api/qc/health` | QC module health check |
+| `POST /api/qc/{project_id}/reference-images` | Add QC reference / golden sample image |
+| `GET /api/qc/{project_id}/reference-images` | List QC reference images |
+| `POST /api/qc/{project_id}/process-card` | Create process card / 工艺卡 |
+| `GET /api/qc/{project_id}/process-card` | Get latest process card |
+| `POST /api/qc/{project_id}/compare` | Run Qwen-requested QC comparison |
+| `GET /api/qc/{project_id}/reports` | List QC reports |
+| `GET /api/qc/reports/{report_id}` | Get QC report |
+| `POST /api/qc/{project_id}/buyer-decision` | Record buyer QC decision |
 
 Full interactive documentation available at `/docs` when the server is running.
 
@@ -286,12 +517,14 @@ giraffe-agent/
 │   │   ├── rollup/             # SupplierResponseRollup builder
 │   │   └── upstream/           # Upstream inquiry builder, option engine, approval gate
 │   ├── bm_bridge/              # Inquiry dispatcher, response bridge, order bridge
-│   ├── channels/               # WeChat / WhatsApp / Web adapters, IM router
-│   ├── openclaw_skill/         # OpenClaw skill manifest and router
+│   ├── channels/               # Optional local channel helpers; production IM is expected through OpenClaw
+│   ├── llm/                    # Qwen-first provider layer, mock fallback, optional providers
+│   ├── openclaw_skill/         # OpenClaw skill manifest, event adapter, skill router
 │   ├── actors/                 # Neutral actor model, role resolver
 │   ├── projects/               # Project graph
 │   ├── core_schema/            # Pydantic types for B-side and M-side
 │   ├── merchandiser/           # Post-confirmation execution engine
+│   │   └── qc/                 # QC reference images, process cards, Qwen comparison, reports, policy
 │   ├── logistics/              # Cainiao-like logistics ingestion
 │   └── db/                     # SQLAlchemy models, mixins, Alembic config
 ├── scripts/                    # Setup, seed, and E2E verification scripts
@@ -313,10 +546,12 @@ Giraffe Agent is an open MVP — there is a lot of room to improve and extend it
 - Add real LLM calls to replace the rule-based stubs in `requirement_structurer.py` and `inquiry_drafter.py`
 - Implement `dynamic_schema` observation and proposal logic in `src/db/models/dynamic_schema.py`
 - Extend the Industrial Execution Graph with richer event types and replay/query APIs
+- Improve Qwen real-call examples for image/video QC once production credentials are available
+- Add richer QC report visualization and buyer review UI
 
 **Channels**
-- Wire up real WeChat or WhatsApp webhook adapters in `src/channels/`
-- Build an OpenClaw-compatible skill manifest response formatter
+- Build production OpenClaw channel connectors and deployment examples for WeChat / WhatsApp / email runtimes
+- Add real credential-based OpenClaw bridge smoke tests outside the default CI path
 
 **Matching & Intelligence**
 - Improve CAD↔CNC capability matching scoring in `src/m_side/professional_free/cad_cnc_matcher.py`
@@ -344,6 +579,10 @@ These are non-negotiable product invariants — don't work around them:
 - **Dynamic Schema Rule:** AI may observe and propose new fields; it must not directly alter physical database table definitions at runtime.
 - **No Faked Data:** If parsing is uncertain, surface a clarification question. Never invent data.
 - **Append-Only Graph:** `execution_events` must never be updated or deleted — only appended to.
+- **OpenClaw Boundary:** Giraffe Agent should receive normalized IM/email/WeChat events from OpenClaw or compatible runtimes. It should not directly store WeChat production credentials.
+- **AI Is Not a Legal Actor:** AI-generated recommendations, QC feedback, delivery paths, and supplier comparisons are decision-support artifacts. Human/legal entities remain responsible for acceptance and contractual decisions.
+- **External LLM Safety:** External LLM calls are disabled by default. CAD, BOM, pricing, buyer identity, supplier contacts, and contract terms must not be sent externally unless explicitly enabled and redacted.
+- **Mock Is Not Real Provider:** When Qwen credentials are absent, mock fallback is allowed for tests, but README and reports must say real Qwen call was skipped.
 
 ---
 
@@ -359,7 +598,11 @@ These are non-negotiable product invariants — don't work around them:
 | Database (local) | SQLite |
 | Database (production) | PostgreSQL |
 | Package manager | `uv` |
-| Primary channels | OpenClaw, WeChat, WhatsApp, Web fallback |
+| Default LLM provider | Qwen / Tongyi Qianwen |
+| Local/CI fallback | Deterministic mock provider |
+| Channel runtime | OpenClaw-compatible IM/email runtime |
+| Primary channel integration | OpenClaw-compatible normalized events; WeChat/WhatsApp/email handled by channel runtime |
+| QC intelligence | Image/video-frame/process-card comparison |
 
 ---
 
