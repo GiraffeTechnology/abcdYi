@@ -98,7 +98,7 @@ def submit_logistics_update(
         if status == "shipped":
             order.status = "shipped"
         elif status == "delivered":
-            order.status = "completed"
+            order.status = "buyer_signoff_pending"
 
         save_order_execution(order)
     except FileNotFoundError:

@@ -1,0 +1,15 @@
+{
+  "event_type": "BUYER_SIGNOFF_ISSUE",
+  "project_id": "proj-signoff-fixture-02",
+  "order_id": "OE-SIGNOFF-FIXTURE-002",
+  "buyer_actor_id": "buy-signoff-002",
+  "shipment_id": "SHIP-SIGNOFF002",
+  "tracking_number": "SF987654321000",
+  "confirmation_type": "received_with_issue",
+  "from_state": "BUYER_SIGNOFF_PENDING",
+  "to_state": "EXCEPTION_RAISED",
+  "issue_description": "Package arrived damaged, items with scratches",
+  "exception_type": "quality_dispute",
+  "photos_attached": 3,
+  "reported_at": "2025-06-14T11:00:00+00:00"
+}

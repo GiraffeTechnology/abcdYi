@@ -1,0 +1,13 @@
+{
+  "event_type": "BUYER_SIGNOFF_CONFIRMED",
+  "project_id": "proj-signoff-fixture-01",
+  "order_id": "OE-SIGNOFF-FIXTURE-001",
+  "buyer_actor_id": "buy-signoff-001",
+  "shipment_id": "SHIP-SIGNOFF001",
+  "tracking_number": "SF123456789012",
+  "confirmation_type": "received_ok",
+  "from_state": "BUYER_SIGNOFF_PENDING",
+  "to_state": "BUYER_SIGNED_OFF",
+  "notes": "Order received in good condition",
+  "confirmed_at": "2025-06-14T10:00:00+00:00"
+}

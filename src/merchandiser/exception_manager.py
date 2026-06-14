@@ -32,7 +32,8 @@ class OrderException(BaseModel):
     exception_type: Literal[
         "material_shortage", "capacity_delay", "production_delay", "qc_issue",
         "quality_dispute", "media_missing", "logistics_delay", "lost_shipment",
-        "address_issue", "customs_issue", "process_change", "price_change", "other",
+        "address_issue", "customs_issue", "process_change", "price_change",
+        "lead_time_change", "other",
     ]
     severity: Literal["low", "medium", "high"]
     description: str
@@ -86,6 +87,60 @@ def raise_exception(
             payload={"exception_id": exc.exception_id},
         )
     return exc
+
+
+def raise_order_exception(
+    project_id: str,
+    exception_type: str,
+    description: str,
+    order_id: str | None = None,
+    raised_by_actor_id: str | None = None,
+    metadata: dict | None = None,
+) -> OrderException:
+    log_m_event(
+        event_type="EXCEPTION_RAISED",
+        b_workspace_id=project_id,
+        payload={"exception_type": exception_type, "description": description[:200]},
+    )
+    return raise_exception(
+        project_id=project_id,
+        exception_type=exception_type,
+        description=description,
+        order_id=order_id,
+        raised_by_actor_id=raised_by_actor_id,
+    )
+
+
+def generate_exception_options(exception_id: str) -> list[dict]:
+    path = _DATA_DIR / f"{exception_id}.json"
+    if not path.exists():
+        return [
+            {"option": "A", "description": "Wait and monitor"},
+            {"option": "B", "description": "Escalate to human review"},
+        ]
+    exc = OrderException.model_validate(json.loads(path.read_text(encoding="utf-8")))
+    log_m_event(
+        event_type="EXCEPTION_OPTION_GENERATED",
+        payload={"exception_id": exception_id, "exception_type": exc.exception_type},
+    )
+    return exc.proposed_options or [
+        {"option": "A", "description": "Wait and monitor"},
+        {"option": "B", "description": "Escalate to human review"},
+    ]
+
+
+def get_exceptions_for_project(project_id: str) -> list[OrderException]:
+    _DATA_DIR.mkdir(parents=True, exist_ok=True)
+    result = []
+    for p in _DATA_DIR.glob("EXC-*.json"):
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+            exc = OrderException.model_validate(data)
+            if exc.project_id == project_id:
+                result.append(exc)
+        except Exception:
+            pass
+    return result
 
 
 def resolve_exception(exception_id: str, project_id: str, resolution: str = "") -> OrderException:

@@ -95,6 +95,42 @@ def create_order_execution_from_selected_path(
     # Persist to disk
     save_order_execution(order)
 
+    # Connect to AI Merchandiser
+    try:
+        from src.merchandiser.merchandiser_engine import create_post_confirmation_execution
+        from src.projects.project_graph import _DATA_DIR as _PROJ_DIR
+        import json as _json
+        resolved_project_id = b_workspace_id
+        try:
+            for _pf in _PROJ_DIR.glob("PROJ-*.json"):
+                _pd = _json.loads(_pf.read_text(encoding="utf-8"))
+                if _pd.get("b_workspace_id") == b_workspace_id:
+                    resolved_project_id = _pd["project_id"]
+                    break
+        except Exception:
+            pass
+        resolved_category = "apparel"
+        if b_workspace.buyer_requirement is not None:
+            resolved_category = getattr(b_workspace.buyer_requirement, "category", None) or "apparel"
+        plan = create_post_confirmation_execution(
+            project_id=resolved_project_id,
+            order_id=order.order_execution_id,
+            supplier_actor_id=order.supplier_id,
+            buyer_actor_id=b_workspace_id,
+            category=resolved_category,
+            source="bm_order_bridge",
+        )
+        order.merchandiser_plan_id = plan.plan_id
+        order.merchandiser_task_ids = plan.task_ids
+        order.merchandiser_milestone_ids = plan.milestone_ids
+        save_order_execution(order)
+    except Exception as _me:
+        log_m_event(
+            event_type="MERCHANDISER_INTEGRATION_WARNING",
+            b_workspace_id=b_workspace_id,
+            payload={"warning": str(_me)[:200]},
+        )
+
     # Update B-side workspace with selected path
     b_workspace.feasibility_report.selected_path_id = selected_path_id
     b_workspace.status = "supplier_selected"
