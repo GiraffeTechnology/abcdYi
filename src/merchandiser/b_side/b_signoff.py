@@ -74,17 +74,14 @@ def receive_buyer_signoff(
             except Exception:
                 pass
 
-        # Also update merchandiser execution plan state
-        try:
-            from src.merchandiser.merchandiser_state_machine import transition_order_state
-            transition_order_state(
-                project_id=project_id,
-                to_state="BUYER_SIGNED_OFF",
-                reason=f"Buyer confirmed receipt. Notes: {notes[:200]}" if notes else "Buyer confirmed receipt.",
-                buyer_actor_id=buyer_actor_id,
-            )
-        except Exception:
-            pass
+        # Update merchandiser execution plan state — errors are surfaced, not swallowed
+        from src.merchandiser.merchandiser_state_machine import transition_order_state
+        transition_order_state(
+            project_id=project_id,
+            to_state="BUYER_SIGNED_OFF",
+            reason=f"Buyer confirmed receipt. Notes: {notes[:200]}" if notes else "Buyer confirmed receipt.",
+            actor_id=buyer_actor_id,
+        )
 
     return {
         "status": "order_closed" if response == "confirmed" else "signoff_received",
