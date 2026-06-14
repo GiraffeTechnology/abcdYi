@@ -2,6 +2,7 @@
 Media evidence — links uploaded media to milestones for buyer review.
 Persisted under data/merchandiser/media/.
 """
+import json
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -60,7 +61,7 @@ def upload_media_evidence(
         evidences.append(ev)
 
     log_m_event(
-        event_type="ORDER_MILESTONE_MEDIA_UPLOADED",
+        event_type="MEDIA_EVIDENCE_UPLOADED",
         b_workspace_id=project_id,
         payload={
             "milestone_id": milestone_id,
@@ -70,3 +71,74 @@ def upload_media_evidence(
         },
     )
     return evidences
+
+
+def get_media_for_milestone(milestone_id: str) -> list[MediaEvidence]:
+    _DATA_DIR.mkdir(parents=True, exist_ok=True)
+    result = []
+    for p in _DATA_DIR.glob("MEDIA-*.json"):
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+            ev = MediaEvidence.model_validate(data)
+            if ev.milestone_id == milestone_id:
+                result.append(ev)
+        except Exception:
+            pass
+    return result
+
+
+def check_media_completeness(project_id: str, milestone_id: str) -> dict:
+    media = get_media_for_milestone(milestone_id)
+    count = len(media)
+    all_valid = all(m.completeness_check_status in ("pass", "unknown") for m in media)
+    log_m_event(
+        event_type="MEDIA_COMPLETENESS_CHECKED",
+        b_workspace_id=project_id,
+        payload={"milestone_id": milestone_id, "count": count, "all_valid": all_valid},
+    )
+    return {"milestone_id": milestone_id, "count": count, "complete": count > 0 and all_valid}
+
+
+def mark_media_buyer_confirmed(project_id: str, milestone_id: str, buyer_actor_id: str) -> dict:
+    _DATA_DIR.mkdir(parents=True, exist_ok=True)
+    updated = 0
+    for p in _DATA_DIR.glob("MEDIA-*.json"):
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+            ev = MediaEvidence.model_validate(data)
+            if ev.milestone_id == milestone_id and ev.buyer_review_status == "pending":
+                ev.buyer_review_status = "confirmed"  # type: ignore[assignment]
+                p.write_text(ev.model_dump_json(indent=2), encoding="utf-8")
+                updated += 1
+        except Exception:
+            pass
+    log_m_event(
+        event_type="ORDER_MILESTONE_BUYER_CONFIRMED",
+        b_workspace_id=project_id,
+        supplier_id=buyer_actor_id,
+        payload={"milestone_id": milestone_id, "confirmed_count": updated},
+    )
+    return {"milestone_id": milestone_id, "confirmed_count": updated}
+
+
+def mark_media_buyer_rejected(project_id: str, milestone_id: str, buyer_actor_id: str, reason: str) -> dict:
+    _DATA_DIR.mkdir(parents=True, exist_ok=True)
+    updated = 0
+    for p in _DATA_DIR.glob("MEDIA-*.json"):
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+            ev = MediaEvidence.model_validate(data)
+            if ev.milestone_id == milestone_id and ev.buyer_review_status == "pending":
+                ev.buyer_review_status = "rejected"  # type: ignore[assignment]
+                ev.notes = reason
+                p.write_text(ev.model_dump_json(indent=2), encoding="utf-8")
+                updated += 1
+        except Exception:
+            pass
+    log_m_event(
+        event_type="ORDER_MILESTONE_REJECTED",
+        b_workspace_id=project_id,
+        supplier_id=buyer_actor_id,
+        payload={"milestone_id": milestone_id, "reason": reason},
+    )
+    return {"milestone_id": milestone_id, "rejected_count": updated, "reason": reason}

@@ -105,6 +105,49 @@ def get_execution_plan(plan_id: str) -> ExecutionPlan:
     return ExecutionPlan.model_validate(json.loads(path.read_text(encoding="utf-8")))
 
 
+def create_post_confirmation_execution(
+    project_id: str,
+    order_id: str | None,
+    supplier_actor_id: str,
+    buyer_actor_id: str,
+    category: str = "apparel",
+    source: str = "order_bridge",
+) -> ExecutionPlan:
+    return create_execution_plan(
+        project_id=project_id,
+        supplier_actor_id=supplier_actor_id,
+        buyer_actor_id=buyer_actor_id,
+        category=category,
+        order_id=order_id,
+    )
+
+
+def find_execution_plan_by_order_id(order_id: str) -> "ExecutionPlan | None":
+    _DATA_DIR.mkdir(parents=True, exist_ok=True)
+    for p in _DATA_DIR.glob("EXECPLAN-*.json"):
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+            plan = ExecutionPlan.model_validate(data)
+            if plan.order_id == order_id:
+                return plan
+        except Exception:
+            pass
+    return None
+
+
+def find_execution_plan_by_project_id(project_id: str) -> "ExecutionPlan | None":
+    _DATA_DIR.mkdir(parents=True, exist_ok=True)
+    for p in sorted(_DATA_DIR.glob("EXECPLAN-*.json"), key=lambda x: x.stat().st_mtime, reverse=True):
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+            plan = ExecutionPlan.model_validate(data)
+            if plan.project_id == project_id:
+                return plan
+        except Exception:
+            pass
+    return None
+
+
 def update_supplier_memory(project_id: str, supplier_actor_id: str, notes: str) -> None:
     """Record a supplier memory update after order closure."""
     mem_dir = Path("data/supplier_memory")

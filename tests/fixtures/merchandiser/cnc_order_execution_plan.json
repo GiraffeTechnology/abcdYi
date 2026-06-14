@@ -1,0 +1,23 @@
+{
+  "plan_id": "EXECPLAN-CNC0000001",
+  "project_id": "proj-cnc-fixture-01",
+  "order_id": "OE-CNC-FIXTURE-001",
+  "supplier_actor_id": "sup-cnc-001",
+  "buyer_actor_id": "buy-cnc-001",
+  "category": "cnc_machining",
+  "current_order_state": "ORDER_CONFIRMED",
+  "task_ids": [
+    "TASK-CNC001",
+    "TASK-CNC002",
+    "TASK-CNC003"
+  ],
+  "milestone_ids": [
+    "MILE-CNC0001",
+    "MILE-CNC0002",
+    "MILE-CNC0003",
+    "MILE-CNC0004",
+    "MILE-CNC0005"
+  ],
+  "created_at": "2025-06-14T00:00:00+00:00",
+  "updated_at": "2025-06-14T00:00:00+00:00"
+}

@@ -158,6 +158,43 @@ def get_milestone(milestone_id: str) -> OrderMilestone:
     return OrderMilestone.model_validate(json.loads(path.read_text(encoding="utf-8")))
 
 
+def find_next_pending_milestone(project_id: str) -> "OrderMilestone | None":
+    milestones = get_milestones_for_project(project_id)
+    for m in milestones:
+        if m.status == "PENDING":
+            return m
+    return None
+
+
+def find_milestone_by_type(project_id: str, milestone_type: str) -> "OrderMilestone | None":
+    for m in get_milestones_for_project(project_id):
+        if m.milestone_type == milestone_type:
+            return m
+    return None
+
+
+def update_milestone_status(
+    milestone_id: str,
+    project_id: str,
+    status: str,
+    actual_at: str | None = None,
+    metadata: dict | None = None,
+) -> "OrderMilestone":
+    m = get_milestone(milestone_id)
+    m.status = status  # type: ignore[assignment]
+    if actual_at:
+        m.actual_at = actual_at
+    if metadata:
+        m.metadata.update(metadata)
+    _save_milestone(m)
+    log_m_event(
+        event_type="ORDER_MILESTONE_STATUS_UPDATED",
+        b_workspace_id=project_id,
+        payload={"milestone_id": milestone_id, "status": status},
+    )
+    return m
+
+
 def get_milestones_for_project(project_id: str) -> list[OrderMilestone]:
     _DATA_DIR.mkdir(parents=True, exist_ok=True)
     result = []

@@ -763,3 +763,300 @@ def submit_rollup_to_b_side_endpoint(project_id: str, request: SubmitRollupReque
         supplier_name=request.supplier_name,
     )
     return result.model_dump()
+
+
+# ─── AI Merchandiser endpoints ─────────────────────────────────────────────────
+
+class CreateExecutionPlanRequest(BaseModel):
+    supplier_actor_id: str
+    buyer_actor_id: str
+    category: str = "apparel"
+    order_id: str | None = None
+
+
+@app.post("/api/merchandiser/{project_id}/create-execution-plan")
+def create_merchandiser_execution_plan(project_id: str, request: CreateExecutionPlanRequest):
+    from src.merchandiser.merchandiser_engine import create_execution_plan
+    plan = create_execution_plan(
+        project_id=project_id,
+        supplier_actor_id=request.supplier_actor_id,
+        buyer_actor_id=request.buyer_actor_id,
+        category=request.category,
+        order_id=request.order_id,
+    )
+    return plan.model_dump()
+
+
+@app.get("/api/merchandiser/{project_id}/execution-plan")
+def get_merchandiser_execution_plan(project_id: str):
+    from src.merchandiser.merchandiser_engine import find_execution_plan_by_project_id
+    plan = find_execution_plan_by_project_id(project_id)
+    if plan is None:
+        raise HTTPException(status_code=404, detail=f"No execution plan found for project {project_id}")
+    return plan.model_dump()
+
+
+class CreateTasksRequest(BaseModel):
+    supplier_actor_id: str
+    buyer_actor_id: str
+    order_id: str | None = None
+    category: str = "apparel"
+
+
+@app.post("/api/merchandiser/{project_id}/create-tasks")
+def create_merchandiser_tasks(project_id: str, request: CreateTasksRequest):
+    from src.merchandiser.task_planner import plan_tasks_after_confirmation
+    tasks = plan_tasks_after_confirmation(
+        project_id=project_id,
+        order_id=request.order_id,
+        supplier_actor_id=request.supplier_actor_id,
+        buyer_actor_id=request.buyer_actor_id,
+        category=request.category,
+    )
+    return {"task_count": len(tasks), "tasks": [t.model_dump() for t in tasks]}
+
+
+@app.get("/api/merchandiser/{project_id}/tasks")
+def list_merchandiser_tasks(project_id: str):
+    from src.merchandiser.task_planner import get_tasks_for_project
+    tasks = get_tasks_for_project(project_id)
+    return {"tasks": [t.model_dump() for t in tasks]}
+
+
+@app.post("/api/merchandiser/tasks/{task_id}/complete")
+def complete_merchandiser_task(task_id: str, project_id: str):
+    from src.merchandiser.task_planner import complete_task
+    try:
+        task = complete_task(task_id, project_id)
+        return task.model_dump()
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+
+
+class CreateMilestonesRequest(BaseModel):
+    category: str = "apparel"
+    assigned_actor_id: str | None = None
+    order_id: str | None = None
+
+
+@app.post("/api/merchandiser/{project_id}/milestones")
+def create_merchandiser_milestones(project_id: str, request: CreateMilestonesRequest):
+    from src.merchandiser.milestone_manager import create_milestones
+    milestones = create_milestones(
+        project_id=project_id,
+        category=request.category,
+        assigned_actor_id=request.assigned_actor_id,
+        order_id=request.order_id,
+    )
+    return {"milestone_count": len(milestones), "milestones": [m.model_dump() for m in milestones]}
+
+
+@app.get("/api/merchandiser/{project_id}/milestones")
+def list_merchandiser_milestones(project_id: str):
+    from src.merchandiser.milestone_manager import get_milestones_for_project
+    milestones = get_milestones_for_project(project_id)
+    return {"milestones": [m.model_dump() for m in milestones]}
+
+
+@app.post("/api/merchandiser/milestones/{milestone_id}/request-media")
+def request_milestone_media_endpoint(milestone_id: str, project_id: str):
+    from src.merchandiser.milestone_manager import request_milestone_media
+    try:
+        m = request_milestone_media(milestone_id, project_id)
+        return m.model_dump()
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Milestone {milestone_id} not found")
+
+
+class UploadMediaRequest(BaseModel):
+    uploaded_by_actor_id: str
+    media_type: str = "image"
+    count: int = 1
+    description: str | None = None
+
+
+@app.post("/api/merchandiser/milestones/{milestone_id}/media")
+def upload_milestone_media_endpoint(milestone_id: str, project_id: str, request: UploadMediaRequest):
+    from src.merchandiser.media_confirmation import upload_media_evidence
+    media = upload_media_evidence(
+        project_id=project_id,
+        milestone_id=milestone_id,
+        uploaded_by_actor_id=request.uploaded_by_actor_id,
+        media_type=request.media_type,
+        count=request.count,
+        description=request.description,
+    )
+    return {"media_count": len(media), "media": [m.model_dump() for m in media]}
+
+
+@app.post("/api/merchandiser/milestones/{milestone_id}/buyer-confirm")
+def buyer_confirm_milestone_endpoint(milestone_id: str, project_id: str):
+    from src.merchandiser.milestone_manager import confirm_milestone
+    try:
+        m = confirm_milestone(milestone_id, project_id)
+        return m.model_dump()
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Milestone {milestone_id} not found")
+
+
+class RejectMilestoneRequest(BaseModel):
+    reason: str = ""
+
+
+@app.post("/api/merchandiser/milestones/{milestone_id}/reject")
+def reject_milestone_endpoint(milestone_id: str, project_id: str, request: RejectMilestoneRequest):
+    from src.merchandiser.milestone_manager import reject_milestone
+    try:
+        m = reject_milestone(milestone_id, project_id, request.reason)
+        return m.model_dump()
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Milestone {milestone_id} not found")
+
+
+class RaiseExceptionRequest(BaseModel):
+    exception_type: str
+    description: str
+    order_id: str | None = None
+    raised_by_actor_id: str | None = None
+    severity: str | None = None
+
+
+@app.post("/api/merchandiser/{project_id}/exceptions")
+def raise_exception_endpoint(project_id: str, request: RaiseExceptionRequest):
+    from src.merchandiser.exception_manager import raise_exception
+    exc = raise_exception(
+        project_id=project_id,
+        exception_type=request.exception_type,
+        description=request.description,
+        order_id=request.order_id,
+        raised_by_actor_id=request.raised_by_actor_id,
+        severity=request.severity,
+    )
+    return exc.model_dump()
+
+
+@app.get("/api/merchandiser/{project_id}/exceptions")
+def list_exceptions_endpoint(project_id: str):
+    from src.merchandiser.exception_manager import get_exceptions_for_project
+    excs = get_exceptions_for_project(project_id)
+    return {"exceptions": [e.model_dump() for e in excs]}
+
+
+class ResolveExceptionRequest(BaseModel):
+    resolution: str = ""
+
+
+@app.post("/api/merchandiser/exceptions/{exception_id}/resolve")
+def resolve_exception_endpoint(exception_id: str, project_id: str, request: ResolveExceptionRequest):
+    from src.merchandiser.exception_manager import resolve_exception
+    try:
+        exc = resolve_exception(exception_id, project_id, request.resolution)
+        return exc.model_dump()
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Exception {exception_id} not found")
+
+
+class BuyerSignoffRequest(BaseModel):
+    buyer_actor_id: str
+    tracking_number: str
+    response: str = "confirmed"
+    notes: str = ""
+
+
+@app.post("/api/merchandiser/{project_id}/buyer-signoff")
+def buyer_signoff_endpoint(project_id: str, request: BuyerSignoffRequest):
+    from src.merchandiser.b_side.b_signoff import receive_buyer_signoff
+    result = receive_buyer_signoff(
+        project_id=project_id,
+        buyer_actor_id=request.buyer_actor_id,
+        response=request.response,
+        notes=request.notes,
+    )
+    return result
+
+
+# ─── Logistics endpoints ───────────────────────────────────────────────────────
+
+class IngestTrackingRequest(BaseModel):
+    carrier_name: str | None = None
+    carrier_code: str | None = None
+    tracking_number: str
+    source: str = "api"
+    actor_id: str | None = None
+    order_id: str | None = None
+
+
+@app.post("/api/logistics/{project_id}/tracking-number")
+def ingest_tracking_number_endpoint(project_id: str, request: IngestTrackingRequest):
+    from src.logistics.logistics_ingestion_service import ingest_tracking_number
+    ship = ingest_tracking_number(
+        project_id=project_id,
+        carrier_name=request.carrier_name,
+        carrier_code=request.carrier_code,
+        tracking_number=request.tracking_number,
+        source=request.source,
+        actor_id=request.actor_id,
+        order_id=request.order_id,
+    )
+    return ship.model_dump()
+
+
+class IngestFromIMRequest(BaseModel):
+    raw_message: str
+    actor_id: str
+    order_id: str | None = None
+
+
+@app.post("/api/logistics/{project_id}/from-im-message")
+def ingest_from_im_message_endpoint(project_id: str, request: IngestFromIMRequest):
+    from src.logistics.logistics_ingestion_service import ingest_logistics_from_im_message
+    ship = ingest_logistics_from_im_message(
+        project_id=project_id,
+        raw_message=request.raw_message,
+        actor_id=request.actor_id,
+        order_id=request.order_id,
+    )
+    if ship is None:
+        raise HTTPException(status_code=400, detail="Could not extract tracking number from message")
+    return ship.model_dump()
+
+
+@app.post("/api/logistics/shipments/{shipment_id}/sync")
+def sync_shipment_endpoint(shipment_id: str):
+    from src.logistics.logistics_ingestion_service import sync_tracking_from_provider
+    try:
+        events = sync_tracking_from_provider(shipment_id)
+        return {"synced_events": len(events), "events": [e.model_dump() for e in events]}
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Shipment {shipment_id} not found")
+
+
+@app.post("/api/logistics/sync-active")
+def sync_all_active_shipments_endpoint():
+    from src.logistics.logistics_ingestion_service import sync_all_active_shipments
+    result = sync_all_active_shipments()
+    return result
+
+
+@app.get("/api/logistics/{project_id}/shipments")
+def list_shipments_endpoint(project_id: str):
+    from src.logistics.logistics_models import get_shipments_for_project
+    shipments = get_shipments_for_project(project_id)
+    return {"shipments": [s.model_dump() for s in shipments]}
+
+
+@app.get("/api/logistics/shipments/{shipment_id}/events")
+def list_shipment_events_endpoint(shipment_id: str):
+    from src.logistics.logistics_models import get_events_for_shipment
+    events = get_events_for_shipment(shipment_id)
+    return {"events": [e.model_dump() for e in events]}
+
+
+@app.get("/api/logistics/providers")
+def list_logistics_providers():
+    return {
+        "providers": [
+            {"name": "mock", "description": "Mock provider for local MVP testing", "requires_credentials": False},
+            {"name": "cainiao_like", "description": "Cainiao-like logistics API provider", "requires_credentials": True},
+        ]
+    }
