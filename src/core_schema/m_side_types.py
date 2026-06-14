@@ -148,6 +148,9 @@ class OrderExecutionContext(BaseModel):
     selected_path_id: str | None = None
     status: str = "order_acknowledgement_pending"
     milestones: list[ProductionMilestone] = Field(default_factory=list)
+    merchandiser_plan_id: str | None = None
+    merchandiser_task_ids: list[str] = Field(default_factory=list)
+    merchandiser_milestone_ids: list[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=_utcnow)
     updated_at: datetime = Field(default_factory=_utcnow)
 

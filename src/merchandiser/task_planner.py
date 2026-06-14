@@ -118,6 +118,56 @@ def get_tasks_for_project(project_id: str) -> list[MerchandiserTask]:
     return tasks
 
 
+def get_pending_task(
+    project_id: str,
+    task_type: str,
+    assigned_actor_id: str | None = None,
+) -> "MerchandiserTask | None":
+    for t in get_tasks_for_project(project_id):
+        if t.task_type == task_type and t.status == "PENDING":
+            if assigned_actor_id is None or t.assigned_actor_id == assigned_actor_id:
+                return t
+    return None
+
+
+def complete_task_by_type(
+    project_id: str,
+    task_type: str,
+    assigned_actor_id: str | None = None,
+    payload: dict | None = None,
+) -> "MerchandiserTask | None":
+    task = get_pending_task(project_id, task_type, assigned_actor_id)
+    if task is None:
+        return None
+    if payload:
+        task.payload.update(payload)
+    task.status = "DONE"
+    _save_task(task)
+    log_m_event(
+        event_type="MERCHANDISER_TASK_COMPLETED",
+        b_workspace_id=project_id,
+        payload={"task_id": task.task_id, "task_type": task_type},
+    )
+    return task
+
+
+def mark_overdue_tasks(now: str | None = None) -> list["MerchandiserTask"]:
+    from datetime import datetime, timezone
+    threshold = now or datetime.now(timezone.utc).isoformat()
+    overdue = []
+    for p in _DATA_DIR.glob("TASK-*.json"):
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+            t = MerchandiserTask.model_validate(data)
+            if t.status == "PENDING" and t.due_at and t.due_at < threshold:
+                t.status = "OVERDUE"
+                _save_task(t)
+                overdue.append(t)
+        except Exception:
+            pass
+    return overdue
+
+
 def plan_tasks_after_confirmation(
     project_id: str,
     order_id: str | None,

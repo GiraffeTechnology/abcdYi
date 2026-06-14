@@ -19,6 +19,8 @@ from src.db.models.dynamic_schema import (
 )
 from src.db.models.supplier_memory import SupplierScoreSnapshot, SupplierProfileUpdate
 from src.db.models.legal_notice import LegalNotice
+from src.db.models.merchandiser import MerchandiserExecutionPlan, MerchandiserTask, OrderMilestoneORM, MediaEvidenceORM, OrderExceptionORM
+from src.db.models.logistics import LogisticsShipmentORM, LogisticsEventORM
 
 __all__ = [
     "Actor", "Project", "ProcurementEdge", "RoleContext",
@@ -31,4 +33,6 @@ __all__ = [
     "SchemaRegistry", "FieldDefinition", "ObservedField", "FieldProposal",
     "EntityDynamicValue", "FieldAlias", "UnitDictionary", "FieldPromotionDecision",
     "SupplierScoreSnapshot", "SupplierProfileUpdate", "LegalNotice",
+    "MerchandiserExecutionPlan", "MerchandiserTask", "OrderMilestoneORM", "MediaEvidenceORM", "OrderExceptionORM",
+    "LogisticsShipmentORM", "LogisticsEventORM",
 ]
