@@ -243,5 +243,8 @@ async def buyer_sign_off(
         triggered_by_user_id=user_id,
     )
 
-    # Stub: supplier memory update handled in Iter 6
+    # Update supplier memory records after sign-off
+    from src.supplier_memory.service import update_supplier_memory_after_signoff
+    await update_supplier_memory_after_signoff(db, order_id, tenant_id)
+
     return order
