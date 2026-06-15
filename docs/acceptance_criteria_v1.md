@@ -2,7 +2,7 @@
 
 ## Scope
 
-These criteria define the minimum bar for V1.0 release of the Giraffe Agent apparel & textile C2M order execution platform.
+These criteria define the minimum bar for V1.0 release of the abcdYi apparel & textile B2M order execution product.
 
 ---
 

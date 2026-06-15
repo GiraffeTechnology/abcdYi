@@ -6,6 +6,8 @@ abcdYi is the Apparel / Textile / Handicraft industry edition of Giraffe Agent.
 - CN ZL 2023 1 1645939.9 / CN 117670482 B — 基于多方配合的C2M模式的纺织品及服装定制运营平台系统
 - JP P7644545 / 特許第7644545号 — 協働型C2Mモデルに基づく繊維及びアパレルカスタマイズ運用プラットフォームシステム
 
+The patent titles are preserved as legal references. The abcdYi implementation is B2M, because the operational user is a buyer, designer, brand, trader, merchandiser, or SME placing production orders with manufacturers and related supply-chain participants.
+
 ---
 
 ## Patent Unit Mapping
@@ -28,7 +30,7 @@ abcdYi is the Apparel / Textile / Handicraft industry edition of Giraffe Agent.
 
 | # | Patent Unit | abcdYi Module | Description |
 |---|---|---|---|
-| 1 | Multi-party C2M order execution workflow | Order state machine | 12-state order lifecycle from DRAFT_FROM_APPROVED_QUOTE to BUYER_SIGNED_OFF |
+| 1 | Multi-party B2M order execution workflow | Order state machine | 12-state order lifecycle from DRAFT_FROM_APPROVED_QUOTE to BUYER_SIGNED_OFF |
 | 2 | Buyer inquiry intake and structured form generation | Dynamic order form | LLM-assisted extraction of product requirements into structured form fields |
 | 3 | Participant role classification and capability profiling | Participant registry | 8 role types, capability profiles, country, MOQ, lead time, trade terms |
 | 4 | Multi-dimensional supplier matching | 12-dimension scorer | Weighted scoring with supplier memory integration and risk flag computation |
@@ -60,7 +62,7 @@ All external actions require a prior PENDING `ApprovalRequest` that must reach A
 
 ## Industrial Execution Graph
 
-The append-only `ExecutionEvent` audit trail records all platform events — implementing the "execution record" patent unit with immutable timestamps and full JSON payloads.
+The append-only `ExecutionEvent` audit trail records all execution events — implementing the "execution record" patent unit with immutable timestamps and full JSON payloads.
 
 - **Writer:** `src/execution_graph/writer.py`
 - **Reader:** `src/execution_graph/service.py`

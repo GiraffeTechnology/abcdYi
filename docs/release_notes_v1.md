@@ -7,7 +7,7 @@
 
 ## Overview
 
-Giraffe Agent v1.0.0 is the first production-ready release of the C2M (Customer-to-Manufacturer) apparel and textile order execution platform. This release implements the full order lifecycle from buyer inquiry to buyer sign-off, with an append-only Industrial Execution Graph audit trail throughout.
+abcdYi v1.0.0 is the first production-ready release of the B2M (Buyer-to-Manufacturer) apparel and textile order execution product. This release implements the full order lifecycle from buyer inquiry to buyer sign-off, with an append-only Industrial Execution Graph audit trail throughout.
 
 ---
 

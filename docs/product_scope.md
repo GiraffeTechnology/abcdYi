@@ -2,9 +2,11 @@
 
 ## What abcdYi Is
 
-abcdYi is Giraffe Agent's first complete industry edition, purpose-built for apparel, textiles, and handicrafts. It delivers a structured, agent-assisted coordination system for managing multi-party supply chains across the full order execution lifecycle — from the moment a buyer submits an inquiry through to final buyer sign-off and supplier memory update.
+abcdYi is Giraffe Agent's first complete B2M industry edition, purpose-built for apparel, textiles, and handicrafts. It delivers a structured, agent-assisted coordination system for managing multi-party supply chains across the full order execution lifecycle — from the moment a buyer submits an inquiry through to final buyer sign-off and supplier memory update.
 
 abcdYi is not a generic workflow tool retrofitted for fashion. Every stage, every participant role, and every approval gate has been designed around the realities of apparel and textile production: irregular order sizes, multi-style runs, tight lead times, fragmented supplier networks, and the need for traceable QC evidence.
+
+abcdYi is not consumer-facing. It does not serve retail consumers directly. It serves professional buyers, designers, brands, traders, merchandisers, and SMEs coordinating production with manufacturers and supply-chain participants.
 
 ---
 
@@ -71,4 +73,8 @@ abcdYi covers the end-to-end order execution workflow:
 - **Retail or direct-to-consumer operations** — abcdYi operates on the production and supply-chain side, not the sales or merchandising side
 - **Customs clearance and trade compliance** — logistics coordination is in scope; customs documentation and compliance filings are not
 - **Fabric or material inspection at the mill level** — abcdYi supports QC evidence review for finished or semi-finished goods, not raw material testing
-- **Consumer-facing functionality** — abcdYi is a B2B coordination tool; there is no consumer-facing interface
+- **Consumer-facing functionality** — abcdYi is not consumer-facing; there is no consumer interface
+
+---
+
+abcdYi is a B2M production coordination product. It coordinates buyer-to-manufacturer workflows and the related supplier, workshop, QC, and logistics participants behind the manufacturer-side execution path.
