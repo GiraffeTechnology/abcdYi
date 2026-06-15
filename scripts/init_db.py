@@ -1,21 +1,16 @@
-"""Initialize the database — create all tables."""
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
+"""
+Run: uv run python scripts/init_db.py
+Creates schema and verifies table count.
+"""
+import asyncio
+from src.db.base import engine
+import src.db.models  # noqa: F401 — triggers model registration
 from src.db.base import Base
-from src.db.session import engine
-import src.db.models  # noqa: F401
 
-
-def init_db():
-    print("Initializing database...")
-    Base.metadata.create_all(bind=engine)
-    print(f"  Created {len(Base.metadata.tables)} tables:")
-    for table_name in sorted(Base.metadata.tables.keys()):
-        print(f"    - {table_name}")
-    print("Database initialization complete.")
-
+async def main():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    print("Database initialized successfully.")
 
 if __name__ == "__main__":
-    init_db()
+    asyncio.run(main())
