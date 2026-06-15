@@ -5,8 +5,10 @@ from src.llm.provider import LLMProvider
 
 
 class QwenProvider(LLMProvider):
-    def __init__(self):
-        self.api_key = os.environ.get("QWEN_API_KEY", "")
+    provider_name = "qwen"
+
+    def __init__(self, api_key: str | None = None):
+        self.api_key = api_key or os.environ.get("QWEN_API_KEY", "")
         self.model = os.environ.get("QWEN_MODEL", "qwen-plus")
         self.base_url = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
 

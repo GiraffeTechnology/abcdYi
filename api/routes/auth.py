@@ -1,14 +1,50 @@
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import BaseModel, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from api.deps import get_db, get_current_user
-from api.auth import verify_password, create_access_token
+from api.auth import verify_password, hash_password, create_access_token
 from src.db.models.user import User, UserRole
+from src.db.models.tenant import Tenant
 from src.db.models.audit import AuditLog
 
 router = APIRouter()
+
+
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str
+    full_name: str = ""
+
+
+@router.post("/register", status_code=status.HTTP_201_CREATED)
+async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.email == body.email))
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+    slug = f"tenant-{uuid.uuid4().hex[:12]}"
+    tenant = Tenant(name=body.email, slug=slug)
+    db.add(tenant)
+    await db.flush()
+    user = User(
+        tenant_id=tenant.id,
+        email=body.email,
+        hashed_password=hash_password(body.password),
+        full_name=body.full_name,
+    )
+    db.add(user)
+    log = AuditLog(
+        tenant_id=tenant.id,
+        user_id=user.id,
+        action="REGISTER",
+        resource_type="user",
+        resource_id=str(user.id),
+    )
+    db.add(log)
+    await db.commit()
+    return {"id": str(user.id), "email": user.email, "tenant_id": str(tenant.id)}
 
 
 @router.post("/login")

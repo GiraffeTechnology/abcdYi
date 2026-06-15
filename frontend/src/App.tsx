@@ -1,7 +1,7 @@
 function App() {
   return (
     <div>
-      <h1>Giraffe Agent v1.0 — Apparel & Textile</h1>
+      <h1>abcdYi — Giraffe Agent Apparel / Textile / Handicraft Industry Edition</h1>
       <p>Platform loading...</p>
     </div>
   );
