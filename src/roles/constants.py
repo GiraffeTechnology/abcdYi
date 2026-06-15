@@ -16,3 +16,17 @@ ALL_ROLES = [
     LOGISTICS_PROVIDER, FINANCE_SERVICE_PROVIDER,
     QC_INSPECTOR, PLATFORM_ADMIN,
 ]
+
+SUPPORTED_ROLES = {
+    BUYER, INTERMEDIARY, TRADING_COMPANY, MANUFACTURER,
+    FABRIC_SUPPLIER, TRIM_SUPPLIER, PACKAGING_SUPPLIER,
+    LOGISTICS_PROVIDER, FINANCE_SERVICE_PROVIDER,
+    QC_INSPECTOR, PLATFORM_ADMIN,
+}
+
+
+def validate_role(role_name: str) -> None:
+    if role_name not in SUPPORTED_ROLES:
+        raise ValueError(
+            f"Unsupported role: {role_name}. Must be one of {SUPPORTED_ROLES}"
+        )
