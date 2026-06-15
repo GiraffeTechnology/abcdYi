@@ -22,6 +22,7 @@ from src.db.models.logistics import (
     ShipmentTrackingEvent, SupplierMemoryRecord
 )
 from src.db.models.execution_graph import ExecutionEvent, UploadedFileMetadata
+from src.db.models.delivery_feasibility import DeliveryFeasibilityPacketRecord
 
 __all__ = [
     "Tenant", "User", "UserRole", "AuditLog",
@@ -38,4 +39,5 @@ __all__ = [
     "QualityIncident", "ReplacementAlert", "Shipment",
     "ShipmentTrackingEvent", "SupplierMemoryRecord",
     "ExecutionEvent", "UploadedFileMetadata",
+    "DeliveryFeasibilityPacketRecord",
 ]
