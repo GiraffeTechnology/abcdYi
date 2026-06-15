@@ -230,13 +230,20 @@ Run a clean-state validation:
 
 The validation performs:
 
-1. Docker cleanup
-2. Docker image build
+1. Docker cleanup (`docker compose down -v`)
+2. Docker image build (`docker compose build`)
 3. Fresh PostgreSQL startup
-4. Alembic migration
+4. Alembic migration (`docker compose run --rm migrate`)
 5. API startup
 6. `/health` check
-7. API and unit test suite
+7. Unit tests — no DB required (`uv run pytest tests/unit/ -v -m "not integration"`)
+8. Integration tests — requires migrated DB (`uv run pytest tests/integration/ -v`)
+
+Run unit tests alone (no Docker needed):
+
+```bash
+uv run pytest tests/unit/ -v -m "not integration"
+```
 
 The repository must pass at least three consecutive clean-state validation runs before being treated as release-ready.
 

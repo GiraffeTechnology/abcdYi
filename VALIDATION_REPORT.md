@@ -2,24 +2,23 @@
 
 ## Product Positioning Fix
 
-- Changed product positioning from C2M to B2M across README, PATENT_NOTICE.md, docs/product_scope.md, docs/patent_alignment_matrix.md, docs/user_manual.md, docs/release_notes_v1.md, docs/acceptance_criteria_v1.md, docs/final_status_report.md, docs/product_scope_v1.md, and src/legal/patent_notice.py.
-- Removed consumer-facing positioning ("a consumer shopping app", "a virtual fitting product", "a blockchain product" removed from "What abcdYi Is Not" list).
-- Added "Why B2M" section defining the buyer role explicitly.
-- Added core user statement: "The core user is not an end consumer."
-- Removed blockchain, virtual fitting, AR, and VR references from README and primary docs.
-- Preserved official patent titles where C2M appears as part of legally registered patent titles (中文: 基于多方配合的C2M模式的纺织品及服装定制运营平台系统 / 日本語: 協働型C2Mモデルに基づく繊維及びアパレルカスタマイズ運用プラットフォームシステム).
-- Added clarification in README and PATENT_NOTICE.md that official patent titles contain C2M as registered legal titles; abcdYi product implementation is B2M.
-- Fixed Dockerfile.api to copy libs/GLTG before uv sync.
-- Updated scripts/run_clean_db_validation.sh to 7-step validation including Docker build, migrate, API start, health check, and test suite.
-- Updated Makefile with `validate` and `docker-validate` targets.
+- Repositioned from C2M to B2M across README, PATENT_NOTICE.md, docs/product_scope.md, docs/patent_alignment_matrix.md, docs/user_manual.md, docs/release_notes_v1.md, docs/acceptance_criteria_v1.md, docs/final_status_report.md, docs/product_scope_v1.md, src/legal/patent_notice.py.
+- Removed blockchain, virtual fitting, AR, and VR references from README and all primary product docs.
+- Official patent titles preserved unchanged as registered legal titles.
+- Added "Why B2M" section; added core user statement ("not an end consumer").
+- Clarification added in README and PATENT_NOTICE.md: official patent titles retain C2M as registered legal titles; abcdYi product implementation is B2M.
+- Dockerfile.api fixed: copies libs/GLTG before uv sync.
+- scripts/run_clean_db_validation.sh updated to 8-step validation (including separate unit and integration test runs).
+- Makefile updated: test-unit, test-integration, validate, docker-validate targets.
 
----
+## Test Organisation Fix
 
-## Environment Notes
-
-The validation runs below were executed in a cloud remote execution environment without Docker daemon access. The 7-step Docker-based validation (`scripts/run_clean_db_validation.sh`) requires Docker and PostgreSQL; it must be run in an environment with Docker available.
-
-The unit test suite (50 tests) runs without any infrastructure dependency and passes in all 3 runs. Two tests in `tests/unit/test_migrations.py` require a live PostgreSQL connection and fail in this environment as a known pre-existing condition — they are not caused by changes in this session.
+- Moved `tests/unit/test_migrations.py` (DB-dependent) to `tests/integration/test_migrations.py`.
+- Both migration tests marked `@pytest.mark.integration`.
+- Added `delivery_feasibility_packets` to expected tables list.
+- Registered `integration` marker in `[tool.pytest.ini_options]` in `pyproject.toml`.
+- Unit test command: `uv run pytest tests/unit/ -v -m "not integration"` — runs without any database.
+- Integration test command: `uv run pytest tests/integration/ -v` — requires migrated PostgreSQL.
 
 ---
 
@@ -29,15 +28,13 @@ The unit test suite (50 tests) runs without any infrastructure dependency and pa
 
 Command:
 ```bash
-uv run pytest tests/unit/ -v
+uv run pytest tests/unit/ -v -m "not integration"
 ```
 
 Result:
 ```
-============================= test session starts ==============================
-platform linux -- Python 3.11.15, pytest-9.1.0, pluggy-1.6.0
-asyncio: mode=Mode.AUTO
-collected 52 items
+platform linux -- Python 3.11.15, pytest-9.1.0
+collected 50 items
 
 tests/unit/test_decision_packet_uses_gltg.py::test_gltg_enrichment_keys_present_in_lead_time_breakdown PASSED
 tests/unit/test_decision_packet_uses_gltg.py::test_gltg_total_lt_preferred_over_calculator_result PASSED
@@ -72,8 +69,6 @@ tests/unit/test_lead_time_calculator.py::test_missing_fields_listed PASSED
 tests/unit/test_lead_time_calculator.py::test_risk_flag_added_for_missing PASSED
 tests/unit/test_lead_time_calculator.py::test_complete_calculation PASSED
 tests/unit/test_lead_time_calculator.py::test_multiple_packets_aggregate PASSED
-tests/unit/test_migrations.py::test_all_tables_exist FAILED (ConnectionRefusedError — no DB)
-tests/unit/test_migrations.py::test_execution_events_table_has_no_pk_update FAILED (ConnectionRefusedError — no DB)
 tests/unit/test_requirement_extraction.py::test_stub_extraction_marks_ai_generated PASSED
 tests/unit/test_requirement_extraction.py::test_detect_missing_required_fields PASSED
 tests/unit/test_requirement_extraction.py::test_generate_clarification_questions PASSED
@@ -87,67 +82,73 @@ tests/unit/test_scorer.py::test_quality_history_from_memory PASSED
 tests/unit/test_scorer.py::test_risk_penalty_applied_when_issues PASSED
 tests/unit/test_scorer.py::test_compute_risk_flags_no_history PASSED
 tests/unit/test_scorer.py::test_compute_risk_flags_low_qc PASSED
-tests/unit/test_scorer.py::test_compute_risk_flags_capacity PASSED
-tests/unit/test_scorer.py::test_score_multiple_suppliers PASSED
-tests/unit/test_scorer.py::test_match_result_structure PASSED
-tests/unit/test_scorer.py::test_score_with_memory_data PASSED
+tests/unit/test_scorer.py::test_compute_risk_flags_late_delivery PASSED
+tests/unit/test_scorer.py::test_compute_risk_flags_approaching_threshold PASSED
+tests/unit/test_scorer.py::test_compute_risk_flags_incomplete_profile PASSED
+tests/unit/test_scorer.py::test_missing_data_tracked PASSED
 
-2 failed (DB connection), 50 passed in 0.88s
+50 passed, 2 warnings in 0.15s
 ```
 
 ### Run 2
 
 Command:
 ```bash
-uv run pytest tests/unit/ -q
+uv run pytest tests/unit/ -q -m "not integration"
 ```
 
 Result:
 ```
-2 failed, 50 passed, 2 warnings in 0.86s
-
-FAILED tests/unit/test_migrations.py::test_all_tables_exist - ConnectionRefusedError (no DB)
-FAILED tests/unit/test_migrations.py::test_execution_events_table_has_no_pk_update - ConnectionRefusedError (no DB)
+50 passed, 2 warnings in 0.10s
 ```
 
 ### Run 3
 
 Command:
 ```bash
-uv run pytest tests/unit/ -q
+uv run pytest tests/unit/ -q -m "not integration"
 ```
 
 Result:
 ```
-2 failed, 50 passed, 2 warnings in 0.75s
-
-FAILED tests/unit/test_migrations.py::test_all_tables_exist - ConnectionRefusedError (no DB)
-FAILED tests/unit/test_migrations.py::test_execution_events_table_has_no_pk_update - ConnectionRefusedError (no DB)
+50 passed, 2 warnings in 0.09s
 ```
 
 ---
 
+## Validation Status
+
+| Check | Status | Notes |
+|---|---|---|
+| Unit tests (50 tests, no DB) | **PASS** | 50/50 across all 3 runs |
+| Integration tests (2 migration tests) | **NOT RUN** | Docker not available in this environment |
+| Docker build | **NOT RUN** | Docker not available in this environment |
+| Alembic migration | **NOT RUN** | Docker not available in this environment |
+| API health check | **NOT RUN** | Docker not available in this environment |
+| Full clean validation run 1 | **NOT RUN** | Docker not available in this environment |
+| Full clean validation run 2 | **NOT RUN** | Docker not available in this environment |
+| Full clean validation run 3 | **NOT RUN** | Docker not available in this environment |
+| C2M grep clean (product-level) | **PASS** | No product-level C2M outside official patent titles |
+| blockchain / virtual fitting grep | **PASS** | No forbidden terms in product positioning docs |
+
 ## Final Result
 
-**50/52 unit tests PASS across all 3 runs.**
+**Unit tests: PASS — 50/50, 0 failures, 3 consecutive runs.**
 
-The 2 failing tests (`test_migrations.py`) require a live PostgreSQL connection. They fail with `ConnectionRefusedError: [Errno 111] Connect call failed ('127.0.0.1', 5432)` in this environment because no database is running locally. These failures are pre-existing and are not caused by any change in this session.
-
-The Docker-based 7-step validation (`scripts/run_clean_db_validation.sh`) must be run in an environment with Docker daemon access. The script is ready:
+**Full Docker validation: PENDING** — The Docker daemon is not available in this remote execution environment. The `scripts/run_clean_db_validation.sh` script is ready and must be run in an environment with Docker to complete the full validation:
 
 ```bash
 ./scripts/run_clean_db_validation.sh
 ```
 
-Steps executed by the script:
-1. `docker compose down -v` — tear down
-2. `docker compose build` — build images (including GLTG-aware Dockerfile.api)
-3. `docker compose up -d db` — start PostgreSQL
-4. `docker compose run --rm migrate` — run Alembic migrations
-5. `docker compose up -d api` — start API
-6. `curl -f http://localhost:8000/health` — health check
-7. `uv run pytest tests/api/ tests/unit/ -v` — full test suite
+The script executes:
+1. `docker compose down -v`
+2. `docker compose build`
+3. `docker compose up -d db`
+4. `docker compose run --rm migrate`
+5. `docker compose up -d api`
+6. `curl -f http://localhost:8000/health`
+7. `uv run pytest tests/unit/ -v -m "not integration"`
+8. `uv run pytest tests/integration/ -v`
 
-**Unit test result: PASS (50/52, 2 pre-existing DB-only failures)**
-
-**Docker-based full validation: Must be run with Docker available — script is ready.**
+Do not mark the full validation as PASS until all 8 steps complete successfully across 3 consecutive runs in a Docker environment.
