@@ -1,1 +1,1 @@
-"""LLM provider abstraction layer for Giraffe Agent."""
+# Implemented in later iterations

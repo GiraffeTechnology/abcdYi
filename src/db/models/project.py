@@ -1,35 +1,52 @@
-from datetime import datetime, timezone
-from sqlalchemy import String, Integer, JSON, Index, DateTime, ForeignKey
+import uuid
+from datetime import datetime
+from sqlalchemy import String, DateTime, ForeignKey, Text, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
-
 from src.db.base import Base
-from src.db.mixins import new_uuid
-
-
-def _utcnow():
-    return datetime.now(timezone.utc)
-
 
 class Project(Base):
     __tablename__ = "projects"
 
-    project_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
-    original_buyer_actor_id: Mapped[str] = mapped_column(String(36), ForeignKey("actors.actor_id"), nullable=False)
-    main_supplier_actor_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("actors.actor_id"), nullable=True)
-    category: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    product_summary: Mapped[str | None] = mapped_column(String(1024), nullable=True)
-    quantity: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    status: Mapped[str] = mapped_column(String(64), nullable=False, default="CREATED")
-    product_tier: Mapped[str] = mapped_column(String(32), nullable=False, default="free")
-    created_by_channel: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False)
-    metadata_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(String(50), default="OPEN")
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    __table_args__ = (
-        Index("ix_projects_original_buyer_actor_id", "original_buyer_actor_id"),
-        Index("ix_projects_main_supplier_actor_id", "main_supplier_actor_id"),
-        Index("ix_projects_status", "status"),
-        Index("ix_projects_category", "category"),
-        Index("ix_projects_created_at", "created_at"),
-    )
+class ProcurementEdge(Base):
+    __tablename__ = "procurement_edges"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    edge_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    participant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("participants.id"), nullable=True)
+    contextual_role: Mapped[str] = mapped_column(String(100), nullable=True)
+    status: Mapped[str] = mapped_column(String(50), default="PENDING")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+class BuyerInquiry(Base):
+    __tablename__ = "buyer_inquiries"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    buyer_participant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("participants.id"), nullable=True)
+    raw_text: Mapped[str] = mapped_column(Text, nullable=True)
+    raw_files_metadata: Mapped[dict] = mapped_column(JSONB, nullable=True)
+    source_channel: Mapped[str] = mapped_column(String(100), nullable=True)
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+class RawMessage(Base):
+    __tablename__ = "raw_messages"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    inquiry_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("buyer_inquiries.id"), nullable=True)
+    direction: Mapped[str] = mapped_column(String(20), nullable=False)
+    sender: Mapped[str] = mapped_column(String(255), nullable=True)
+    content: Mapped[str] = mapped_column(Text, nullable=True)
+    msg_metadata: Mapped[dict] = mapped_column("metadata", JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
