@@ -5,8 +5,10 @@ from src.llm.provider import LLMProvider
 
 
 class OpenAIProvider(LLMProvider):
-    def __init__(self):
-        self.api_key = os.environ.get("OPENAI_API_KEY", "")
+    provider_name = "openai"
+
+    def __init__(self, api_key: str | None = None):
+        self.api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
         self.model = os.environ.get("OPENAI_MODEL", "gpt-4o")
         self.base_url = "https://api.openai.com/v1/chat/completions"
 

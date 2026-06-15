@@ -2,7 +2,7 @@
 """
 run_v1_acceptance_apparel_order.py — Full 22-step V1 acceptance workflow.
 
-Validates the end-to-end C2M apparel order lifecycle from buyer inquiry to
+Validates the end-to-end B2M apparel order lifecycle from buyer inquiry to
 buyer sign-off. Expected output: "GIRAFFE APPAREL & TEXTILE V1 ACCEPTANCE: PASS"
 
 Usage:
