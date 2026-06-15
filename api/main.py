@@ -11,6 +11,9 @@ from api.routes.rfq import router as rfq_router
 from api.routes.supplier_responses import router as supplier_responses_router
 from api.routes.decision_packets import router as decision_packets_router
 from api.routes.orders import router as orders_router
+from api.routes.milestones import router as milestones_router
+from api.routes.qc import router as qc_router
+from api.routes.logistics import router as logistics_router
 
 app = FastAPI(
     title="Giraffe Agent v1.0 — Apparel & Textile Industry Edition",
@@ -37,3 +40,6 @@ app.include_router(rfq_router, prefix="/api", tags=["rfq"])
 app.include_router(supplier_responses_router, prefix="/api", tags=["supplier_responses"])
 app.include_router(decision_packets_router, prefix="/api", tags=["decision_packets"])
 app.include_router(orders_router, prefix="/api", tags=["orders"])
+app.include_router(milestones_router, prefix="/api", tags=["milestones"])
+app.include_router(qc_router, prefix="/api", tags=["qc"])
+app.include_router(logistics_router, prefix="/api", tags=["logistics"])

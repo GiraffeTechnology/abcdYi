@@ -296,3 +296,124 @@ async def seed_confirmed_order(auth_client, seed_draft_order):
     resp = await auth_client.post(f"/api/orders/{seed_draft_order['id']}/confirm")
     assert resp.status_code == 200, f"Confirm order failed: {resp.text}"
     return resp.json()
+
+
+# ── Iter 6 fixtures ──────────────────────────────────────────────────────────
+
+@pytest.fixture
+async def seed_in_production_order(auth_client, seed_confirmed_order, db):
+    """An IN_PRODUCTION order with its milestones accessible."""
+    from sqlalchemy import select
+    from src.db.models.production import Milestone
+    result = await db.execute(
+        select(Milestone).where(Milestone.order_id == seed_confirmed_order["id"])
+    )
+    milestones = result.scalars().all()
+    return {
+        **seed_confirmed_order,
+        "milestones": [{"id": str(m.id), "milestone_type": m.milestone_type} for m in milestones],
+    }
+
+
+@pytest.fixture
+async def seed_qc_order(auth_client, seed_confirmed_order):
+    """An order in QC_PENDING state with a QC standard."""
+    import uuid
+    from datetime import datetime, timezone
+    order_id = seed_confirmed_order["id"]
+    form_version_id = seed_confirmed_order.get("locked_form_version_id")
+    
+    if form_version_id:
+        await auth_client.post(
+            f"/api/orders/{order_id}/qc-standards",
+            json={"form_version_id": form_version_id},
+        )
+
+    # Manually set order to QC_PENDING by patching a milestone
+    from src.db.base import AsyncSessionLocal
+    async with AsyncSessionLocal() as db2:
+        from src.db.models.order import Order
+        order = await db2.get(Order, uuid.UUID(order_id))
+        if order:
+            order.status = "QC_PENDING"
+            await db2.commit()
+
+    return seed_confirmed_order
+
+
+@pytest.fixture
+async def seed_ready_to_ship_order(auth_client, seed_qc_order):
+    """An order in READY_TO_SHIP state after passing QC."""
+    resp = await auth_client.post(
+        f"/api/orders/{seed_qc_order['id']}/qc-records",
+        json={"label_compliance": True, "packaging_compliance": True},
+    )
+    return seed_qc_order
+
+
+@pytest.fixture
+async def seed_shipment(auth_client, seed_ready_to_ship_order):
+    """A shipment created for a READY_TO_SHIP order."""
+    from datetime import datetime, timezone
+    resp = await auth_client.post(
+        f"/api/orders/{seed_ready_to_ship_order['id']}/shipments",
+        json={
+            "carrier": "COSCO",
+            "tracking_number": "COSU-TEST-001",
+            "trade_term": "FOB",
+            "origin": "Shenzhen",
+            "destination": "Hamburg",
+        },
+    )
+    assert resp.status_code == 201, f"Create shipment failed: {resp.text}"
+    return resp.json()
+
+
+@pytest.fixture
+async def seed_delivered_order(auth_client, seed_shipment, seed_ready_to_ship_order):
+    """An order in DELIVERED state."""
+    from datetime import datetime, timezone
+    await auth_client.post(
+        f"/api/shipments/{seed_shipment['id']}/tracking-events",
+        json={
+            "event_type": "DELIVERED",
+            "location": "Hamburg",
+            "description": "Delivered to consignee",
+            "occurred_at": datetime.now(timezone.utc).isoformat(),
+        },
+    )
+    return seed_ready_to_ship_order
+
+
+@pytest.fixture
+async def seed_delayed_order(auth_client, seed_in_production_order, db):
+    """An order with a delayed milestone to trigger HIGH risk prediction."""
+    from datetime import datetime, timezone, timedelta
+    from src.db.models.production import Milestone
+    import uuid
+    
+    milestones = seed_in_production_order.get("milestones", [])
+    if milestones:
+        ms_id = milestones[0]["id"]
+        past_date = (datetime.now(timezone.utc) - timedelta(days=5)).isoformat()
+        future_date = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+        await auth_client.patch(
+            f"/api/milestones/{ms_id}",
+            json={
+                "status": "DELAYED",
+                "predicted_date": future_date,
+            },
+        )
+    return seed_in_production_order
+
+
+@pytest.fixture
+async def seed_expedite_alert(auth_client, seed_delayed_order):
+    """Trigger a delay prediction that creates an expedite alert."""
+    resp = await auth_client.post(
+        f"/api/orders/{seed_delayed_order['id']}/run-delay-prediction"
+    )
+    return {
+        "order_id": seed_delayed_order["id"],
+        "monitoring_packet": resp.json(),
+    }
