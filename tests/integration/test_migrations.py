@@ -21,8 +21,11 @@ EXPECTED_TABLES = [
     "quality_incidents", "replacement_alerts", "shipments",
     "shipment_tracking_events", "supplier_memory_records",
     "execution_events", "uploaded_file_metadata",
+    "delivery_feasibility_packets",
 ]
 
+
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_all_tables_exist():
     async with engine.connect() as conn:
@@ -33,6 +36,8 @@ async def test_all_tables_exist():
     missing = [t for t in EXPECTED_TABLES if t not in existing]
     assert not missing, f"Missing tables: {missing}"
 
+
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_execution_events_table_has_no_pk_update():
     async with engine.connect() as conn:
