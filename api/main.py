@@ -17,9 +17,9 @@ from api.routes.logistics import router as logistics_router
 from api.routes.execution_graph import router as execution_graph_router
 
 app = FastAPI(
-    title="Giraffe Agent v1.0 — Apparel & Textile Industry Edition",
+    title="abcdYi — Giraffe Agent Apparel / Textile / Handicraft Industry Edition",
     version="1.0.0",
-    description="Production-usable C2M apparel & textile order execution platform.",
+    description="Multi-party supply-chain coordination for apparel, textiles, and handicraft-based custom production.",
 )
 
 app.add_middleware(

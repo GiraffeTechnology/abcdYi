@@ -1,7 +1,7 @@
 [project]
-name = "apparel-textile-v1"
+name = "abcdyi"
 version = "1.0.0"
-description = "Giraffe Agent v1.0 — Apparel & Textile Industry Edition"
+description = "abcdYi — Giraffe Agent Apparel / Textile / Handicraft Industry Edition"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.111.0",

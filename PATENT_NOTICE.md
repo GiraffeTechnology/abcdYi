@@ -1,6 +1,8 @@
-# Patent Notice
+# Patent Notice — abcdYi
 
-Certain workflows, business methods, system designs, data structures, role-based participant coordination mechanisms, dynamic form generation mechanisms, production monitoring mechanisms, quality inspection mechanisms, participant matching mechanisms, and multi-party C2M / order execution workflows implemented or referenced by this project may be covered by patents owned by **Giraffe Technology Holding Limited**.
+abcdYi is the Apparel / Textile / Handicraft industry edition of Giraffe Agent.
+
+Certain workflows, business methods, system designs, data structures, role-based participant coordination mechanisms, dynamic order form mechanisms, participant matching mechanisms, production monitoring mechanisms, quality inspection and evidence mechanisms, participant supervision mechanisms, supplier memory mechanisms, and multi-party C2M / order-execution workflows implemented or referenced by this project may be covered by patents owned by **Giraffe Technology Holding Limited**.
 
 ## Patents
 
@@ -18,9 +20,10 @@ Certain workflows, business methods, system designs, data structures, role-based
 Giraffe Technology Holding Limited grants a **free patent license**, to the extent it is legally able to do so, for compliant use of the relevant patented workflows and system logic by the following users worldwide:
 
 1. **Individuals** — individual developers, independent operators, freelancers, researchers, students, and personal users.
-2. **Small and Medium-sized Enterprises (SMEs)** — SMEs using, deploying, adapting, localizing, or contributing to Giraffe Agent for their own procurement, production coordination, supplier communication, sourcing, order execution, or internal business workflows.
-3. **Educational Institutions** — schools, universities, colleges, vocational schools, teaching labs, student projects, and academic training programs using Giraffe Agent for learning, teaching, curriculum design, demonstrations, or non-commercial educational deployment.
-4. **Research Institutions** — universities, public research institutes, nonprofit research organizations, academic labs, industrial research labs, and independent research groups using Giraffe Agent for research, experiments, publications, prototypes, benchmark studies, open innovation, or non-commercial research collaboration.
+2. **Independent Designers and Small Fashion Brands** — independent fashion designers, craft producers, and small fashion brands using abcdYi for their own order execution, supplier coordination, sampling, small-batch production, and supply-chain management.
+3. **Small and Medium-sized Enterprises (SMEs)** — SMEs using, deploying, adapting, localizing, or contributing to abcdYi for their own procurement, production coordination, supplier communication, sourcing, order execution, or internal business workflows.
+4. **Educational Institutions** — schools, universities, colleges, vocational schools, teaching labs, student projects, and academic training programs using abcdYi for learning, teaching, curriculum design, or non-commercial educational deployment.
+5. **Research Institutions** — universities, public research institutes, nonprofit research organizations, academic labs, industrial research labs, and independent research groups using abcdYi for research, experiments, publications, prototypes, benchmark studies, open innovation, or non-commercial research collaboration.
 
 ### Permitted Uses under the Global Free License
 
@@ -30,8 +33,9 @@ The above users may, on a free-of-charge patent-license basis:
 - Deploy the system internally
 - Modify and localize the workflows
 - Build connectors, adapters, templates, and industry knowledge packs
-- Test the role-switching procurement workflow
-- Run buyer-side and M-side order execution workflows
+- Execute small-batch custom orders through the abcdYi workflow
+- Coordinate multi-party apparel, textile, and handicraft supply chains
+- Run buyer/designer inquiry to supplier matching to production monitoring workflows
 - Use the system for teaching, research, prototyping, and non-commercial experiments
 - Publish academic or technical findings (with patent notice and attribution preserved)
 - Contribute code, documentation, workflow templates, and localization materials back to the open-source project

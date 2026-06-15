@@ -14,6 +14,16 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+# Read DB URL from environment so Docker and local dev both work without editing alembic.ini
+_database_url = (
+    os.getenv("ALEMBIC_DATABASE_URL")
+    or os.getenv("DATABASE_URL")
+    or config.get_main_option("sqlalchemy.url")
+)
+if _database_url and _database_url.startswith("postgresql+asyncpg://"):
+    _database_url = _database_url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
+config.set_main_option("sqlalchemy.url", _database_url)
+
 target_metadata = Base.metadata
 
 
