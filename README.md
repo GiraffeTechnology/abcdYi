@@ -258,22 +258,48 @@ BASE_URL=http://localhost:8000 uv run python scripts/verify_v1_product_readiness
 
 ---
 
+## GLTG — Giraffe Lead-Time Graph Engine
+
+abcdYi does not implement lead-time calculation logic directly. All delivery feasibility reasoning is delegated to the **GLTG** (Giraffe Lead-Time Graph) engine, a standalone local package at `libs/GLTG/`.
+
+GLTG takes a supply-chain graph as input — participant nodes with role-specific lead times — and returns a ranked `DeliveryFeasibilityPacket` with:
+
+- Parallel lead time (max of fabric / trim / packaging sourcing stages)
+- Sequential lead time (sum of production / QC / logistics stages)
+- Most-likely, risk-adjusted, and committable delivery dates
+- Up to 3 ranked feasible paths (never faked — fewer paths returned if fewer feasible options exist)
+- Milestone-based reforecasting when a milestone is marked DELAYED
+- Human-readable explanation when 0 feasible paths are found
+
+GLTG integrates at two points in abcdYi:
+
+1. **Decision packet generation** — when supplier responses are received and a decision packet is assembled, GLTG evaluates each supplier as a candidate path and enriches decision options with risk-adjusted delivery dates and confidence levels.
+
+2. **Production monitoring** — each time a delay prediction is run (triggered by milestone updates), abcdYi calls GLTG to reforecast delivery feasibility against the current milestone state.
+
+GLTG results are persisted to the `delivery_feasibility_packets` table and recorded as `DELIVERY_FEASIBILITY_EVALUATED` events in the Industrial Execution Graph.
+
+---
+
 ## Project Structure
 
 ```
 api/           FastAPI routes and app entry point
 src/           Business logic and service modules
+  lead_time/   GLTG adapter (build_gltg_input_from_order, evaluate_delivery_feasibility)
+  services/    DeliveryFeasibilityService (GLTG single entry point)
   matching/    12-dimension supplier matching
   rfq/         RFQ state machine and service
-  decision_packets/  Decision packet generation
+  decision_packets/  Decision packet generation (GLTG-enriched)
   orders/      Order state machine
   milestones/  12-milestone production tracking
-  production_monitoring/  Delay predictor
+  production_monitoring/  Delay predictor + GLTG reforecast
   apparel_inspection/  QC evaluation engine
   logistics/   Shipment and tracking
   supplier_memory/  Performance tracking
   execution_graph/  Append-only audit trail
   approval_gates/  Human approval gate pattern
+libs/GLTG/     GLTG engine (local package — gltg)
 alembic/       Database migrations
 tests/         API and unit test suite
 scripts/       Seed data, acceptance, readiness scripts

@@ -6,12 +6,15 @@ from src.db.models.decision import DecisionPacket, DecisionOption, ApprovalReque
 from src.db.models.rfq import RFQ, SupplierResponse, SupplierResponsePacket
 from src.db.models.dynamic_form import DynamicOrderForm, DynamicOrderFormVersion
 from src.lead_time.calculator import calculate_path_lead_time
+from src.lead_time.gltg_adapter import build_gltg_input_from_order, evaluate_delivery_feasibility
 from src.risk_flags.detector import detect_decision_risk_flags, generate_comparison_summary
 from src.approval_gates.service import create_approval_request, require_approved
 from src.execution_graph.writer import emit_event
 from src.execution_graph.event_types import (
     DECISION_PACKET_GENERATED, QUOTE_APPROVAL_REQUESTED, QUOTE_APPROVED
 )
+
+from gltg.models import ApparelOrderInput, ParticipantNode as GltgNode
 
 
 async def _load_current_form_fields(db: AsyncSession, project_id: uuid.UUID) -> dict:
@@ -112,6 +115,48 @@ async def generate_decision_packet(
     form_fields = await _load_current_form_fields(db, project_id)
     quantity = form_fields.get("quantity") or 1
 
+    # Run GLTG on a synthetic ApparelOrderInput built from the response packets
+    # GLTG produces ranked feasible paths per supplier; we use its output to enrich options
+    gltg_nodes = []
+    for pkt_data in packets_data:
+        gltg_nodes.append(
+            GltgNode(
+                participant_id=pkt_data["participant_id"],
+                role="MANUFACTURER",
+                fabric_lead_time_days=pkt_data.get("fabric_lead_time_days"),
+                trim_lead_time_days=pkt_data.get("trim_lead_time_days"),
+                packaging_lead_time_days=pkt_data.get("packaging_time_days"),
+                production_time_days=pkt_data.get("production_time_days"),
+                qc_time_days=pkt_data.get("qc_time_days"),
+                logistics_time_days=pkt_data.get("logistics_time_days"),
+                supplier_stated_lead_time_days=pkt_data.get("total_lead_time_days"),
+                capacity_available=pkt_data.get("capacity_available"),
+                unit_price=pkt_data.get("unit_price"),
+                currency=pkt_data.get("currency"),
+            )
+        )
+    gltg_input = ApparelOrderInput(
+        order_id=str(project_id),
+        participant_nodes=gltg_nodes,
+        form_fields=form_fields,
+    )
+    gltg_packet = evaluate_delivery_feasibility(gltg_input)
+
+    # Map GLTG ranked paths back to packet_data by participant_id
+    gltg_by_participant: dict[str, dict] = {
+        path.participant_ids[0]: {
+            "gltg_total_lead_time_days": path.total_lead_time_days,
+            "gltg_risk_adjusted_delivery_date": path.risk_adjusted_delivery_date.isoformat() if path.risk_adjusted_delivery_date else None,
+            "gltg_feasibility": path.feasibility_reason,
+            "gltg_rank_score": path.rank_score,
+            "gltg_confidence": path.confidence,
+            "gltg_risk_flags": path.risk_flags,
+            "gltg_missing_evidence": path.missing_evidence,
+        }
+        for path in gltg_packet.ranked_options
+        if path.participant_ids
+    }
+
     # Build up to 3 options: best overall / fastest / lowest price
     # Deduplicate: if fewer responses, fewer options
     option_configs = []
@@ -152,14 +197,26 @@ async def generate_decision_packet(
         unit_price = pkt_data.get("unit_price")
         total_price = (unit_price * quantity) if unit_price is not None else None
 
+        # Prefer GLTG total lead time when available; fall back to calculator result
+        gltg_enrichment = gltg_by_participant.get(pkt_data["participant_id"], {})
+        effective_lt = (
+            gltg_enrichment.get("gltg_total_lead_time_days")
+            or lt_result["calculated_total_lead_time_days"]
+        )
+        combined_risk_flags = list(pkt_data.get("risk_flags", [])) + gltg_enrichment.get("gltg_risk_flags", [])
+        combined_missing = list(lt_result["missing_fields"]) + [
+            ev for ev in gltg_enrichment.get("gltg_missing_evidence", [])
+            if ev not in lt_result["missing_fields"]
+        ]
+
         option_for_risk = {
-            "calculated_total_lead_time_days": lt_result["calculated_total_lead_time_days"],
+            "calculated_total_lead_time_days": effective_lt,
             "supplier_stated_lead_time_days": pkt_data.get("total_lead_time_days"),
             "unit_price": unit_price,
             "capacity_available": pkt_data.get("capacity_available"),
             "valid_until": pkt_data.get("valid_until"),
-            "missing_fields": lt_result["missing_fields"],
-            "risk_flags": pkt_data.get("risk_flags", []),
+            "missing_fields": combined_missing,
+            "risk_flags": combined_risk_flags,
             "option_index": idx + 1,
         }
         risk_flags = detect_decision_risk_flags(option_for_risk, form_fields)
@@ -171,13 +228,17 @@ async def generate_decision_packet(
             unit_price=unit_price,
             total_price=total_price,
             currency=pkt_data.get("currency"),
-            lead_time_breakdown=lt_result,
-            calculated_total_lead_time_days=lt_result["calculated_total_lead_time_days"],
+            lead_time_breakdown={**lt_result, "gltg": gltg_enrichment},
+            calculated_total_lead_time_days=effective_lt,
             supplier_stated_lead_time_days=pkt_data.get("total_lead_time_days"),
             risk_flags=risk_flags,
-            missing_fields=lt_result["missing_fields"],
+            missing_fields=combined_missing,
             recommendation_reason=reason,
-            evidence={"source_response_id": pkt_data["response_id"]},
+            evidence={
+                "source_response_id": pkt_data["response_id"],
+                "gltg_risk_adjusted_delivery_date": gltg_enrichment.get("gltg_risk_adjusted_delivery_date"),
+                "gltg_confidence": gltg_enrichment.get("gltg_confidence"),
+            },
         )
         db.add(option)
         created_options.append(option)

@@ -12,6 +12,9 @@ from src.execution_graph.writer import emit_event
 from src.execution_graph.event_types import (
     PRODUCTION_DELAY_PREDICTED, EXPEDITE_ALERT_CREATED, EXPEDITE_ALERT_APPROVED
 )
+from src.services.delivery_feasibility_service import DeliveryFeasibilityService
+
+_feasibility_service = DeliveryFeasibilityService()
 
 
 async def _load_form_fields(db: AsyncSession, order: Order) -> dict:
@@ -120,6 +123,19 @@ async def run_delay_prediction(
         order_id=order_id,
         triggered_by_user_id=user_id,
     )
+
+    # GLTG reforecast: re-evaluate delivery feasibility with current milestone state
+    try:
+        await _feasibility_service.evaluate(
+            db=db,
+            order_id=order_id,
+            tenant_id=tenant_id,
+            project_id=order.project_id,
+            triggered_by_user_id=user_id,
+        )
+    except Exception:
+        # Reforecast is best-effort; do not block delay prediction on GLTG errors
+        pass
 
     return pkt
 
