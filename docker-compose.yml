@@ -17,19 +17,33 @@ services:
       timeout: 5s
       retries: 10
 
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment:
+      DATABASE_URL: postgresql+asyncpg://giraffe:giraffe@db:5432/apparel_textile
+      ALEMBIC_DATABASE_URL: postgresql+psycopg2://giraffe:giraffe@db:5432/apparel_textile
+      SECRET_KEY: change-me-in-production
+    depends_on:
+      db:
+        condition: service_healthy
+    command: uv run alembic upgrade head
+
   api:
     build:
       context: .
       dockerfile: Dockerfile.api
     environment:
       DATABASE_URL: postgresql+asyncpg://giraffe:giraffe@db:5432/apparel_textile
+      ALEMBIC_DATABASE_URL: postgresql+psycopg2://giraffe:giraffe@db:5432/apparel_textile
       SECRET_KEY: change-me-in-production
     ports:
       - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
-    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uv run uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
 
   frontend:
     build:

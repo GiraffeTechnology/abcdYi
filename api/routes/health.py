@@ -4,4 +4,4 @@ router = APIRouter()
 
 @router.get("/health")
 def health_check():
-    return {"status": "ok", "product": "Giraffe Agent v1.0 Apparel & Textile"}
+    return {"status": "ok", "product": "abcdYi — Giraffe Agent Apparel / Textile / Handicraft Industry Edition"}
