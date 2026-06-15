@@ -1,9 +1,43 @@
 # abcdYi
-> Giraffe Agent Industry Edition for Apparel, Textiles, and Handicrafts
+> Giraffe Agent B2M Industry Edition for Apparel, Textiles, and Handicrafts
 
-abcdYi is the first complete industry edition of Giraffe Agent, built for multi-party supply-chain coordination in apparel, textiles, and handicraft-based custom production.
+abcdYi is the first complete B2M industry edition of Giraffe Agent, built for multi-party supply-chain coordination in apparel, textiles, and handicraft-based production.
 
 It serves independent designers, small fashion brands, and SME-led fashion ecosystems that need structured, multi-party order execution — from buyer inquiry through supplier matching, RFQ, production monitoring, quality control, and delivery — with human approval at every critical decision boundary.
+
+The core user is not an end consumer. The core user is a buyer, designer, small brand, trader, merchandiser, or SME coordinating production with manufacturers, workshops, material suppliers, process suppliers, QC participants, and logistics partners.
+
+---
+
+## Why B2M
+
+abcdYi is B2M: Buyer-to-Manufacturer.
+
+In this repository, "Buyer" means a commercial or professional buyer, such as:
+- an independent designer;
+- a small fashion brand;
+- a boutique label;
+- a trading company;
+- a merchandiser;
+- an SME placing production orders;
+- a buyer coordinating apparel, textile, or handicraft production.
+
+The buyer is not treated as a retail consumer.
+
+The manufacturer side may include:
+- garment factories;
+- textile mills;
+- CMT workshops;
+- fabric suppliers;
+- trim suppliers;
+- packaging suppliers;
+- embroidery providers;
+- printing providers;
+- handicraft workshops;
+- QC providers;
+- logistics partners.
+
+abcdYi exists to coordinate this B2M production workflow.
 
 ---
 
@@ -15,8 +49,6 @@ abcdYi is not:
 - a consumer shopping app
 - a generic ERP
 - a generic CRM
-- a virtual fitting product
-- a blockchain product
 - a simple supplier directory
 - a hardcoded demo
 - a one-order simulation
@@ -26,12 +58,12 @@ abcdYi is not:
 ## What abcdYi Is
 
 abcdYi is:
-- Giraffe Agent's first complete industry edition
+- Giraffe Agent's first complete B2M industry edition
 - a supply-chain workflow execution product
 - a multi-party coordination system for fashion SMEs
 - a designer and small-brand order execution assistant
 - a small-batch quick-response workflow engine
-- a patent-aligned implementation of multi-party C2M execution logic for apparel, textiles, and handicrafts
+- a patent-aligned implementation of multi-party B2M execution logic for apparel, textiles, and handicrafts
 
 ---
 
@@ -39,7 +71,7 @@ abcdYi is:
 
 - **Independent designers** placing small-batch custom orders with workshops and factories
 - **Small fashion brands** coordinating multi-tier supply chains (fabric, trims, manufacturing, QC, logistics)
-- **SME apparel and textile businesses** executing C2M orders with multiple participants
+- **SME apparel and textile businesses** executing B2M orders with multiple participants
 - **Handicraft producers** coordinating fragmented material and process suppliers
 - **Developer teams** building industry-specific supply-chain coordination tools on top of Giraffe Agent
 
@@ -186,24 +218,27 @@ docker compose run --rm migrate
 docker compose up api
 ```
 
-Or all-in-one (manual migration step required):
-```bash
-docker compose up --build
-```
+---
 
-### Clean-state Test Run
+## Validation
+
+Run a clean-state validation:
 
 ```bash
 ./scripts/run_clean_db_validation.sh
 ```
 
-Or manually:
-```bash
-docker compose down -v
-docker compose up -d db
-uv run alembic upgrade head
-uv run pytest tests/api/ tests/unit/ -v
-```
+The validation performs:
+
+1. Docker cleanup
+2. Docker image build
+3. Fresh PostgreSQL startup
+4. Alembic migration
+5. API startup
+6. `/health` check
+7. API and unit test suite
+
+The repository must pass at least three consecutive clean-state validation runs before being treated as release-ready.
 
 ---
 
@@ -329,9 +364,11 @@ docs/          Product documentation
 
 This repository is released under the **Apache-2.0** software license.
 
-Certain workflows, system logic, role-based participant coordination mechanisms, dynamic order forms, participant matching, production monitoring, quality inspection, participant supervision, supplier memory, and multi-party C2M / order-execution workflows in this project may be covered by patents owned by Giraffe Technology Holding Limited.
+Certain workflows, system logic, role-based participant coordination mechanisms, dynamic order forms, participant matching, production monitoring, quality inspection, participant supervision, supplier memory, and multi-party B2M / order-execution workflows in this project may be covered by patents owned by Giraffe Technology Holding Limited.
 
 abcdYi is the Apparel / Textile / Handicraft industry edition of Giraffe Agent. Its workflow is designed to implement patent-aligned execution logic for multi-party supply-chain coordination in small-batch, fast-response fashion and craft-based production.
+
+The official patent titles may contain the term C2M because that is the registered legal title. abcdYi's product implementation and repository positioning are B2M.
 
 Patent references:
 

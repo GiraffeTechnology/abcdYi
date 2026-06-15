@@ -1,6 +1,6 @@
 # Product Scope v1.0
 
-- Product scope: Apparel & Textile C2M / B2B order execution only
+- Product scope: Apparel & Textile B2M order execution only
 - Target users: apparel trading companies, sourcing teams, manufacturers
 - Supported workflows: inquiry → form → matching → RFQ → decision → order → production → QC → logistics → sign-off
 - Excluded workflows: CNC, generic ERP, consumer e-commerce, generic marketplace

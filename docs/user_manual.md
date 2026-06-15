@@ -6,7 +6,7 @@
 
 ## Chapter 1: Introduction
 
-Giraffe Agent is a C2M (Customer-to-Manufacturer) order execution platform for the apparel and textile industry. It coordinates buyer inquiries, supplier matching, RFQ, production monitoring, quality control, and logistics through a structured workflow with human approval gates at every critical decision point.
+abcdYi is a B2M (Buyer-to-Manufacturer) order execution product for the apparel and textile industry. It coordinates buyer inquiries, supplier matching, RFQ, production monitoring, quality control, and logistics through a structured workflow with human approval gates at every critical decision point.
 
 ---
 

@@ -2,7 +2,7 @@
 
 abcdYi is the Apparel / Textile / Handicraft industry edition of Giraffe Agent.
 
-Certain workflows, business methods, system designs, data structures, role-based participant coordination mechanisms, dynamic order form mechanisms, participant matching mechanisms, production monitoring mechanisms, quality inspection and evidence mechanisms, participant supervision mechanisms, supplier memory mechanisms, and multi-party C2M / order-execution workflows implemented or referenced by this project may be covered by patents owned by **Giraffe Technology Holding Limited**.
+Certain workflows, business methods, system designs, data structures, role-based participant coordination mechanisms, dynamic order form mechanisms, participant matching mechanisms, production monitoring mechanisms, quality inspection and evidence mechanisms, participant supervision mechanisms, supplier memory mechanisms, and multi-party B2M / order-execution workflows implemented or referenced by this project may be covered by patents owned by **Giraffe Technology Holding Limited**.
 
 ## Patents
 
@@ -12,6 +12,8 @@ Certain workflows, business methods, system designs, data structures, role-based
 | Japan | **P7644545 / 特許第7644545号** | 協働型C2Mモデルに基づく繊維及びアパレルカスタマイズ運用プラットフォームシステム |
 
 **Patent Owner:** Giraffe Technology Holding Limited
+
+Note: The official patent titles contain the term C2M as registered legal titles. abcdYi's repository positioning and product implementation are B2M: buyer-to-manufacturer production coordination for apparel, textiles, and handicrafts.
 
 ---
 
@@ -46,11 +48,11 @@ The above users may, on a free-of-charge patent-license basis:
 
 The global free patent license does **not** automatically cover the following use cases. Prior written permission from Giraffe Technology Holding Limited is required for:
 
-1. **Enterprise Deployment** — deployment by large enterprises, multinational corporations, listed companies, industrial groups, large trading platforms, or enterprise procurement organizations.
-2. **Platform Operation** — operating a marketplace, SaaS platform, cloud service, procurement platform, manufacturing network, supplier network, B2B trading platform, or order execution platform based on the patented workflow.
+1. **Enterprise Deployment** — deployment by large enterprises, multinational corporations, listed companies, industrial groups, large trading services, or enterprise procurement organizations.
+2. **Hosted Commercial Operation** — operating a marketplace, hosted commercial service, procurement network, manufacturing network, supplier network, B2B trading service, or order-execution service based on the patented workflow.
 3. **High-volume Commercial Production Use** — high-frequency, large-scale, multi-client, revenue-generating, or production-grade commercial operation beyond ordinary SME self-use.
 4. **System Integration for Third Parties** — commercial integration, customization, deployment, or managed service provision for third-party clients.
-5. **White-label / OEM / Resale** — repackaging, reselling, white-labeling, sublicensing, or embedding the patented workflow into another commercial platform or product.
+5. **White-label / OEM / Resale** — repackaging, reselling, white-labeling, sublicensing, or embedding the patented workflow into another commercial product or service.
 6. **Enterprise CAP / Confidential Engineering File Services** — use involving enterprise-grade confidential artifact protection, CAD/STEP/BOM protection, secure engineering data rooms, VPC deployment, no-download rooms, dynamic watermarking, or enterprise-grade file governance.
 7. **Use of Giraffe Commercial Assets** — use of Giraffe's trademarks, brand, supplier network, buyer network, commercial operating rights, transaction data, supplier profile data, buyer data, order archives, Industrial Execution Graph data, or proprietary business data.
 
@@ -65,7 +67,7 @@ Access to this source code does **not** automatically grant:
 - Supplier network data or buyer data
 - Transaction records or order archives
 - Industrial Execution Graph data
-- Commercial operating rights or platform operating rights
+- Commercial operating rights
 - Sublicensing rights
 
 **Open-source code access and patent permission are separate legal layers.**

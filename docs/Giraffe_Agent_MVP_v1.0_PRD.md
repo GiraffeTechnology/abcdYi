@@ -70,7 +70,7 @@ Together they form the **Industrial Execution Graph v0.1** — a project-aware, 
 
 ### 2.1 Patent Notice (English)
 
-Certain workflows, business methods, system designs, data structures, role-based participant coordination mechanisms, dynamic form generation mechanisms, production monitoring mechanisms, quality inspection mechanisms, participant matching mechanisms, and multi-party C2M / order execution workflows implemented or referenced by this project may be covered by patents owned by **Giraffe Technology Holding Limited**.
+Certain workflows, business methods, system designs, data structures, role-based participant coordination mechanisms, dynamic form generation mechanisms, production monitoring mechanisms, quality inspection mechanisms, participant matching mechanisms, and multi-party B2M / order execution workflows implemented or referenced by this project may be covered by patents owned by **Giraffe Technology Holding Limited**.
 
 The relevant patent family includes, without limitation:
 
@@ -110,7 +110,7 @@ Open-source code access and patent permission are **separate legal layers**.
 
 ### 2.5 专利提示（中文）
 
-本项目中的部分工作流、系统逻辑、参与者协同机制、动态表单机制、生产监控机制、质量检测机制、角色切换式采购执行流程及多方 C2M / 订单执行流程，可能涉及长颈鹿科技（控股）有限公司拥有的相关专利，包括中国发明专利 **ZL 2023 1 1645939.9 / CN 117670482 B** 及日本专利 **P7644545 / 特許第7644545号**。
+本项目中的部分工作流、系统逻辑、参与者协同机制、动态表单机制、生产监控机制、质量检测机制、角色切换式采购执行流程及多方 B2M / 订单执行流程，可能涉及长颈鹿科技（控股）有限公司拥有的相关专利，包括中国发明专利 **ZL 2023 1 1645939.9 / CN 117670482 B** 及日本专利 **P7644545 / 特許第7644545号**。
 
 长颈鹿科技（控股）有限公司向全球范围内的**个人、中小企业（SME）、教育机构及科研机构**，就合规使用相关专利工作流与系统逻辑授予**免费专利许可**。企业级部署、平台化运营、大规模商业生产使用、为第三方提供系统集成或托管服务、白标/OEM/转售、Enterprise CAP、以及使用长颈鹿商标、供应商网络、买方数据、交易数据、订单档案、Industrial Execution Graph 数据或商业运营权，须**另行取得书面许可**。
 

@@ -1,4 +1,4 @@
-.PHONY: install db-up migrate test api dev clean
+.PHONY: install db-up migrate test api dev clean validate docker-validate
 
 install:
 	uv sync
@@ -20,3 +20,16 @@ dev:
 
 clean:
 	docker compose down -v
+
+validate:
+	./scripts/run_clean_db_validation.sh
+
+docker-validate:
+	docker compose down -v
+	docker compose build
+	docker compose up -d db
+	docker compose run --rm migrate
+	docker compose up -d api
+	sleep 5
+	curl -f http://localhost:8000/health
+	uv run pytest tests/api/ tests/unit/ -v

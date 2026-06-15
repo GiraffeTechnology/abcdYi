@@ -54,8 +54,8 @@ All 7 iterations of the Giraffe Agent v1.0 Apparel & Textile Industry Edition ha
 
 The platform is aligned with patents held by Giraffe Technology Holding Limited:
 
-- **CN ZL 2023 1 1645939.9 / CN 117670482 B** — C2M纺织品及服装定制运营平台系统
-- **JP P7644545 / 特許第7644545号** — C2Mモデルに基づく繊維及びアパレルカスタマイズ運用プラットフォームシステム
+- **CN ZL 2023 1 1645939.9 / CN 117670482 B** — 基于多方配合的C2M模式的纺织品及服装定制运营平台系统
+- **JP P7644545 / 特許第7644545号** — 協働型C2Mモデルに基づく繊維及びアパレルカスタマイズ運用プラットフォームシステム
 
 All 10 patent units are mapped to product modules in `docs/patent_alignment_matrix.md`.
 
@@ -73,7 +73,7 @@ All 10 patent units are mapped to product modules in `docs/patent_alignment_matr
 
 ## V1 Acceptance Verdict
 
-`scripts/run_v1_acceptance_apparel_order.py` executes the full 22-step C2M order lifecycle:
+`scripts/run_v1_acceptance_apparel_order.py` executes the full 22-step B2M order lifecycle:
 
 1. Register user
 2. Login

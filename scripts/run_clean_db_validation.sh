@@ -1,25 +1,20 @@
 #!/usr/bin/env bash
-# run_clean_db_validation.sh — Reproducible clean-state test run
-# Usage: ./scripts/run_clean_db_validation.sh
+# run_clean_db_validation.sh — Reproducible clean-state validation for abcdYi
 set -euo pipefail
-
 echo "=== abcdYi — Clean DB Validation ==="
-echo ""
-
-echo "[1/5] Tearing down existing containers and volumes..."
+echo "[1/7] Tearing down existing containers and volumes..."
 docker compose down -v
-
-echo "[2/5] Starting fresh database..."
+echo "[2/7] Building images..."
+docker compose build
+echo "[3/7] Starting fresh database..."
 docker compose up -d db
-
-echo "[3/5] Waiting for database to be ready..."
-sleep 6
-
-echo "[4/5] Running Alembic migrations..."
-uv run alembic upgrade head
-
-echo "[5/5] Running test suite..."
+echo "[4/7] Running Alembic migrations..."
+docker compose run --rm migrate
+echo "[5/7] Starting API..."
+docker compose up -d api
+echo "[6/7] Checking API health..."
+sleep 5
+curl -f http://localhost:8000/health
+echo "[7/7] Running test suite..."
 uv run pytest tests/api/ tests/unit/ -v
-
-echo ""
 echo "=== Validation complete ==="
