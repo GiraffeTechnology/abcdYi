@@ -24,6 +24,8 @@ class FabricDB(Base):
     unit: Mapped[str] = mapped_column(String(64), nullable=False)
     quote_date: Mapped[date] = mapped_column(Date, nullable=False)
     lead_time_days: Mapped[int] = mapped_column(Integer, nullable=False)
+    lead_time_relation: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    lead_time_phase: Mapped[int | None] = mapped_column(Integer, nullable=True)
     input_by: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
@@ -38,6 +40,8 @@ class AccessoryDB(Base):
     unit: Mapped[str] = mapped_column(String(64), nullable=False)
     quote_date: Mapped[date] = mapped_column(Date, nullable=False)
     lead_time_days: Mapped[int] = mapped_column(Integer, nullable=False)
+    lead_time_relation: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    lead_time_phase: Mapped[int | None] = mapped_column(Integer, nullable=True)
     input_by: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
@@ -77,6 +81,8 @@ class SKUProcessAttribute(Base):
     supplier: Mapped[str] = mapped_column(String(255), nullable=False)
     quote_date: Mapped[date] = mapped_column(Date, nullable=False)
     lead_time_days: Mapped[int] = mapped_column(Integer, nullable=False)
+    lead_time_relation: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    lead_time_phase: Mapped[int | None] = mapped_column(Integer, nullable=True)
     input_by: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
@@ -95,6 +101,8 @@ class PackagingDB(Base):
     unit: Mapped[str] = mapped_column(String(64), nullable=False)
     quote_date: Mapped[date] = mapped_column(Date, nullable=False)
     lead_time_days: Mapped[int] = mapped_column(Integer, nullable=False)
+    lead_time_relation: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    lead_time_phase: Mapped[int | None] = mapped_column(Integer, nullable=True)
     input_by: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 

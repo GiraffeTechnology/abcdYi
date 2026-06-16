@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from decimal import Decimal
+from enum import Enum
 from typing import Optional
 
 
@@ -56,13 +57,29 @@ class PricingBreakdown:
     quoted_price: Decimal
 
 
+class LeadTimeRelation(str, Enum):
+    PARALLEL = "parallel"      # 并联 — concurrent with peers in same phase
+    SEQUENTIAL = "sequential"  # 串联 — sequential, after previous phase completes
+
+
+# Standard garment manufacturing phases (industry knowledge defaults)
+PHASE_PROCUREMENT = 1   # 采购：fabric + accessories (parallel)
+PHASE_PROCESS     = 2   # 工艺：embroidery / printing (sequential)
+PHASE_PRODUCTION  = 3   # 生产：cutting + sewing (sequential)
+PHASE_PACKAGING   = 4   # 包装：packing + labeling (sequential)
+
+
+@dataclass
+class LeadTimeItem:
+    name: str
+    days: int
+    relation: LeadTimeRelation   # parallel or sequential
+    phase: int                   # phase number (determines ordering)
+
+
 @dataclass
 class LeadTimeInput:
-    fabric_lead_time: Optional[int] = None
-    accessory_lead_times: list[int] = field(default_factory=list)
-    process_lead_times: list[int] = field(default_factory=list)
-    packaging_lead_time: Optional[int] = None
-    production_days: Optional[int] = None
+    items: list[LeadTimeItem] = field(default_factory=list)
 
 
 class PricingEngine:
@@ -118,29 +135,30 @@ class PricingEngine:
 
 class LeadTimeEngine:
     """
-    Deterministic lead time aggregation.
+    Phase-based critical path calculator.
 
-    Sequential phases:
-      Phase 1 (concurrent procurement): max(fabric, accessories)
-      Phase 2 (sequential, needs fabric): sum of process lead times
-      Phase 3 (sequential): packaging lead time
-      Phase 4 (sequential): production days
-    Total = phase1 + phase2 + phase3 + phase4
+    Within each phase:
+      - all PARALLEL items → take max(days)
+      - all SEQUENTIAL items → sum(days)
+      - phase_duration = max(parallel) + sum(sequential)
+
+    Total = sum of phase_durations across phases in ascending phase order.
     """
 
     def calculate(self, inp: LeadTimeInput) -> int:
-        _require(inp.fabric_lead_time, "fabric_lead_time（面料 lead time）")
-        _require(inp.production_days, "production_days（生产天数）")
-
-        procurement_times: list[int] = [inp.fabric_lead_time]  # type: ignore[list-item]
-        procurement_times.extend(inp.accessory_lead_times)
-        phase1 = max(procurement_times)
-
-        phase2 = sum(inp.process_lead_times)
-
-        phase3 = inp.packaging_lead_time if inp.packaging_lead_time is not None else 0
-
-        return phase1 + phase2 + phase3 + inp.production_days  # type: ignore[operator]
+        if not inp.items:
+            raise MissingPricingDataError("LeadTimeInput has no items")
+        phase_map: dict[int, list[LeadTimeItem]] = {}
+        for item in inp.items:
+            phase_map.setdefault(item.phase, []).append(item)
+        total = 0
+        for phase_num in sorted(phase_map.keys()):
+            items = phase_map[phase_num]
+            parallel = [i.days for i in items if i.relation == LeadTimeRelation.PARALLEL]
+            sequential = [i.days for i in items if i.relation == LeadTimeRelation.SEQUENTIAL]
+            phase_duration = (max(parallel) if parallel else 0) + sum(sequential)
+            total += phase_duration
+        return total
 
 
 def _require(value: object, field_name: str) -> None:

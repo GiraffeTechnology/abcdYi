@@ -31,6 +31,12 @@ from src.pricing.engine.calculator import (
     ProcessLineItem,
     LeadTimeEngine,
     LeadTimeInput,
+    LeadTimeItem,
+    LeadTimeRelation,
+    PHASE_PROCUREMENT,
+    PHASE_PROCESS,
+    PHASE_PRODUCTION,
+    PHASE_PACKAGING,
     MissingPricingDataError,
 )
 
@@ -89,6 +95,8 @@ EXTRACTION_SCHEMA = """
     "supplier": "string|null",
     "quote_date": "string|null",
     "lead_time_days": "number|null",
+    "lead_time_relation": "parallel|sequential|null",
+    "lead_time_phase": "number|null",
     "source_text": "string"
   },
   "accessories": [
@@ -99,6 +107,8 @@ EXTRACTION_SCHEMA = """
       "qty_per_piece": "number|null",
       "supplier": "string|null",
       "lead_time_days": "number|null",
+      "lead_time_relation": "parallel|sequential|null",
+      "lead_time_phase": "number|null",
       "source_text": "string"
     }
   ],
@@ -110,6 +120,8 @@ EXTRACTION_SCHEMA = """
       "supplier": "string|null",
       "quote_date": "string|null",
       "lead_time_days": "number|null",
+      "lead_time_relation": "parallel|sequential|null",
+      "lead_time_phase": "number|null",
       "source_text": "string"
     }
   ],
@@ -118,6 +130,8 @@ EXTRACTION_SCHEMA = """
     "unit_price": "number|null",
     "supplier": "string|null",
     "lead_time_days": "number|null",
+    "lead_time_relation": "parallel|sequential|null",
+    "lead_time_phase": "number|null",
     "source_text": "string"
   },
   "labor": {
@@ -184,6 +198,56 @@ def extracted_to_pricing_input(data: dict) -> PricingInput:
         overhead_rate=Decimal("0.10"),   # 从 overhead_profit_ref 表获取，此处硬编码演示
         profit_rate=Decimal("0.15"),     # 同上
     )
+
+
+def extracted_to_lead_time_input(data: dict, production_days: int = 5) -> LeadTimeInput:
+    items: list[LeadTimeItem] = []
+
+    fabric = data.get("fabric", {})
+    if fabric.get("lead_time_days") is not None:
+        items.append(LeadTimeItem(
+            name="面料",
+            days=int(fabric["lead_time_days"]),
+            relation=LeadTimeRelation(fabric.get("lead_time_relation") or "parallel"),
+            phase=int(fabric.get("lead_time_phase") or PHASE_PROCUREMENT),
+        ))
+
+    for acc in data.get("accessories", []):
+        if acc.get("lead_time_days") is not None:
+            items.append(LeadTimeItem(
+                name=acc.get("name", "辅料"),
+                days=int(acc["lead_time_days"]),
+                relation=LeadTimeRelation(acc.get("lead_time_relation") or "parallel"),
+                phase=int(acc.get("lead_time_phase") or PHASE_PROCUREMENT),
+            ))
+
+    for proc in data.get("processes", []):
+        if proc.get("lead_time_days") is not None:
+            items.append(LeadTimeItem(
+                name=proc.get("name", "工艺"),
+                days=int(proc["lead_time_days"]),
+                relation=LeadTimeRelation(proc.get("lead_time_relation") or "sequential"),
+                phase=int(proc.get("lead_time_phase") or PHASE_PROCESS),
+            ))
+
+    # Production is always added as an internal item (not from supplier quotes)
+    items.append(LeadTimeItem(
+        name="生产",
+        days=production_days,
+        relation=LeadTimeRelation.SEQUENTIAL,
+        phase=PHASE_PRODUCTION,
+    ))
+
+    pkg = data.get("packaging", {})
+    if pkg.get("lead_time_days") is not None:
+        items.append(LeadTimeItem(
+            name="包装",
+            days=int(pkg["lead_time_days"]),
+            relation=LeadTimeRelation(pkg.get("lead_time_relation") or "sequential"),
+            phase=int(pkg.get("lead_time_phase") or PHASE_PACKAGING),
+        ))
+
+    return LeadTimeInput(items=items)
 
 
 # ── 主测试 ─────────────────────────────────────────────────────────────────
@@ -265,23 +329,13 @@ def test_qwen_sku_distillation_and_pricing():
 
         # lead time 计算
         lt_engine = LeadTimeEngine()
-        proc_lead_times = [
-            p.get("lead_time_days")
-            for p in extracted.get("processes", [])
-            if p.get("lead_time_days") is not None
-        ]
-        lt_input = LeadTimeInput(
-            fabric_lead_time=extracted.get("fabric", {}).get("lead_time_days") or 15,
-            accessory_lead_times=[
-                a["lead_time_days"] for a in extracted.get("accessories", [])
-                if a.get("lead_time_days") is not None
-            ],
-            process_lead_times=proc_lead_times,
-            packaging_lead_time=extracted.get("packaging", {}).get("lead_time_days"),
-            production_days=5,
-        )
+        lt_input = extracted_to_lead_time_input(extracted, production_days=5)
         total_lead_time = lt_engine.calculate(lt_input)
         print(f"\n  Lead Time（采购关键路径 + 生产）：{total_lead_time} 天")
+        assert total_lead_time == 31, (
+            f"Lead time 预期 31 天，实际 {total_lead_time} 天。"
+            f"items: {[(i.name, i.days, i.relation, i.phase) for i in lt_input.items]}"
+        )
 
     except MissingPricingDataError as e:
         # 数据缺失时，引擎正确报错而非静默跳过

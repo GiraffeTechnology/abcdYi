@@ -9,7 +9,9 @@ import pytest
 
 from src.pricing.engine.calculator import (
     MissingPricingDataError, PricingEngine, PricingInput,
-    LeadTimeEngine, LeadTimeInput, ProcessLineItem,
+    LeadTimeEngine, LeadTimeInput, LeadTimeItem, LeadTimeRelation,
+    PHASE_PROCUREMENT, PHASE_PROCESS, PHASE_PRODUCTION, PHASE_PACKAGING,
+    ProcessLineItem,
 )
 from src.pricing.benchmark.validator import (
     BenchmarkRecord, BenchmarkValidator, BenchmarkRecalculator,
@@ -405,24 +407,25 @@ def test_recalculator_computes_correct_stats():
 
 def test_lead_time_missing_fabric_raises():
     engine = LeadTimeEngine()
-    inp = LeadTimeInput(fabric_lead_time=None, production_days=10)
+    inp = LeadTimeInput(items=[])
     with pytest.raises(MissingPricingDataError):
         engine.calculate(inp)
 
 
-def test_lead_time_critical_path_is_max_plus_production():
+def test_lead_time_phase_based_calculation():
     engine = LeadTimeEngine()
-    inp = LeadTimeInput(
-        fabric_lead_time=20,
-        accessory_lead_times=[15, 10],
-        process_lead_times=[18],
-        packaging_lead_time=5,
-        production_days=7,
-    )
+    inp = LeadTimeInput(items=[
+        LeadTimeItem("fabric",    20, LeadTimeRelation.PARALLEL,   PHASE_PROCUREMENT),
+        LeadTimeItem("buttons",   15, LeadTimeRelation.PARALLEL,   PHASE_PROCUREMENT),
+        LeadTimeItem("thread",    10, LeadTimeRelation.PARALLEL,   PHASE_PROCUREMENT),
+        LeadTimeItem("embroidery",18, LeadTimeRelation.SEQUENTIAL, PHASE_PROCESS),
+        LeadTimeItem("production", 7, LeadTimeRelation.SEQUENTIAL, PHASE_PRODUCTION),
+        LeadTimeItem("packaging",  5, LeadTimeRelation.SEQUENTIAL, PHASE_PACKAGING),
+    ])
     result = engine.calculate(inp)
-    # phase1 (procurement) = max(20, 15, 10) = 20
-    # phase2 (process, sequential) = 18
-    # phase3 (packaging, sequential) = 5
-    # phase4 (production) = 7
-    # total = 20 + 18 + 5 + 7 = 50
+    # phase1 (parallel procurement) = max(20, 15, 10) = 20
+    # phase2 (sequential process)   = 18
+    # phase3 (sequential production)= 7
+    # phase4 (sequential packaging) = 5
+    # total = 20 + 18 + 7 + 5 = 50
     assert result == 50
