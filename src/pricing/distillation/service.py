@@ -61,8 +61,11 @@ def build_extraction_prompt(source_document_text: str) -> str:
         "\n"
         "每个含交期的字段还需标注：\n"
         "  lead_time_relation: \"parallel\"（并联，可与同阶段其他项同步进行）或 \"sequential\"（串联，须等上一阶段完成）\n"
-        "  lead_time_phase: 整数阶段号（行业默认：1=采购, 2=工艺, 3=生产, 4=包装）\n"
-        "禁止估算——若无法从原文判断则填 null。\n"
+        "  lead_time_phase: 整数阶段号，根据该产品实际工序顺序分配，数字越小越先执行。\n"
+        "    参考示例（简单款，如衬衫）：1=采购(并联), 2=生产, 3=工艺, 4=包装\n"
+        "    复杂款（如牛仔裤）：1=采购, 2=前工艺(水洗/酶洗), 3=生产, 4=后工艺(刺绣/做旧), 5=包装\n"
+        "    注意：工艺可在生产之前、之后，或两者都有——以原文所描述的实际流程为准。\n"
+        "禁止估算——若原文未说明顺序则 lead_time_relation 和 lead_time_phase 均填 null。\n"
         "\n"
         f"原始材料：\n{source_document_text}"
     )
