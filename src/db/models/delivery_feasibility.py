@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 from sqlalchemy import String, DateTime, Date, Integer, Text, func
-from sqlalchemy.dialects.postgresql import JSONB
+from src.db.json_type import PortableJSON as JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 from src.db.base import Base
 

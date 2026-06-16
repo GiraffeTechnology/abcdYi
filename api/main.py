@@ -15,6 +15,11 @@ from api.routes.milestones import router as milestones_router
 from api.routes.qc import router as qc_router
 from api.routes.logistics import router as logistics_router
 from api.routes.execution_graph import router as execution_graph_router
+from api.routes.role_switching import router as role_switching_router
+from src.actors.role_resolver import resolve_role_context
+from src.m_side.dependencies.dependency_planner import plan_upstream_dependencies
+from src.m_side.rollup.supplier_response_rollup import generate_supplier_response_rollup
+from src.m_side.bridge.submit_rollup_to_b_side import submit_rollup_to_b_side
 
 app = FastAPI(
     title="abcdYi — Giraffe Agent Apparel / Textile / Handicraft Industry Edition",
@@ -45,3 +50,17 @@ app.include_router(milestones_router, prefix="/api", tags=["milestones"])
 app.include_router(qc_router, prefix="/api", tags=["qc"])
 app.include_router(logistics_router, prefix="/api", tags=["logistics"])
 app.include_router(execution_graph_router, prefix="/api", tags=["execution_graph"])
+app.include_router(role_switching_router)
+
+# The role-switching pipeline stages reachable at /api/role-switching/run-upstream-pipeline.
+ROLE_SWITCHING_PIPELINE_STAGES = [
+    resolve_role_context.__name__,
+    plan_upstream_dependencies.__name__,
+    generate_supplier_response_rollup.__name__,
+    submit_rollup_to_b_side.__name__,
+]
+
+
+@app.get("/api/role-switching/pipeline-stages", tags=["role-switching"])
+def get_role_switching_pipeline_stages() -> dict:
+    return {"stages": ROLE_SWITCHING_PIPELINE_STAGES}

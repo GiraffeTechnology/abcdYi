@@ -11,7 +11,7 @@ def _utcnow():
 
 
 class ExecutionEvent(Base):
-    __tablename__ = "execution_events"
+    __tablename__ = "actor_execution_events"
 
     event_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
     project_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("projects.project_id"), nullable=True)
