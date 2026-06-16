@@ -6,14 +6,34 @@ on:
   pull_request:
 
 jobs:
-  b-side-tests:
-    name: B-side Tests
+  validate:
+    name: Makefile Validation Path
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: giraffe
+          POSTGRES_PASSWORD: giraffe
+          POSTGRES_DB: apparel_textile
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U giraffe"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://giraffe:giraffe@localhost:5432/apparel_textile
+      ALEMBIC_DATABASE_URL: postgresql+psycopg2://giraffe:giraffe@localhost:5432/apparel_textile
+      SECRET_KEY: ci-secret-key
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -21,110 +41,23 @@ jobs:
       - name: Install uv
         run: pip install uv
 
-      - name: Install dependencies
+      - name: uv sync
         run: uv sync
 
-      - name: Add pytest
-        run: uv add --dev pytest
+      - name: Compile all Python files
+        run: uv run python -m compileall .
 
-      - name: Compile Python files
-        run: uv run python -m py_compile *.py
+      - name: Run unit tests
+        run: uv run pytest tests/unit/ -v -m "not integration"
 
-      - name: Run B-side and DB tests
-        run: uv run pytest tests/db/ -q
+      - name: Run Alembic migrations
+        run: uv run alembic upgrade head
 
-  mside-role-switching-tests:
-    name: M-side Role-Switching Tests
-    runs-on: ubuntu-latest
+      - name: Run integration tests
+        run: uv run pytest tests/integration/ -v
 
-    steps:
-      - uses: actions/checkout@v4
+      - name: Run combined unit + integration tests
+        run: uv run pytest tests/unit/ tests/integration/ -v
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install uv
-        run: pip install uv
-
-      - name: Install dependencies
-        run: uv sync
-
-      - name: Add pytest
-        run: uv add --dev pytest
-
-      - name: Compile Python files
-        run: uv run python -m py_compile *.py
-
-      - name: Run M-side role-switching tests
-        run: uv run pytest tests/test_mside_role_switching.py -q
-
-      - name: Run role-switching E2E script
-        run: uv run python scripts/run_role_switching_mvp.py
-
-  bm-db-integration:
-    name: BM DB Integration
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install uv
-        run: pip install uv
-
-      - name: Install dependencies
-        run: uv sync
-
-      - name: Add pytest
-        run: uv add --dev pytest
-
-      - name: Run BM DB integration verifier (DB-off)
+      - name: BM E2E — DB-off mode
         run: GIRAFFE_DB_MODE=off uv run python run_bm_e2e_with_db.py
-
-      - name: Run BM DB integration verifier (DB-on)
-        run: |
-          GIRAFFE_DB_MODE=on GIRAFFE_DB_URL=sqlite:///./ci_test.db uv run python build_schema.py
-          GIRAFFE_DB_MODE=on GIRAFFE_DB_URL=sqlite:///./ci_test.db uv run python run_bm_e2e_with_db.py
-          uv run python verify_integration.py --db sqlite:///./ci_test.db --runs 5
-
-  lead-time-model:
-    name: Lead Time Path Model
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install uv
-        run: pip install uv
-
-      - name: Install dependencies
-        run: uv sync
-
-      - name: Add pytest
-        run: uv add --dev pytest
-
-      - name: Compile Python files
-        run: uv run python -m py_compile *.py
-
-      - name: Run lead time model unit tests
-        run: uv run pytest tests/test_lead_time_imports.py tests/test_lead_time_model.py tests/test_lead_time_path_enumerator.py tests/test_b_side_feasibility_uses_lead_time_model.py tests/test_m_side_rollup_lead_time_components.py -q --tb=short
-
-      - name: Run lead time model demo
-        run: uv run python scripts/run_lead_time_model_demo.py
-
-      - name: Run BM E2E (DB-off) with lead time model
-        run: GIRAFFE_DB_MODE=off uv run python run_bm_e2e_with_db.py
-
-      - name: Run role switching tests
-        run: uv run pytest tests/test_mside_role_switching.py -q --tb=short
