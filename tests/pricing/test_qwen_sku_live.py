@@ -278,6 +278,9 @@ def test_qwen_sku_distillation_and_pricing():
             "严格按照 schema 抽取原文中已有的数字，任何原文没有明确给出的数值一律填 null。"
             "禁止基于行业常识补全或估算任何数字。"
             "每个字段必须附带 source_text（原文对应片段）以供人工核验。"
+            "【特别注意】lead_time_relation 和 lead_time_phase 是高度专业的供应链字段，"
+            "绝对不可根据行业经验自行判断。原始文件中若没有明确写出「并联」「串联」「阶段」等字样，"
+            "这两个字段必须填 null，严禁推断或套用行业知识。"
             "仅输出 JSON，不加任何解释或 markdown 围栏。"
         ),
     )
