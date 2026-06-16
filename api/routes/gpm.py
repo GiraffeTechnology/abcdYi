@@ -5,8 +5,9 @@ The frontend calls these endpoints to get benchmark data with sample_size
 and source_type visible (spec §2.1 and §5 requirement).
 abcdyi never exposes GPM internals — it only proxies read queries.
 """
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
+from api.deps import get_current_user
 from src.gpm.client import get_benchmarks, validate_price, check_missing_processes
 from src.gpm.schemas import (
     ProcessBenchmarkOut,
@@ -16,7 +17,8 @@ from src.gpm.schemas import (
     MissingProcessAlert,
 )
 
-router = APIRouter()
+# All routes require a valid logged-in user — same standard as all other tenant-facing APIs.
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
 @router.get("/benchmarks", response_model=list[ProcessBenchmarkOut])
