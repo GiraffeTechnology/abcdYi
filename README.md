@@ -255,6 +255,15 @@ uv run pytest tests/unit/ -v -m "not integration"
 
 The repository must pass at least three consecutive clean-state validation runs before being treated as release-ready.
 
+Note: `tests/api/*` and `tests/integration/*` connect to a live PostgreSQL instance
+(`AsyncSessionLocal` defaults to `postgresql+asyncpg://...`) and will fail with
+`ConnectionRefusedError` in any environment without a running Postgres (e.g. no
+`docker compose up -d db`, no Docker daemon at all). This is expected outside the
+Docker-based validation flow above — `pytest -q` run without Postgres available will
+show ~60 such errors confined to those two directories; every other test file
+(`tests/db/*`, `tests/unit/*`, `tests/test_*.py`, etc.) is DB-independent (in-memory
+SQLite or pure-Python) and must pass cleanly on its own.
+
 ---
 
 ## API Overview

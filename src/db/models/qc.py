@@ -5,7 +5,7 @@ Only active when GIRAFFE_DB_MODE=on.
 import uuid
 from datetime import datetime
 from sqlalchemy import String, Float, Boolean, Integer, Text, DateTime, ForeignKey, func
-from sqlalchemy.dialects.postgresql import JSONB
+from src.db.json_type import PortableJSON as JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 from src.db.base import Base
 

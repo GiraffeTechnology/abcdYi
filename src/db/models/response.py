@@ -11,7 +11,7 @@ def _utcnow():
 
 
 class SupplierResponse(Base):
-    __tablename__ = "supplier_responses"
+    __tablename__ = "upstream_supplier_responses"
 
     response_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
     project_id: Mapped[str] = mapped_column(String(36), ForeignKey("projects.project_id"), nullable=False)

@@ -1,6 +1,6 @@
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,13 +10,39 @@ from src.qc.service import (
     create_qc_standard, record_qc_result,
     mark_qc_pass, mark_qc_fail, get_qc_records_for_order,
 )
-from src.merchandiser.qc.qc_reference_store import add_reference_image, get_reference_images
-from src.merchandiser.qc.qc_process_card import create_process_card, get_process_card
-from src.merchandiser.qc.qc_comparison_engine import compare_media_against_standard
+from src.merchandiser.qc.qc_reference_store import (
+    add_reference_image, get_reference_images, QCReferenceImage,
+)
+from src.merchandiser.qc.qc_process_card import (
+    create_process_card, get_process_card, QCProcessCard,
+)
+from src.merchandiser.qc.qc_comparison_engine import (
+    compare_media_against_standard, QCComparisonReport,
+)
 from src.merchandiser.qc.qc_result_store import save_qc_report, get_qc_reports_for_project
 from src.merchandiser.b_side.b_qc_review import receive_buyer_qc_decision
 
+# NOTE: the /qc/{project_id}/* routes below are an internal MVP surface for the
+# file-based (actor/m-side) QC pipeline in src/merchandiser/qc — they intentionally
+# have no Depends(get_current_user)/tenant scoping, unlike the DB-backed,
+# tenant-scoped /orders/{order_id}/qc-* routes further down this file.
 router = APIRouter()
+
+
+class ReferenceImageListResponse(BaseModel):
+    reference_images: list[QCReferenceImage]
+
+
+class QCReportListResponse(BaseModel):
+    reports: list[dict]
+
+
+class BuyerQCDecisionResponse(BaseModel):
+    project_id: str
+    milestone_id: str
+    buyer_actor_id: str
+    decision: str
+    notes: str
 
 
 class AddReferenceImageBody(BaseModel):
@@ -40,7 +66,7 @@ class CreateProcessCardBody(BaseModel):
 
 
 class CompareQCBody(BaseModel):
-    production_images: list[str] = []
+    production_images: list[str] = Field(default_factory=list)
     standard_images: list[str] | None = None
     milestone_id: str = "MILESTONE-UNSPECIFIED"
     milestone_type: str | None = None
@@ -62,39 +88,37 @@ def qc_health():
     return {"status": "ok"}
 
 
-@router.post("/qc/{project_id}/reference-images")
+@router.post("/qc/{project_id}/reference-images", response_model=QCReferenceImage)
 def add_reference_image_route(project_id: str, body: AddReferenceImageBody):
-    ref = add_reference_image(
+    return add_reference_image(
         project_id=project_id,
         image_path=body.image_path,
         uploaded_by_actor_id=body.uploaded_by_actor_id,
         milestone_type=body.milestone_type,
         description=body.description,
     )
-    return ref.model_dump()
 
 
-@router.get("/qc/{project_id}/reference-images")
+@router.get("/qc/{project_id}/reference-images", response_model=ReferenceImageListResponse)
 def list_reference_images_route(project_id: str, milestone_type: str | None = None):
     refs = get_reference_images(project_id, milestone_type=milestone_type)
-    return {"reference_images": [r.model_dump() for r in refs]}
+    return ReferenceImageListResponse(reference_images=refs)
 
 
-@router.post("/qc/{project_id}/process-card")
+@router.post("/qc/{project_id}/process-card", response_model=QCProcessCard)
 def create_process_card_route(project_id: str, body: CreateProcessCardBody):
-    card = create_process_card(project_id=project_id, **body.model_dump())
-    return card.model_dump()
+    return create_process_card(project_id=project_id, **body.model_dump())
 
 
-@router.get("/qc/{project_id}/process-card")
+@router.get("/qc/{project_id}/process-card", response_model=QCProcessCard)
 def get_process_card_route(project_id: str):
     card = get_process_card(project_id)
     if card is None:
         raise HTTPException(status_code=404, detail="No process card found for this project")
-    return card.model_dump()
+    return card
 
 
-@router.post("/qc/{project_id}/compare")
+@router.post("/qc/{project_id}/compare", response_model=QCComparisonReport)
 def compare_qc_route(project_id: str, body: CompareQCBody):
     report = compare_media_against_standard(
         project_id=project_id,
@@ -108,15 +132,15 @@ def compare_qc_route(project_id: str, body: CompareQCBody):
         video_frames=body.video_frames,
     )
     save_qc_report(report, project_id=project_id, milestone_id=body.milestone_id)
-    return report.model_dump()
+    return report
 
 
-@router.get("/qc/{project_id}/reports")
+@router.get("/qc/{project_id}/reports", response_model=QCReportListResponse)
 def list_qc_reports_route(project_id: str):
-    return {"reports": get_qc_reports_for_project(project_id)}
+    return QCReportListResponse(reports=get_qc_reports_for_project(project_id))
 
 
-@router.post("/qc/{project_id}/buyer-decision")
+@router.post("/qc/{project_id}/buyer-decision", response_model=BuyerQCDecisionResponse)
 def buyer_qc_decision_route(project_id: str, body: BuyerQCDecisionBody):
     return receive_buyer_qc_decision(
         project_id=project_id,
