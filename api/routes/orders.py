@@ -1,5 +1,5 @@
 import uuid
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import get_db, get_current_user
@@ -9,6 +9,7 @@ from src.order_confirmation.service import (
     create_order_from_approved_option,
     confirm_order,
     buyer_sign_off,
+    push_order_to_gpm_buffer,
 )
 
 router = APIRouter()
@@ -66,10 +67,19 @@ async def confirm_order_route(
 @router.post("/orders/{order_id}/buyer-sign-off", response_model=OrderOut)
 async def buyer_sign_off_route(
     order_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
     order = await buyer_sign_off(db, order_id, current_user.tenant_id, current_user.id)
     await db.commit()
     await db.refresh(order)
+    # Schedule GPM buffer submission as a background task so GPM latency/failure
+    # never blocks the sign-off response (Fix 3 from PR #3 review).
+    background_tasks.add_task(
+        push_order_to_gpm_buffer,
+        order_id=str(order.id),
+        order_number=order.order_number,
+        confirmed_at=order.confirmed_at,
+    )
     return order
