@@ -25,9 +25,7 @@ from src.db.models.logistics import (
 from src.db.models.execution_graph import ExecutionEvent, UploadedFileMetadata
 from src.db.models.delivery_feasibility import DeliveryFeasibilityPacketRecord
 
-# Actor-based (M-side / GLTG role-switching) schema — coexists alongside the
-# UUID-based core schema above. Names that collide with the core schema are
-# imported under an "Upstream"/"Actor" alias to keep both tables registered.
+# Actor-based (M-side / GLTG role-switching) schema
 from src.db.models.actor import Actor
 from src.db.models.approval import ApprovalRequest as UpstreamApprovalRequest
 from src.db.models.artifact import Artifact
@@ -54,6 +52,16 @@ from src.db.models.rollup import SupplierResponseRollup
 from src.db.models.supplier_memory import SupplierScoreSnapshot, SupplierProfileUpdate
 from src.db.models.upstream import (
     DependencyNeed, UpstreamInquiry, UpstreamResponse, UpstreamOption
+)
+
+# Giraffe pricing model (feature/giraffe-pricing-model — Section 1–5)
+from src.db.models.pricing import (
+    FabricDB, AccessoryDB, ProcessTypeDef, SKUProcessAttribute,
+    PackagingDB, LossRateRef, LaborCostRef, OverheadProfitRef,
+    FactoryCapability, SKUMain,
+    ProcessBenchmark, CategoryProcessNorm, ThresholdConfig, ThresholdAdjustmentLog,
+    ExternalMarketData, DistillationJob,
+    ClientDataConsent, AssetLayerVersionSnapshot,
 )
 
 __all__ = [
@@ -89,4 +97,11 @@ __all__ = [
     "SupplierResponseRollup",
     "SupplierScoreSnapshot", "SupplierProfileUpdate",
     "DependencyNeed", "UpstreamInquiry", "UpstreamResponse", "UpstreamOption",
+    # Pricing model
+    "FabricDB", "AccessoryDB", "ProcessTypeDef", "SKUProcessAttribute",
+    "PackagingDB", "LossRateRef", "LaborCostRef", "OverheadProfitRef",
+    "FactoryCapability", "SKUMain",
+    "ProcessBenchmark", "CategoryProcessNorm", "ThresholdConfig", "ThresholdAdjustmentLog",
+    "ExternalMarketData", "DistillationJob",
+    "ClientDataConsent", "AssetLayerVersionSnapshot",
 ]
