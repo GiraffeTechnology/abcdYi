@@ -129,6 +129,14 @@ Execution Graph Record
 
 ---
 
+## Role-Switching (M-Side / B-Side)
+
+A single actor's role is contextual, not fixed: the same supplier can be the M-side (main supplier) responding to the original buyer on one edge, and the B-side (upstream buyer) sourcing from material/process suppliers on another edge of the same project. Role context is resolved per (project, edge, actor) rather than assigned statically.
+
+See [docs/MSIDE_ROLE_SWITCHING_AGENT_SPEC.md](docs/MSIDE_ROLE_SWITCHING_AGENT_SPEC.md) for the full role-switching agent spec.
+
+---
+
 ## Expected Modules
 
 - Inquiry intake
