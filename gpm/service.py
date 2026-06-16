@@ -210,6 +210,25 @@ async def _promote_to_verified(db: AsyncSession, row: IncomingOrderData) -> None
     db.add(verified)
 
 
+async def get_universal_training_data(
+    db: AsyncSession,
+    process_id: str | None = None,
+) -> list[VerifiedBusinessData]:
+    """
+    Returns ONLY records eligible for giraffe_universal_model training.
+    Hard filter: target_layer = 'universal' — client_proprietary rows are
+    structurally excluded regardless of any other condition.
+    This is the only sanctioned entry point for feeding the universal model.
+    """
+    conditions = [VerifiedBusinessData.target_layer == "universal"]
+    if process_id:
+        conditions.append(VerifiedBusinessData.process_id == process_id)
+    result = await db.execute(
+        select(VerifiedBusinessData).where(and_(*conditions))
+    )
+    return list(result.scalars().all())
+
+
 async def run_auto_review(db: AsyncSession) -> AutoReviewResult:
     """
     Apply threshold-based rules to PENDING buffer rows.

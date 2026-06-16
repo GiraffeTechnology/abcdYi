@@ -31,6 +31,14 @@ GRANT ALL PRIVILEGES ON SCHEMA gpm TO gpm_service;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA gpm TO gpm_service;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA gpm TO gpm_service;
 
+-- 6. Client-proprietary isolation for universal model training (§5.4).
+--    gpm_training_role = the role used by automated model-training pipelines.
+--    It may ONLY read through the filtered view, never the base verified_business_data.
+--    client_proprietary rows are therefore structurally excluded from training data.
+GRANT USAGE ON SCHEMA gpm TO gpm_training_role;
+GRANT SELECT ON gpm.v_training_data_universal TO gpm_training_role;
+REVOKE ALL ON gpm.verified_business_data FROM gpm_training_role;
+
 -- To verify abcdyi_service cannot write to protected tables, test:
 --   SET ROLE abcdyi_service;
 --   INSERT INTO gpm.process_benchmark (...) VALUES (...);
