@@ -62,11 +62,30 @@ class LeadTimeRelation(str, Enum):
     SEQUENTIAL = "sequential"  # 串联 — sequential, after previous phase completes
 
 
-# Standard garment manufacturing phases (industry knowledge defaults)
-PHASE_PROCUREMENT = 1   # 采购：fabric + accessories (parallel)
-PHASE_PROCESS     = 2   # 工艺：embroidery / printing (sequential)
-PHASE_PRODUCTION  = 3   # 生产：cutting + sewing (sequential)
-PHASE_PACKAGING   = 4   # 包装：packing + labeling (sequential)
+# ─── Garment phase reference ──────────────────────────────────────────────────
+# Phase number controls execution ORDER (lower = runs first).
+# Within a phase: PARALLEL items → max(days), SEQUENTIAL items → sum(days).
+# Phases are summed in ascending order to get total lead time.
+#
+# Simple garment defaults (衬衫 / T恤):
+#   1 → 采购 (procurement): fabric + accessories in parallel
+#   2 → 生产 (production):  cutting + sewing
+#   3 → 工艺 (process):     embroidery / printing on finished garment
+#   4 → 包装 (packaging)
+#
+# Complex garment example (牛仔裤):
+#   1 → 采购 (procurement)
+#   2 → 前工艺 (pre-process): enzyme/stone wash on raw fabric
+#   3 → 生产 (production):    cutting + sewing
+#   4 → 后工艺 (post-process): embroidery, distressing, rivets
+#   5 → 包装 (packaging)
+#
+# Assign phase integers to match the actual manufacturing sequence for the
+# specific product. The constants below are defaults for the simple case only.
+PHASE_PROCUREMENT = 1
+PHASE_PRODUCTION  = 2   # 生产 — before process for most garments
+PHASE_PROCESS     = 3   # 工艺 — after production for most garments
+PHASE_PACKAGING   = 4
 
 
 @dataclass
