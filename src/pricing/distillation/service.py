@@ -59,5 +59,10 @@ def build_extraction_prompt(source_document_text: str) -> str:
         "规则：如原文中某字段缺失，对应输出字段必须设为 null，不得填写估算值或默认值。\n"
         "请以 JSON 格式输出提取结果，每个字段包含 value 和 source_text（原文片段）两个子字段。\n"
         "\n"
+        "每个含交期的字段还需标注：\n"
+        "  lead_time_relation: \"parallel\"（并联，可与同阶段其他项同步进行）或 \"sequential\"（串联，须等上一阶段完成）\n"
+        "  lead_time_phase: 整数阶段号（行业默认：1=采购, 2=工艺, 3=生产, 4=包装）\n"
+        "禁止估算——若无法从原文判断则填 null。\n"
+        "\n"
         f"原始材料：\n{source_document_text}"
     )
