@@ -1,23 +1,25 @@
-import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from src.db.models.project import ProcurementEdge
+from sqlalchemy import select, or_
+from src.db.models.procurement_edge import ProcurementEdge
 
 
 async def get_contextual_role(
     db: AsyncSession,
-    participant_id: uuid.UUID,
-    project_id: uuid.UUID,
+    actor_id: str,
+    project_id: str,
 ) -> str | None:
     """
-    Returns the role a participant plays in a specific project edge.
-    The same company can play different roles in different project edges.
+    Returns the edge_type an actor plays in a specific project edge.
+    The same actor can play different roles in different project edges.
     """
     result = await db.execute(
         select(ProcurementEdge).where(
             ProcurementEdge.project_id == project_id,
-            ProcurementEdge.participant_id == participant_id,
+            or_(
+                ProcurementEdge.from_actor_id == actor_id,
+                ProcurementEdge.to_actor_id == actor_id,
+            ),
         )
     )
     edge = result.scalar_one_or_none()
-    return edge.contextual_role if edge else None
+    return edge.edge_type if edge else None

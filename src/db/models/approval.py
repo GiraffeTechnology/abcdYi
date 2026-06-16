@@ -11,7 +11,7 @@ def _utcnow():
 
 
 class ApprovalRequest(Base):
-    __tablename__ = "approval_requests"
+    __tablename__ = "upstream_approval_requests"
 
     approval_request_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
     project_id: Mapped[str] = mapped_column(String(36), ForeignKey("projects.project_id"), nullable=False)
