@@ -30,6 +30,37 @@ services:
         condition: service_healthy
     command: uv run alembic upgrade head
 
+  gpm-migrate:
+    build:
+      context: .
+      dockerfile: gpm/Dockerfile
+    environment:
+      GPM_ALEMBIC_DATABASE_URL: postgresql+psycopg2://giraffe:giraffe@db:5432/apparel_textile
+      GPM_DATABASE_URL: postgresql+asyncpg://giraffe:giraffe@db:5432/apparel_textile
+      GPM_API_KEY: change-me-gpm-internal-key
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "pip install alembic psycopg2-binary sqlalchemy pydantic pydantic-settings &&
+             alembic -c gpm/alembic.ini upgrade head"
+
+  gpm:
+    build:
+      context: .
+      dockerfile: gpm/Dockerfile
+    environment:
+      GPM_DATABASE_URL: postgresql+asyncpg://giraffe:giraffe@db:5432/apparel_textile
+      GPM_ALEMBIC_DATABASE_URL: postgresql+psycopg2://giraffe:giraffe@db:5432/apparel_textile
+      GPM_API_KEY: change-me-gpm-internal-key
+      GPM_DEVIATION_THRESHOLD_VALID: "0.15"
+      GPM_DEVIATION_THRESHOLD_REVIEW: "0.40"
+    ports:
+      - "8001:8001"
+    depends_on:
+      db:
+        condition: service_healthy
+
   api:
     build:
       context: .
@@ -38,11 +69,15 @@ services:
       DATABASE_URL: postgresql+asyncpg://giraffe:giraffe@db:5432/apparel_textile
       ALEMBIC_DATABASE_URL: postgresql+psycopg2://giraffe:giraffe@db:5432/apparel_textile
       SECRET_KEY: change-me-in-production
+      GPM_SERVICE_URL: http://gpm:8001
+      GPM_SERVICE_API_KEY: change-me-gpm-internal-key
     ports:
       - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
+      gpm:
+        condition: service_started
     command: uv run uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
 
   frontend:
