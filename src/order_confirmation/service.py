@@ -1,16 +1,22 @@
+import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.db.base import AsyncSessionLocal
 from src.db.models.order import Order, OrderLine
 from src.db.models.decision import DecisionPacket, DecisionOption
 from src.db.models.dynamic_form import DynamicOrderForm, DynamicOrderFormVersion
 from src.db.models.production import Milestone
+from src.gpm.client import submit_order_to_buffer
+from src.gpm.schemas import IncomingOrderDataCreate
 from src.orders.state_machine import transition
 from src.milestones.constants import ORDERED_MILESTONES
 from src.execution_graph.writer import emit_event
 from src.execution_graph.event_types import ORDER_CREATED, ORDER_CONFIRMED, BUYER_SIGNED_OFF
+
+logger = logging.getLogger(__name__)
 
 
 def _generate_order_number(seq: int) -> str:
@@ -275,14 +281,6 @@ async def push_order_to_gpm_buffer(order_id: str, order_number: str, confirmed_a
     Lines with no resolvable process_id are skipped with a warning; the overall
     function is fire-and-forget so GPM unavailability never affects sign-off latency.
     """
-    import logging
-    from sqlalchemy import select
-    from src.db.base import AsyncSessionLocal
-    from src.gpm.client import submit_order_to_buffer
-    from src.gpm.schemas import IncomingOrderDataCreate
-
-    logger = logging.getLogger(__name__)
-
     try:
         async with AsyncSessionLocal() as db:
             result = await db.execute(
@@ -323,7 +321,6 @@ async def push_order_to_gpm_buffer(order_id: str, order_number: str, confirmed_a
                 )
                 await submit_order_to_buffer(payload)
     except Exception as exc:
-        import logging as _log
-        _log.getLogger(__name__).error(
+        logger.error(
             "GPM buffer background task failed for order %s: %s", order_number, exc
         )
