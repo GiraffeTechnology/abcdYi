@@ -247,41 +247,83 @@ async def buyer_sign_off(
     from src.supplier_memory.service import update_supplier_memory_after_signoff
     await update_supplier_memory_after_signoff(db, order_id, tenant_id)
 
-    # Push pricing data to GPM incoming_order_data buffer (fire-and-forget).
-    # GPM unavailability must never block order sign-off.
-    await _push_order_to_gpm_buffer(db, order)
-
     return order
 
 
-async def _push_order_to_gpm_buffer(db: AsyncSession, order: Order) -> None:
-    """Extract order-line pricing data and submit it to the GPM buffer table."""
+# Placeholder values that must never be submitted to the GPM buffer.
+_GPM_INVALID_PROCESS_IDS = frozenset({"unspecified", "", "unknown", "none"})
+
+
+def _derive_process_id(form_snapshot: dict) -> str | None:
+    """
+    Attempt to extract a meaningful process_id from form field data.
+    Returns None if no reliable process identifier is available.
+    Placeholder values are treated as missing.
+    """
+    for field in ("process_id", "process_type", "production_process"):
+        value = form_snapshot.get(field)
+        if value and str(value).strip().lower() not in _GPM_INVALID_PROCESS_IDS:
+            return str(value).strip()
+    return None
+
+
+async def push_order_to_gpm_buffer(order_id: str, order_number: str, confirmed_at: datetime | None) -> None:
+    """
+    Background-safe GPM buffer submission — opens its own DB session so it can
+    run after the HTTP response has been sent without holding the request session.
+
+    Lines with no resolvable process_id are skipped with a warning; the overall
+    function is fire-and-forget so GPM unavailability never affects sign-off latency.
+    """
+    import logging
     from sqlalchemy import select
+    from src.db.base import AsyncSessionLocal
     from src.gpm.client import submit_order_to_buffer
     from src.gpm.schemas import IncomingOrderDataCreate
 
-    result = await db.execute(
-        select(OrderLine).where(OrderLine.order_id == order.id)
-    )
-    lines = result.scalars().all()
+    logger = logging.getLogger(__name__)
 
-    for line in lines:
-        if line.unit_price is None:
-            continue
+    try:
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(
+                select(OrderLine).where(OrderLine.order_id == order_id)
+            )
+            lines = result.scalars().all()
 
-        attrs = line.attributes or {}
-        form_snapshot = attrs.get("form_fields_snapshot", {})
-        sku_id = form_snapshot.get("sku_id") or form_snapshot.get("product_type")
-        process_id = form_snapshot.get("process_id") or "unspecified"
+            for line in lines:
+                if line.unit_price is None:
+                    continue
 
-        payload = IncomingOrderDataCreate(
-            order_id=str(order.id),
-            sku_id=str(sku_id) if sku_id else None,
-            process_id=str(process_id),
-            unit_price=float(line.unit_price),
-            currency=line.currency or "USD",
-            source=f"abcdyi:order:{order.order_number}",
-            quote_date=order.confirmed_at,
-            target_layer="universal",
+                attrs = line.attributes or {}
+                form_snapshot = attrs.get("form_fields_snapshot", {})
+
+                process_id = _derive_process_id(form_snapshot)
+                if process_id is None:
+                    logger.warning(
+                        "GPM buffer: skipping order line %s (order %s) — "
+                        "no resolvable process_id in form snapshot fields %s",
+                        line.id,
+                        order_number,
+                        list(form_snapshot.keys()),
+                    )
+                    continue
+
+                sku_id_raw = form_snapshot.get("sku_id")
+                sku_id = str(sku_id_raw).strip() if sku_id_raw else None
+
+                payload = IncomingOrderDataCreate(
+                    order_id=order_id,
+                    sku_id=sku_id,
+                    process_id=process_id,
+                    unit_price=float(line.unit_price),
+                    currency=line.currency or "USD",
+                    source=f"abcdyi:order:{order_number}",
+                    quote_date=confirmed_at,
+                    target_layer="universal",
+                )
+                await submit_order_to_buffer(payload)
+    except Exception as exc:
+        import logging as _log
+        _log.getLogger(__name__).error(
+            "GPM buffer background task failed for order %s: %s", order_number, exc
         )
-        await submit_order_to_buffer(payload)
