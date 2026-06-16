@@ -38,5 +38,5 @@ class SupplierProfileUpdate(Base):
     update_type: Mapped[str] = mapped_column(String(64), nullable=False)
     previous_value_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     new_value_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
-    evidence_event_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("execution_events.event_id"), nullable=True)
+    evidence_event_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("actor_execution_events.event_id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, nullable=False)
