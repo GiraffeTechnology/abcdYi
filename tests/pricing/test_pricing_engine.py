@@ -420,5 +420,9 @@ def test_lead_time_critical_path_is_max_plus_production():
         production_days=7,
     )
     result = engine.calculate(inp)
-    # critical path = max(20, 15, 10, 18, 5) + 7 = 20 + 7 = 27
-    assert result == 27
+    # phase1 (procurement) = max(20, 15, 10) = 20
+    # phase2 (process, sequential) = 18
+    # phase3 (packaging, sequential) = 5
+    # phase4 (production) = 7
+    # total = 20 + 18 + 5 + 7 = 50
+    assert result == 50

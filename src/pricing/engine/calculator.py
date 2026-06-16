@@ -119,20 +119,28 @@ class PricingEngine:
 class LeadTimeEngine:
     """
     Deterministic lead time aggregation.
-    Critical path = max(all parallel procurement times) + sequential production days.
+
+    Sequential phases:
+      Phase 1 (concurrent procurement): max(fabric, accessories)
+      Phase 2 (sequential, needs fabric): sum of process lead times
+      Phase 3 (sequential): packaging lead time
+      Phase 4 (sequential): production days
+    Total = phase1 + phase2 + phase3 + phase4
     """
 
     def calculate(self, inp: LeadTimeInput) -> int:
         _require(inp.fabric_lead_time, "fabric_lead_time（面料 lead time）")
         _require(inp.production_days, "production_days（生产天数）")
 
-        parallel_times: list[int] = [inp.fabric_lead_time]  # type: ignore[list-item]
-        parallel_times.extend(inp.accessory_lead_times)
-        parallel_times.extend(inp.process_lead_times)
-        if inp.packaging_lead_time is not None:
-            parallel_times.append(inp.packaging_lead_time)
+        procurement_times: list[int] = [inp.fabric_lead_time]  # type: ignore[list-item]
+        procurement_times.extend(inp.accessory_lead_times)
+        phase1 = max(procurement_times)
 
-        return max(parallel_times) + inp.production_days  # type: ignore[operator]
+        phase2 = sum(inp.process_lead_times)
+
+        phase3 = inp.packaging_lead_time if inp.packaging_lead_time is not None else 0
+
+        return phase1 + phase2 + phase3 + inp.production_days  # type: ignore[operator]
 
 
 def _require(value: object, field_name: str) -> None:
