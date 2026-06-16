@@ -317,6 +317,61 @@ BASE_URL=http://localhost:8000 uv run python scripts/verify_v1_product_readiness
 
 ---
 
+## Qwen LLM Integration
+
+abcdYi uses Qwen (DashScope) as its default LLM provider for text generation, JSON extraction, and multimodal QC review.
+
+### Provider Configuration
+
+| Env Var | Default | Description |
+|---|---|---|
+| `DASHSCOPE_API_KEY` or `QWEN_API_KEY` | — | DashScope API key |
+| `QWEN_TEXT_MODEL` | `qwen-turbo` | Text-generation model |
+| `QWEN_VISION_MODEL` | `qwen-vl-plus` | Vision / multimodal model |
+| `QWEN_BASE_URL` | `https://dashscope.aliyuncs.com/api/v1` | DashScope base URL |
+| `LLM_ENABLE_REAL_CALLS` | `false` | Enable live API calls |
+
+### Capabilities
+
+- **Text completion** (`complete_text`) — instruction-following, reasoning, supply-chain dialogue
+- **JSON extraction** (`extract_json`) — structured data extraction from free-text supplier input
+- **Image comparison** (`compare_images`) — multimodal QC: sample vs. bulk garment image review
+- **Video frame analysis** (`compare_video_frames`) — frame-sampled QC inspection via `qwen-vl-plus`
+
+### Live E2E Connectivity — Verified 2026-06-16
+
+End-to-end connectivity with the DashScope API was verified on 2026-06-16:
+
+| Test | Model | Result |
+|---|---|---|
+| Text completion (`QWEN_CONNECTED` echo) | `qwen-turbo` | **PASS** |
+| JSON extraction (`{"status":"ok","provider":"qwen"}`) | `qwen-turbo` | **PASS** |
+| QC-style structured extraction (garment QC JSON) | `qwen-turbo` | **PASS** |
+
+All three live API calls returned correct structured responses with valid token usage data.
+
+### Usage Example
+
+```python
+import os
+from src.llm.qwen_provider import QwenProvider
+
+provider = QwenProvider(api_key=os.environ["QWEN_API_KEY"])
+
+# Text
+result = provider.complete_text("Summarise this order in one sentence: ...")
+print(result.text)
+
+# JSON extraction
+qc_result = provider.extract_json(
+    prompt="Garment specs: Color Navy, Stitching clean. Return QC JSON.",
+    schema_hint='{"qc_pass": bool, "defects": list, "notes": str}',
+)
+print(qc_result.data)  # {'qc_pass': True, 'defects': [], 'notes': '...'}
+```
+
+---
+
 ## GLTG — Giraffe Lead-Time Graph Engine
 
 abcdYi does not implement lead-time calculation logic directly. All delivery feasibility reasoning is delegated to the **GLTG** (Giraffe Lead-Time Graph) engine, a standalone local package at `libs/GLTG/`.
