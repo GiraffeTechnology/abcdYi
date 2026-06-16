@@ -247,4 +247,41 @@ async def buyer_sign_off(
     from src.supplier_memory.service import update_supplier_memory_after_signoff
     await update_supplier_memory_after_signoff(db, order_id, tenant_id)
 
+    # Push pricing data to GPM incoming_order_data buffer (fire-and-forget).
+    # GPM unavailability must never block order sign-off.
+    await _push_order_to_gpm_buffer(db, order)
+
     return order
+
+
+async def _push_order_to_gpm_buffer(db: AsyncSession, order: Order) -> None:
+    """Extract order-line pricing data and submit it to the GPM buffer table."""
+    from sqlalchemy import select
+    from src.gpm.client import submit_order_to_buffer
+    from src.gpm.schemas import IncomingOrderDataCreate
+
+    result = await db.execute(
+        select(OrderLine).where(OrderLine.order_id == order.id)
+    )
+    lines = result.scalars().all()
+
+    for line in lines:
+        if line.unit_price is None:
+            continue
+
+        attrs = line.attributes or {}
+        form_snapshot = attrs.get("form_fields_snapshot", {})
+        sku_id = form_snapshot.get("sku_id") or form_snapshot.get("product_type")
+        process_id = form_snapshot.get("process_id") or "unspecified"
+
+        payload = IncomingOrderDataCreate(
+            order_id=str(order.id),
+            sku_id=str(sku_id) if sku_id else None,
+            process_id=str(process_id),
+            unit_price=float(line.unit_price),
+            currency=line.currency or "USD",
+            source=f"abcdyi:order:{order.order_number}",
+            quote_date=order.confirmed_at,
+            target_layer="universal",
+        )
+        await submit_order_to_buffer(payload)
