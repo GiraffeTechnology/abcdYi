@@ -45,8 +45,57 @@ CATEGORIES = [
     "packaging",
 ]
 
-# Target records per category (adjust to hit 1000+ total)
+# Target records per category (6 × 200 = 1200 total)
 TARGET_PER_CATEGORY = 200
+
+# Canonical process_id for each category
+CATEGORY_TO_PROCESS_ID = {
+    "fabric": "fabric_cost",
+    "sewing_process": "sewing_process",
+    "embroidery_process": "embroidery_process",
+    "printing_process": "printing_process",
+    "accessory": "accessory_cost",
+    "packaging": "packaging_cost",
+}
+
+# Alternative field names Qwen may return instead of the canonical "param_key"
+PARAM_KEY_ALIASES: dict[str, list[str]] = {
+    "fabric": ["fabric_type", "fabric"],
+    "sewing_process": ["sewing_process", "process/stitch_type", "stitch_type", "process_type"],
+    "embroidery_process": ["embroidery_process", "embroidery_type", "type"],
+    "printing_process": ["printing_process", "printing_type", "print_type", "type"],
+    "accessory": ["accessory_type", "accessory", "type"],
+    "packaging": ["packaging_type", "packaging", "type"],
+}
+
+# Alternative field names Qwen may return instead of "param_value"
+PARAM_VALUE_ALIASES = [
+    "param_value", "garment_category", "garment_type",
+    "specification", "spec", "size_stitch_count", "description",
+]
+
+
+def normalize_record(rec: dict, category: str) -> dict:
+    """Map non-standard Qwen field names to canonical GPM field names."""
+    n = dict(rec)
+
+    if not n.get("process_id"):
+        n["process_id"] = CATEGORY_TO_PROCESS_ID.get(category, category)
+
+    if not n.get("param_key"):
+        for alias in PARAM_KEY_ALIASES.get(category, []):
+            if n.get(alias):
+                n["param_key"] = n[alias]
+                break
+
+    if not n.get("param_value"):
+        for alias in PARAM_VALUE_ALIASES:
+            if n.get(alias):
+                n["param_value"] = n[alias]
+                break
+
+    return n
+
 
 # ---------------------------------------------------------------------------
 # Qwen API helper
@@ -68,79 +117,91 @@ def query_qwen(prompt: str, api_key: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Prompt builder
+# Prompts — explicit about required JSON keys to reduce field-name drift
 # ---------------------------------------------------------------------------
 
+def _base_prompt(category_instruction: str, process_id: str, param_key_desc: str, param_value_desc: str) -> str:
+    return (
+        f"{category_instruction} "
+        "Output ONLY a JSON array. Each element must be a JSON object with EXACTLY these keys: "
+        f'"process_id" (string, set to "{process_id}"), '
+        f'"param_key" ({param_key_desc}), '
+        f'"param_value" ({param_value_desc}), '
+        '"unit_price" (number, in CNY), '
+        '"currency" (string, "CNY"), '
+        '"source" (string: publication name + year, e.g. "中国纺织工业联合会市场价格报告 2023"). '
+        "Do NOT use any other key names. Drop any record where source is empty or unverifiable. "
+        "Include at least 30 records."
+    )
+
+
 CATEGORY_PROMPTS = {
-    "fabric": (
+    "fabric": _base_prompt(
         "You are a Chinese textile industry pricing expert. "
-        "List at least 30 real market price data points for common fabrics used in Chinese apparel manufacturing "
-        "(e.g. cotton, polyester, linen, silk, wool blends). "
-        "Include: fabric type, specification (weight/composition), unit price in CNY per meter, "
-        "year of data, and the specific publication or industry report where this price was published. "
-        "ONLY include data you can cite. Format each record as JSON with keys: "
-        "process_id, param_key, param_value, unit_price, currency, source. "
-        "process_id should be 'fabric_cost', param_key should be the fabric type, "
-        "param_value should be the specification, unit_price in CNY, source must include "
-        "publication name and year (e.g. '中国纺织工业联合会市场价格报告 2023'). "
-        "Output a JSON array of records. Drop any record without a verifiable source."
+        "List real market price data points for common fabrics used in Chinese apparel manufacturing "
+        "(cotton, polyester, linen, silk, wool blends, etc.). "
+        "Each data point must cite a specific industry publication with year.",
+        "fabric_cost",
+        'fabric type (e.g. "cotton", "polyester", "silk")',
+        'specification (e.g. "180g/m² 100% cotton", "75D polyester")',
     ),
-    "sewing_process": (
+    "sewing_process": _base_prompt(
         "You are a Chinese apparel manufacturing pricing expert. "
-        "List at least 30 real market price data points for sewing process costs in Chinese garment factories "
-        "(e.g. basic stitch, overlock, buttonhole, zipper attachment). "
-        "Include: process name, garment type, unit price in CNY per piece, "
-        "year of data, and the specific publication or trade association report. "
-        "Format each record as JSON with keys: "
-        "process_id ('sewing_process'), param_key (process/stitch type), param_value (garment category), "
-        "unit_price in CNY, currency ('CNY'), source (must include publication name + year). "
-        "Output a JSON array. Drop records without verifiable sources."
+        "List real market price data points for sewing process costs in Chinese garment factories "
+        "(basic stitch, overlock, buttonhole, zipper attachment, etc.). "
+        "Each data point must cite a specific publication or trade association report with year.",
+        "sewing_process",
+        'stitch or process type (e.g. "basic_stitch", "overlock", "buttonhole")',
+        'garment category (e.g. "T-shirt", "jeans", "jacket")',
     ),
-    "embroidery_process": (
-        "You are a Chinese embroidery and decorative process pricing expert. "
-        "List at least 30 real market price data points for embroidery process costs in China "
-        "(e.g. flat embroidery, 3D embroidery, sequin embroidery — priced by stitch count or area). "
-        "Include: embroidery type, size/complexity, unit price in CNY, "
-        "year of data, and the specific publication or industry source. "
-        "Format as JSON array with keys: "
-        "process_id ('embroidery_process'), param_key (embroidery type), param_value (size/stitch count), "
-        "unit_price in CNY, currency ('CNY'), source (publication + year required). "
-        "Drop any record without a verifiable citation."
+    "embroidery_process": _base_prompt(
+        "You are a Chinese embroidery pricing expert. "
+        "List real market price data points for embroidery process costs in China "
+        "(flat embroidery, 3D embroidery, sequin embroidery, etc.). "
+        "Each data point must cite a specific publication or industry source with year.",
+        "embroidery_process",
+        'embroidery type (e.g. "flat_embroidery", "3d_embroidery", "sequin_embroidery")',
+        'size or complexity (e.g. "5cm×5cm 5000 stitches", "10cm×10cm")',
     ),
-    "printing_process": (
-        "You are a Chinese textile printing process pricing expert. "
-        "List at least 30 real market price data points for printing process costs "
-        "(e.g. screen printing, digital printing, heat transfer, discharge printing). "
-        "Include: printing type, color count or area, unit price in CNY per piece, "
-        "year, and specific publication or market report. "
-        "Format as JSON array with keys: "
-        "process_id ('printing_process'), param_key (printing type), param_value (spec), "
-        "unit_price in CNY, currency ('CNY'), source (publication + year required). "
-        "Drop records without verifiable citations."
+    "printing_process": _base_prompt(
+        "You are a Chinese textile printing pricing expert. "
+        "List real market price data points for printing process costs in China "
+        "(screen printing, digital printing, heat transfer, discharge printing, etc.). "
+        "Each data point must cite a specific publication or market report with year.",
+        "printing_process",
+        'printing type (e.g. "screen_printing", "digital_printing", "heat_transfer")',
+        'specification (e.g. "4-color 30×40cm", "A4 full-color digital")',
     ),
-    "accessory": (
+    "accessory": _base_prompt(
         "You are a Chinese garment accessory pricing expert. "
-        "List at least 30 real market price data points for common garment accessories in China "
-        "(e.g. buttons, zippers, labels, hang tags, rivets, elastic). "
-        "Include: accessory type, specification, unit price in CNY, "
-        "year, and the specific trade report or market data source. "
-        "Format as JSON array with keys: "
-        "process_id ('accessory_cost'), param_key (accessory type), param_value (specification), "
-        "unit_price in CNY, currency ('CNY'), source (publication + year required). "
-        "Drop records without verifiable citations."
+        "List real market price data points for common garment accessories in China "
+        "(buttons, zippers, labels, hang tags, rivets, elastic, etc.). "
+        "Each data point must cite a specific trade report or market data source with year.",
+        "accessory_cost",
+        'accessory type (e.g. "button", "zipper", "label", "rivet")',
+        'specification (e.g. "15mm resin button", "30cm metal zipper YKK")',
     ),
-    "packaging": (
+    "packaging": _base_prompt(
         "You are a Chinese garment packaging cost expert. "
-        "List at least 30 real market price data points for packaging materials/services in China "
-        "(e.g. poly bags, cartons, hangers, tissue paper, folding/packing labor). "
-        "Include: packaging type, size/spec, unit price in CNY, "
-        "year, and specific publication or industry report. "
-        "Format as JSON array with keys: "
-        "process_id ('packaging_cost'), param_key (packaging type), param_value (specification), "
-        "unit_price in CNY, currency ('CNY'), source (publication + year required). "
-        "Drop records without verifiable citations."
+        "List real market price data points for packaging materials/services in China "
+        "(poly bags, cartons, hangers, tissue paper, folding/packing labor, etc.). "
+        "Each data point must cite a specific publication or industry report with year.",
+        "packaging_cost",
+        'packaging type (e.g. "poly_bag", "carton", "hanger", "tissue_paper")',
+        'specification (e.g. "35×45cm OPP poly bag", "single-wall carton 40×30×25cm")',
     ),
 }
+
+# Variation suffixes to diversify repeated calls for the same category
+_VARIATION_SUFFIXES = [
+    " Focus on data from 2020-2022.",
+    " Focus on data from 2021-2023.",
+    " Focus on data from 2019-2021.",
+    " Include niche or regional variations.",
+    " Focus on premium/high-end segment data.",
+    " Focus on mass-market/low-cost segment data.",
+    " Include data from smaller regional markets.",
+]
 
 
 # ---------------------------------------------------------------------------
@@ -162,88 +223,155 @@ def validate_record(rec: dict) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Main collection logic
+# Per-category collection loop (multiple calls until target reached)
 # ---------------------------------------------------------------------------
 
-async def collect_and_load(batch_id: str, api_key: str, cfg: GPMSettings) -> None:
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
-    raw_output_path = Path(__file__).resolve().parents[1] / "data" / f"qwen_raw_responses_{timestamp}.jsonl"
-    raw_output_path.parent.mkdir(parents=True, exist_ok=True)
+def collect_category(
+    category: str,
+    api_key: str,
+    raw_output_path: Path,
+    batch_id: str,
+    timestamp: str,
+    target: int,
+) -> tuple[list[dict], int]:
+    """
+    Call Qwen repeatedly for a single category until `target` valid records are
+    collected or we've made MAX_CALLS attempts. Returns (valid_records, dropped).
+    """
+    MAX_CALLS = max(1, (target // 25) + 2)  # safety cap
 
-    all_records: list[dict] = []
+    base_prompt = CATEGORY_PROMPTS[category]
+    collected: list[dict] = []
+    seen_keys: set[tuple] = set()  # deduplicate on (param_key, param_value, unit_price)
     total_dropped = 0
+    call_num = 0
 
-    for category in CATEGORIES:
-        print(f"[collect_qwen_data] Querying Qwen for category: {category}")
-        prompt = CATEGORY_PROMPTS[category]
+    while len(collected) < target and call_num < MAX_CALLS:
+        suffix = _VARIATION_SUFFIXES[call_num % len(_VARIATION_SUFFIXES)] if call_num > 0 else ""
+        prompt = base_prompt + suffix
 
         try:
             response_text = query_qwen(prompt, api_key)
         except Exception as exc:
-            print(f"  ERROR querying Qwen for {category}: {exc}", file=sys.stderr)
+            print(f"  WARNING: Qwen call {call_num + 1} for {category} failed: {exc}", file=sys.stderr)
+            call_num += 1
             continue
 
-        # Save raw response (source refs only — not full model snapshot)
+        # Save raw metadata
         raw_entry = {
             "category": category,
             "batch_id": batch_id,
             "timestamp": timestamp,
-            "source_ref": f"Qwen API response for category={category}",
+            "call_num": call_num + 1,
+            "source_ref": f"Qwen API response for category={category} call={call_num + 1}",
             "raw_text_length": len(response_text),
         }
         with raw_output_path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(raw_entry, ensure_ascii=False) + "\n")
 
-        # Parse JSON from response
+        # Parse JSON array from response
         records = []
         try:
-            # Try to find a JSON array in the response
             start = response_text.find("[")
             end = response_text.rfind("]")
             if start != -1 and end != -1:
-                json_str = response_text[start : end + 1]
-                records = json.loads(json_str)
+                records = json.loads(response_text[start : end + 1])
         except (json.JSONDecodeError, ValueError) as exc:
-            print(f"  WARNING: Could not parse JSON for {category}: {exc}", file=sys.stderr)
+            print(f"  WARNING: JSON parse error for {category} call {call_num + 1}: {exc}", file=sys.stderr)
+            call_num += 1
             continue
 
-        # Validate and filter
-        valid = []
+        # Normalize + validate
+        new_valid = 0
         for rec in records:
             if not isinstance(rec, dict):
                 total_dropped += 1
                 continue
-            if validate_record(rec):
-                # Ensure numeric unit_price
-                try:
-                    rec["unit_price"] = float(rec["unit_price"])
-                except (TypeError, ValueError):
-                    total_dropped += 1
-                    continue
-                valid.append(rec)
-            else:
+
+            rec = normalize_record(rec, category)
+
+            if not validate_record(rec):
                 total_dropped += 1
+                continue
 
-        print(f"  {category}: {len(valid)} valid records ({len(records) - len(valid)} dropped, no source)")
-        all_records.extend(valid)
+            try:
+                rec["unit_price"] = float(rec["unit_price"])
+            except (TypeError, ValueError):
+                total_dropped += 1
+                continue
 
-        # Progress report every 100 records
-        if len(all_records) % 100 < len(valid):
-            print(f"  [Progress] Total collected so far: {len(all_records)}")
+            # Deduplicate
+            dedup_key = (rec.get("param_key"), rec.get("param_value"), rec.get("unit_price"))
+            if dedup_key in seen_keys:
+                continue
+            seen_keys.add(dedup_key)
+
+            collected.append(rec)
+            new_valid += 1
+
+        print(
+            f"  {category} [call {call_num + 1}]: +{new_valid} valid "
+            f"(total={len(collected)}/{target})"
+        )
+        call_num += 1
+
+    return collected, total_dropped
+
+
+# ---------------------------------------------------------------------------
+# Main collection logic
+# ---------------------------------------------------------------------------
+
+async def collect_and_load(batch_id: str, api_key: str, cfg: GPMSettings) -> None:
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+    data_dir = Path(__file__).resolve().parents[1] / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+
+    raw_output_path = data_dir / f"qwen_raw_responses_{timestamp}.jsonl"
+    backup_path = data_dir / f"qwen_collected_{batch_id}.json"
+
+    all_records: list[dict] = []
+    total_dropped = 0
+
+    for category in CATEGORIES:
+        print(f"\n[collect_qwen_data] Category: {category} (target={TARGET_PER_CATEGORY})")
+        cat_records, cat_dropped = collect_category(
+            category, api_key, raw_output_path, batch_id, timestamp, TARGET_PER_CATEGORY
+        )
+        all_records.extend(cat_records)
+        total_dropped += cat_dropped
+        print(f"  → {len(cat_records)} valid records for {category}")
 
     print(f"\n[collect_qwen_data] Total valid records: {len(all_records)}, dropped: {total_dropped}")
-    print(f"[collect_qwen_data] Raw responses saved to: {raw_output_path}")
+    print(f"[collect_qwen_data] Raw response log: {raw_output_path}")
 
     if not all_records:
         print("[collect_qwen_data] No valid records to load. Exiting.", file=sys.stderr)
         sys.exit(1)
 
+    # Save JSON backup before attempting DB insert (records are never lost on DB failure)
+    with backup_path.open("w", encoding="utf-8") as f:
+        json.dump({"batch_id": batch_id, "records": all_records}, f, ensure_ascii=False, indent=2)
+    print(f"[collect_qwen_data] Backup saved to: {backup_path}")
+
     # Load into DB
     print(f"[collect_qwen_data] Loading {len(all_records)} records into DB (batch_id={batch_id}) ...")
-    async with AsyncSessionLocal() as session:
-        async with session.begin():
-            count = await submit_test_batch(session, all_records, batch_id, cfg=cfg)
-    print(f"[collect_qwen_data] Successfully inserted {count} records.")
+    try:
+        async with AsyncSessionLocal() as session:
+            async with session.begin():
+                count = await submit_test_batch(session, all_records, batch_id, cfg=cfg)
+        print(f"[collect_qwen_data] Successfully inserted {count} records.")
+        print(f"[collect_qwen_data] batch_id={batch_id}")
+    except Exception as exc:
+        print(
+            f"\n[collect_qwen_data] DB insert failed: {exc}\n"
+            f"  Records are preserved in: {backup_path}\n"
+            f"  To load later, run:\n"
+            f"    uv run python gpm/scripts/load_batch_from_file.py {backup_path}",
+            file=sys.stderr,
+        )
+        print(f"\n[collect_qwen_data] batch_id={batch_id}")
+        print(f"[collect_qwen_data] {len(all_records)} records saved to file. DB load skipped.")
 
 
 def main() -> None:
