@@ -25,14 +25,35 @@ jobs:
         run: |
           git fetch origin "$BASE_REF" --depth=1
           MERGE_BASE=$(git merge-base "origin/$BASE_REF" HEAD)
-          # Exclude .github/ — that directory contains this workflow file whose
-          # BANNED array would otherwise trigger false positives on itself.
-          ADDED=$(git diff "$MERGE_BASE" HEAD -- . ':(exclude).github/' \
-            | grep '^+' | grep -v '^+++')
 
-          BANNED=(
+          FAILED=0
+
+          # --- Path check ---
+          # Detect banned file paths regardless of content (empty files would
+          # slip through a content-only scan). Uses --name-only so the file
+          # header lines that grep -v '+++' would strip are never involved.
+          CHANGED_FILES=$(git diff --name-only "$MERGE_BASE" HEAD -- . ':(exclude).github/' || true)
+
+          BANNED_PATHS=(
             "src/gpm/"
             "api/routes/gpm\.py"
+          )
+
+          for pat in "${BANNED_PATHS[@]}"; do
+            if echo "$CHANGED_FILES" | grep -qE "$pat"; then
+              echo "::error::PR adds or reintroduces banned GPM path: $pat"
+              FAILED=1
+            fi
+          done
+
+          # --- Content check ---
+          # Scan newly added lines for banned strings.
+          # || true prevents grep from exiting non-zero when a PR only deletes
+          # lines or only modifies .github/ (empty ADDED is valid and safe).
+          ADDED=$(git diff "$MERGE_BASE" HEAD -- . ':(exclude).github/' \
+            | grep '^+' | grep -v '^+++' || true)
+
+          BANNED_CONTENT=(
             "GPM_SERVICE_URL"
             "GPM_SERVICE_API_KEY"
             "src\.gpm"
@@ -42,10 +63,9 @@ jobs:
             "push_order_to_gpm_buffer"
           )
 
-          FAILED=0
-          for pat in "${BANNED[@]}"; do
+          for pat in "${BANNED_CONTENT[@]}"; do
             if echo "$ADDED" | grep -qE "$pat"; then
-              echo "::error::PR adds or reintroduces banned GPM pattern: $pat"
+              echo "::error::PR adds or reintroduces banned GPM content: $pat"
               FAILED=1
             fi
           done
