@@ -25,7 +25,10 @@ jobs:
         run: |
           git fetch origin "$BASE_REF" --depth=1
           MERGE_BASE=$(git merge-base "origin/$BASE_REF" HEAD)
-          ADDED=$(git diff "$MERGE_BASE" HEAD | grep '^+' | grep -v '^+++')
+          # Exclude .github/ — that directory contains this workflow file whose
+          # BANNED array would otherwise trigger false positives on itself.
+          ADDED=$(git diff "$MERGE_BASE" HEAD -- . ':(exclude).github/' \
+            | grep '^+' | grep -v '^+++')
 
           BANNED=(
             "src/gpm/"
