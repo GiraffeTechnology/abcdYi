@@ -1,22 +1,16 @@
-import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.db.base import AsyncSessionLocal
 from src.db.models.order import Order, OrderLine
 from src.db.models.decision import DecisionPacket, DecisionOption
 from src.db.models.dynamic_form import DynamicOrderForm, DynamicOrderFormVersion
 from src.db.models.production import Milestone
-from src.gpm.client import submit_order_to_buffer
-from src.gpm.schemas import IncomingOrderDataCreate
 from src.orders.state_machine import transition
 from src.milestones.constants import ORDERED_MILESTONES
 from src.execution_graph.writer import emit_event
 from src.execution_graph.event_types import ORDER_CREATED, ORDER_CONFIRMED, BUYER_SIGNED_OFF
-
-logger = logging.getLogger(__name__)
 
 
 def _generate_order_number(seq: int) -> str:
@@ -254,73 +248,3 @@ async def buyer_sign_off(
     await update_supplier_memory_after_signoff(db, order_id, tenant_id)
 
     return order
-
-
-# Placeholder values that must never be submitted to the GPM buffer.
-_GPM_INVALID_PROCESS_IDS = frozenset({"unspecified", "", "unknown", "none"})
-
-
-def _derive_process_id(form_snapshot: dict) -> str | None:
-    """
-    Attempt to extract a meaningful process_id from form field data.
-    Returns None if no reliable process identifier is available.
-    Placeholder values are treated as missing.
-    """
-    for field in ("process_id", "process_type", "production_process"):
-        value = form_snapshot.get(field)
-        if value and str(value).strip().lower() not in _GPM_INVALID_PROCESS_IDS:
-            return str(value).strip()
-    return None
-
-
-async def push_order_to_gpm_buffer(order_id: str, order_number: str, confirmed_at: datetime | None) -> None:
-    """
-    Background-safe GPM buffer submission — opens its own DB session so it can
-    run after the HTTP response has been sent without holding the request session.
-
-    Lines with no resolvable process_id are skipped with a warning; the overall
-    function is fire-and-forget so GPM unavailability never affects sign-off latency.
-    """
-    try:
-        async with AsyncSessionLocal() as db:
-            result = await db.execute(
-                select(OrderLine).where(OrderLine.order_id == order_id)
-            )
-            lines = result.scalars().all()
-
-            for line in lines:
-                if line.unit_price is None:
-                    continue
-
-                attrs = line.attributes or {}
-                form_snapshot = attrs.get("form_fields_snapshot", {})
-
-                process_id = _derive_process_id(form_snapshot)
-                if process_id is None:
-                    logger.warning(
-                        "GPM buffer: skipping order line %s (order %s) — "
-                        "no resolvable process_id in form snapshot fields %s",
-                        line.id,
-                        order_number,
-                        list(form_snapshot.keys()),
-                    )
-                    continue
-
-                sku_id_raw = form_snapshot.get("sku_id")
-                sku_id = str(sku_id_raw).strip() if sku_id_raw else None
-
-                payload = IncomingOrderDataCreate(
-                    order_id=order_id,
-                    sku_id=sku_id,
-                    process_id=process_id,
-                    unit_price=float(line.unit_price),
-                    currency=line.currency or "USD",
-                    source=f"abcdyi:order:{order_number}",
-                    quote_date=confirmed_at,
-                    target_layer="universal",
-                )
-                await submit_order_to_buffer(payload)
-    except Exception as exc:
-        logger.error(
-            "GPM buffer background task failed for order %s: %s", order_number, exc
-        )

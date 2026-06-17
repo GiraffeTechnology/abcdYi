@@ -38,9 +38,6 @@ services:
       DATABASE_URL: postgresql+asyncpg://giraffe:giraffe@db:5432/apparel_textile
       ALEMBIC_DATABASE_URL: postgresql+psycopg2://giraffe:giraffe@db:5432/apparel_textile
       SECRET_KEY: change-me-in-production
-      # GPM service URL — abcdyi talks to GPM only via HTTP, never via DB
-      GPM_SERVICE_URL: ${GPM_SERVICE_URL:-http://host.docker.internal:8001}
-      GPM_SERVICE_API_KEY: ${GPM_SERVICE_API_KEY:-change-me-gpm-internal-key}
     ports:
       - "8000:8000"
     depends_on:
