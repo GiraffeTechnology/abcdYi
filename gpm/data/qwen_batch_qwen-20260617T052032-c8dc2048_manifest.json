@@ -1,0 +1,12 @@
+{
+  "batch_id": "qwen-20260617T052032-c8dc2048",
+  "total_records": 1202,
+  "files": [
+    "qwen_batch_qwen-20260617T052032-c8dc2048_accessory_cost.json",
+    "qwen_batch_qwen-20260617T052032-c8dc2048_embroidery_process.json",
+    "qwen_batch_qwen-20260617T052032-c8dc2048_fabric_cost.json",
+    "qwen_batch_qwen-20260617T052032-c8dc2048_packaging_cost.json",
+    "qwen_batch_qwen-20260617T052032-c8dc2048_printing_process.json",
+    "qwen_batch_qwen-20260617T052032-c8dc2048_sewing_process.json"
+  ]
+}
