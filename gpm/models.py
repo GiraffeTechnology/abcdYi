@@ -55,6 +55,8 @@ class VerifiedBusinessData(GPMBase):
     source: Mapped[str] = mapped_column(String(300), nullable=True)
     target_layer: Mapped[str] = mapped_column(String(50), nullable=False, default="universal")
     client_id: Mapped[str] = mapped_column(String(100), nullable=True, index=True)
+    batch_id: Mapped[str] = mapped_column(String(100), nullable=True, index=True)
+    is_test_batch: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -121,7 +123,7 @@ class IncomingOrderData(GPMBase):
     supplier: Mapped[str] = mapped_column(String(200), nullable=True)
     quote_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
     source: Mapped[str] = mapped_column(String(300), nullable=True)
-    review_status: Mapped[str] = mapped_column(String(20), nullable=False, default="PENDING")  # PENDING | CONFIRMED | REJECTED
+    review_status: Mapped[str] = mapped_column(String(30), nullable=False, default="PENDING")  # PENDING | CONFIRMED | REJECTED | test_auto_approved
     target_layer: Mapped[str] = mapped_column(String(50), nullable=False, default="universal")  # universal | client_proprietary
     client_id: Mapped[str] = mapped_column(String(100), nullable=True, index=True)
     written_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -129,3 +131,5 @@ class IncomingOrderData(GPMBase):
     reviewed_by: Mapped[str] = mapped_column(String(100), nullable=True)
     review_notes: Mapped[str] = mapped_column(Text, nullable=True)
     auto_confirmed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    batch_id: Mapped[str] = mapped_column(String(100), nullable=True, index=True)
+    is_test_batch: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
