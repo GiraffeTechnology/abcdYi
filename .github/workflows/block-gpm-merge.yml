@@ -8,8 +8,46 @@ jobs:
   check-branch:
     runs-on: ubuntu-latest
     steps:
-      - name: Reject GPM branch merge
+      - name: Reject GPM branch by name
         if: contains(github.head_ref, 'giraffe-pricing-model')
         run: |
-          echo "GPM service branch must never merge into main. This check fails by design."
+          echo "::error::GPM service branch must never merge into main. This check fails by design."
           exit 1
+
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reject GPM code reintroduction
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch origin "$BASE_REF" --depth=1
+          MERGE_BASE=$(git merge-base "origin/$BASE_REF" HEAD)
+          ADDED=$(git diff "$MERGE_BASE" HEAD | grep '^+' | grep -v '^+++')
+
+          BANNED=(
+            "src/gpm/"
+            "api/routes/gpm\.py"
+            "GPM_SERVICE_URL"
+            "GPM_SERVICE_API_KEY"
+            "src\.gpm"
+            "/api/gpm"
+            "gpm_router"
+            "submit_order_to_buffer"
+            "push_order_to_gpm_buffer"
+          )
+
+          FAILED=0
+          for pat in "${BANNED[@]}"; do
+            if echo "$ADDED" | grep -qE "$pat"; then
+              echo "::error::PR adds or reintroduces banned GPM pattern: $pat"
+              FAILED=1
+            fi
+          done
+
+          if [ "$FAILED" -eq 1 ]; then
+            exit 1
+          fi
+          echo "GPM code scan passed — no banned patterns found in diff."
