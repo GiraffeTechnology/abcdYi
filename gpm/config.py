@@ -15,8 +15,20 @@ class GPMSettings(BaseSettings):
     GPM_DEVIATION_THRESHOLD_VALID: float = 0.15
     GPM_DEVIATION_THRESHOLD_REVIEW: float = 0.40
 
+    # Test batch settings — allow bypassing human review in non-production environments
+    SKIP_HUMAN_REVIEW: bool = False  # env var SKIP_HUMAN_REVIEW=true
+    APP_ENV: str = "development"
+
     class Config:
         env_file = ".env"
+
+    def validate_skip_human_review(self):
+        """Called at startup. Raises if production tries to skip review."""
+        if self.SKIP_HUMAN_REVIEW and self.APP_ENV == "production":
+            raise RuntimeError(
+                "SKIP_HUMAN_REVIEW=true is not allowed in production. "
+                "This setting is only for test/staging environments."
+            )
 
 
 settings = GPMSettings()
