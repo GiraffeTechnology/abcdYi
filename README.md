@@ -3,9 +3,9 @@
 
 abcdYi is the first complete B2M industry edition of Giraffe Agent, built for multi-party supply-chain coordination in apparel, textiles, and handicraft-based production.
 
-It serves independent designers, small fashion brands, and SME-led fashion ecosystems that need structured, multi-party order execution — from buyer inquiry through supplier matching, RFQ, production monitoring, quality control, and delivery — with human approval at every critical decision boundary.
+It serves independent designers, small fashion brands, and SME-led fashion ecosystems that need structured, multi-party order execution — from buyer inquiry through supplier matching, RFQ, production monitoring, quality control, delivery, pricing benchmark validation, and human approval at every critical decision boundary.
 
-The core user is not an end consumer. The core user is a buyer, designer, small brand, trader, merchandiser, or SME coordinating production with manufacturers, workshops, material suppliers, process suppliers, QC participants, and logistics partners.
+The core user is not an end consumer. The core user is a buyer, designer, small brand, trader, merchandiser, or SME coordinating production with manufacturers, workshops, material suppliers, process suppliers, QC participants, logistics partners, and pricing intelligence services.
 
 ---
 
@@ -52,6 +52,8 @@ abcdYi is not:
 - a simple supplier directory
 - a hardcoded demo
 - a one-order simulation
+- a standalone pricing database
+- a direct replacement for GPM
 
 ---
 
@@ -64,6 +66,7 @@ abcdYi is:
 - a designer and small-brand order execution assistant
 - a small-batch quick-response workflow engine
 - a patent-aligned implementation of multi-party B2M execution logic for apparel, textiles, and handicrafts
+- a workflow layer that can call GPM for price benchmark lookup, quote validation, and missing-process checks
 
 ---
 
@@ -104,6 +107,10 @@ Supplier Response Intake
     ↓
 Response Normalization
     ↓
+GPM Price Benchmark / Missing-Process Check
+    ↓
+GLTG Delivery Feasibility Evaluation
+    ↓
 Decision Packet
     ↓
 Human Approval
@@ -122,6 +129,8 @@ Delivery Handover
     ↓
 Buyer / Designer Sign-Off
     ↓
+GPM Incoming Order Data Buffer Update
+    ↓
 Supplier Memory Update
     ↓
 Execution Graph Record
@@ -137,6 +146,56 @@ See [docs/MSIDE_ROLE_SWITCHING_AGENT_SPEC.md](docs/MSIDE_ROLE_SWITCHING_AGENT_SP
 
 ---
 
+## GPM — Giraffe Pricing Model Integration
+
+GPM (Giraffe Pricing Model) is the pricing intelligence and benchmark-validation layer used by abcdYi.
+
+abcdYi does not act as the pricing database itself. It calls GPM through HTTP APIs and never accesses GPM database tables directly.
+
+The integration has two strict paths:
+
+### Read path: GPM → abcdYi decision support
+
+abcdYi can query GPM to support RFQ review and decision packet generation:
+
+- **Benchmark lookup** — retrieve process / SKU benchmark records.
+- **Quote validation** — classify quoted unit prices as `VALID`, `NEEDS_REVIEW`, `EXCLUDED`, or `NO_BENCHMARK`.
+- **Missing-process check** — detect whether an expected process for a SKU is absent from a supplier quote.
+
+When benchmark data is displayed to a user or used in a decision packet, the following fields must be kept visible together:
+
+- `avg_price`
+- `std_dev`
+- `sample_size`
+- `source_type`
+- `currency`
+
+This prevents a single benchmark price from being treated as an unexplained or absolute market price.
+
+### Write path: abcdYi → GPM incoming-order buffer only
+
+After buyer / designer sign-off, abcdYi may submit order-line pricing data to GPM's `incoming_order_data` buffer.
+
+This write path is deliberately limited:
+
+- abcdYi may write only to the GPM incoming-order buffer.
+- abcdYi must not write directly to verified benchmark tables.
+- abcdYi must not write directly to `verified_business_data` or `process_benchmark`.
+- GPM unavailability must not block buyer sign-off or order closure.
+- Any missing or unreliable `process_id` must be treated as incomplete evidence, not silently converted into a fake benchmark process.
+
+### Relationship with GLTG and Decision Packets
+
+GPM and GLTG solve different parts of the decision problem:
+
+- **GPM** evaluates price reasonableness, process benchmark availability, source quality, and missing process signals.
+- **GLTG** evaluates lead time, delivery feasibility, critical path, milestone reforecasting, and delivery risk.
+- **Decision packets** combine supplier responses, GPM pricing signals, GLTG delivery feasibility, risk flags, missing fields, and evidence into human-reviewable options.
+
+abcdYi remains the B2M workflow execution layer. GPM remains the pricing intelligence layer. GLTG remains the lead-time graph engine. Human approval remains mandatory before critical business commitments are made.
+
+---
+
 ## Expected Modules
 
 - Inquiry intake
@@ -147,6 +206,10 @@ See [docs/MSIDE_ROLE_SWITCHING_AGENT_SPEC.md](docs/MSIDE_ROLE_SWITCHING_AGENT_SP
 - Participant matching
 - RFQ workflow
 - Supplier response normalization
+- GPM benchmark lookup
+- GPM quote validation
+- GPM missing-process check
+- GLTG delivery feasibility evaluation
 - Decision packet
 - Human approval gate
 - Production monitoring
@@ -155,6 +218,7 @@ See [docs/MSIDE_ROLE_SWITCHING_AGENT_SPEC.md](docs/MSIDE_ROLE_SWITCHING_AGENT_SP
 - QC evidence
 - Difference detection
 - Logistics handover
+- GPM incoming-order buffer update after buyer sign-off
 - Supplier memory
 - Execution graph
 
@@ -194,6 +258,7 @@ uv sync
 # 2. Configure environment
 cp .env.example .env
 # Edit .env: set DATABASE_URL and SECRET_KEY
+# Optional: set GPM_SERVICE_URL and GPM_SERVICE_API_KEY if a GPM service is available
 
 # 3. Run migrations
 uv run alembic upgrade head
@@ -287,12 +352,15 @@ Key routes:
 | POST | `/api/projects/{id}/rfqs` | Create RFQ |
 | POST | `/api/rfqs/{id}/send` | Send RFQ (after approval) |
 | POST | `/api/projects/{id}/decision-packets` | Generate decision packet |
+| GET | `/api/gpm/benchmarks` | Query GPM benchmark records |
+| POST | `/api/gpm/benchmarks/validate` | Validate quoted unit price against GPM benchmarks |
+| POST | `/api/gpm/processes/missing-check` | Check missing process IDs for a SKU |
 | POST | `/api/projects/{id}/orders/from-approved-option` | Create order |
 | POST | `/api/orders/{id}/confirm` | Confirm order |
 | POST | `/api/orders/{id}/run-delay-prediction` | Run delay prediction |
 | POST | `/api/orders/{id}/qc-records` | Submit QC record |
 | POST | `/api/orders/{id}/shipments` | Create shipment |
-| POST | `/api/orders/{id}/buyer-sign-off` | Buyer sign-off |
+| POST | `/api/orders/{id}/buyer-sign-off` | Buyer sign-off and schedule GPM incoming-order buffer update |
 | GET | `/api/execution-graph/orders/{id}` | Audit trail |
 
 See `docs/api_reference.md` for the full API reference.
@@ -345,11 +413,12 @@ GLTG results are persisted to the `delivery_feasibility_packets` table and recor
 ```
 api/           FastAPI routes and app entry point
 src/           Business logic and service modules
+  gpm/         GPM HTTP client and schemas (pricing benchmark integration)
   lead_time/   GLTG adapter (build_gltg_input_from_order, evaluate_delivery_feasibility)
   services/    DeliveryFeasibilityService (GLTG single entry point)
   matching/    12-dimension supplier matching
   rfq/         RFQ state machine and service
-  decision_packets/  Decision packet generation (GLTG-enriched)
+  decision_packets/  Decision packet generation (GPM + GLTG enriched)
   orders/      Order state machine
   milestones/  12-milestone production tracking
   production_monitoring/  Delay predictor + GLTG reforecast
@@ -388,9 +457,9 @@ docs/          Product documentation
 
 This repository is released under the **Apache-2.0** software license.
 
-Certain workflows, system logic, role-based participant coordination mechanisms, dynamic order forms, participant matching, production monitoring, quality inspection, participant supervision, supplier memory, and multi-party B2M / order-execution workflows in this project may be covered by patents owned by Giraffe Technology Holding Limited.
+Certain workflows, system logic, role-based participant coordination mechanisms, dynamic order forms, participant matching, production monitoring, quality inspection, participant supervision, supplier memory, pricing benchmark interaction, GPM buffer handoff, and multi-party B2M / order-execution workflows in this project may be covered by patents owned by Giraffe Technology Holding Limited.
 
-abcdYi is the Apparel / Textile / Handicraft industry edition of Giraffe Agent. Its workflow is designed to implement patent-aligned execution logic for multi-party supply-chain coordination in small-batch, fast-response fashion and craft-based production.
+abcdYi is the Apparel / Textile / Handicraft B2M industry edition of Giraffe Agent.
 
 The official patent titles may contain the term C2M because that is the registered legal title. abcdYi's product implementation and repository positioning are B2M.
 
@@ -419,7 +488,7 @@ Giraffe Technology Holding Limited grants a **Global Free Patent License** to:
 - white-label, OEM, or resale
 - commercial SaaS operation based on abcdYi workflows
 - managed service operation for third-party buyers, brands, manufacturers, or suppliers
-- use of Giraffe commercial assets, trademarks, supplier/buyer network data, order archives, or proprietary industry datasets
+- use of Giraffe commercial assets, trademarks, supplier/buyer network data, order archives, pricing benchmark datasets, or proprietary industry datasets
 
 Access to this source code does not automatically grant patent rights beyond the free license scope.
 
