@@ -433,3 +433,19 @@ mich@giraffe.technology
 ```
 
 See also: [PATENT_NOTICE.md](PATENT_NOTICE.md) · [LICENSE_NOTICE.md](LICENSE_NOTICE.md) · [LICENSE](LICENSE)
+
+---
+
+## Related sub-modules
+
+### QC (visual quality control)
+
+Visual quality-control inspection — on-device-first, with Qwen
+vision-language model inference running directly on Android QC
+devices and cloud fallback for uncertain cases — is implemented as a
+separate sub-module: **[`giraffe-qc-model`](https://github.com/GiraffeTechnology/giraffe-qc-model)**.
+
+It is independently deployed (separate codebase, release cycle, and
+database by default) but its SKU/order/asset identity and event
+emission are abcdYi's, not locally invented — see that repository's
+README for the full architecture and module-relationship details.
