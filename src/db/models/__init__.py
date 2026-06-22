@@ -56,6 +56,20 @@ from src.db.models.upstream import (
     DependencyNeed, UpstreamInquiry, UpstreamResponse, UpstreamOption
 )
 
+# Giraffe JP service-core + Iterations 02, 03, 04
+from src.db.models.giraffe_jp import (
+    GiraffeJPServiceNode,
+    GiraffeJPConfirmationRequest,
+    GiraffeJPCustomerServiceTask,
+    GiraffeJPMessageCategoryPermission,
+    GiraffeJPConversationThread,
+    GiraffeJPMessage,
+    GiraffeJPOutboundMessageDraft,
+    GiraffeJPMessageDeliveryLog,
+    GiraffeJPFormalwearOrderProfile,
+    GiraffeJPC2B2MRoleEdge,
+)
+
 __all__ = [
     "Tenant", "User", "UserRole", "AuditLog",
     "Participant", "ParticipantRole", "ParticipantProfile",
@@ -89,4 +103,10 @@ __all__ = [
     "SupplierResponseRollup",
     "SupplierScoreSnapshot", "SupplierProfileUpdate",
     "DependencyNeed", "UpstreamInquiry", "UpstreamResponse", "UpstreamOption",
+    # Giraffe JP
+    "GiraffeJPServiceNode", "GiraffeJPConfirmationRequest", "GiraffeJPCustomerServiceTask",
+    "GiraffeJPMessageCategoryPermission",
+    "GiraffeJPConversationThread", "GiraffeJPMessage",
+    "GiraffeJPOutboundMessageDraft", "GiraffeJPMessageDeliveryLog",
+    "GiraffeJPFormalwearOrderProfile", "GiraffeJPC2B2MRoleEdge",
 ]
