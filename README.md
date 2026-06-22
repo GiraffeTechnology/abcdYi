@@ -138,6 +138,34 @@ Execution Graph Record
 
 ---
 
+## Giraffe JP — Service-Led Custom Formalwear Extension
+
+Giraffe JP is an additive extension of abcdYi for service-led custom formalwear coordination in the Japan market. It operates within the same multi-party B2M framework but is purpose-built for made-to-order formalwear workflows involving customers, qualified production partners, and local model partners.
+
+Giraffe JP does not alter the existing abcdYi workflow. It adds three backend modules:
+
+### Iteration 02 — Message Category Auto-Send Permissions
+
+Each tenant configures whether a given message category is automatically dispatched or held for human review. Permissions are seeded from 22 default categories covering customer, production partner, and local model partner communication. Any unknown category defaults to `auto_send=False`; no outbound message bypasses this check.
+
+### Iteration 03 — Web Dialog and Email Communication Layer
+
+A structured conversation layer for managing inbound and outbound communications across customers, production partners, and local model partners. Outbound drafts are automatically evaluated against category permissions: auto-sendable messages are dispatched immediately; messages requiring review enter `PENDING_HUMAN_CONFIRMATION` state and must be approved or rejected by a human operator before delivery.
+
+No real external email provider is integrated in this iteration. Delivery is simulated and logged.
+
+### Iteration 04 — Formalwear C2B2M Order Extension
+
+Formalwear order profiles capture garment-specific requirements (category, hollow-to-hem measurement, try-on requirements, alteration options, custom measurements). The supported garment categories are: `FORMAL_DRESS`, `WOMENS_SUIT`, `BRIDALWEAR`, `LIGHT_WEDDING_DRESS`, `RECEPTION_DRESS`. Hollow-to-hem measurement is automatically required for `BRIDALWEAR`, `LIGHT_WEDDING_DRESS`, and `FORMAL_DRESS`.
+
+Each project also receives a set of default C2B2M role edges connecting: Customer → Service Platform → Production Partner → Quality Reviewer, and Service Platform → Local Model Partner. Edge initialization is idempotent.
+
+All Giraffe JP actions are recorded in the Industrial Execution Graph.
+
+See [docs/giraffe_jp_service_backend.md](docs/giraffe_jp_service_backend.md) and [docs/giraffe_jp_api_reference.md](docs/giraffe_jp_api_reference.md) for full details.
+
+---
+
 ## Role-Switching (M-Side / B-Side)
 
 A single actor's role is contextual, not fixed: the same supplier can be the M-side (main supplier) responding to the original buyer on one edge, and the B-side (upstream buyer) sourcing from material/process suppliers on another edge of the same project. Role context is resolved per (project, edge, actor) rather than assigned statically.
@@ -221,6 +249,7 @@ abcdYi remains the B2M workflow execution layer. GPM remains the pricing intelli
 - GPM incoming-order buffer update after buyer sign-off
 - Supplier memory
 - Execution graph
+- **Giraffe JP**: message category auto-send permissions, web dialog and email communication layer, formalwear C2B2M order extension
 
 ---
 
@@ -362,26 +391,17 @@ Key routes:
 | POST | `/api/orders/{id}/shipments` | Create shipment |
 | POST | `/api/orders/{id}/buyer-sign-off` | Buyer sign-off and schedule GPM incoming-order buffer update |
 | GET | `/api/execution-graph/orders/{id}` | Audit trail |
+| POST | `/api/giraffe-jp/service-nodes` | Register a qualified production partner network node |
+| POST | `/api/giraffe-jp/permissions/seed-defaults` | Seed 22 default message category permissions |
+| PATCH | `/api/giraffe-jp/permissions/{id}` | Update auto-send permission |
+| POST | `/api/giraffe-jp/conversations` | Open a communication thread |
+| POST | `/api/giraffe-jp/conversations/{id}/outbound-drafts` | Create outbound draft (auto-send or pending) |
+| POST | `/api/giraffe-jp/outbound-drafts/{id}/approve` | Approve a pending draft |
+| POST | `/api/giraffe-jp/outbound-drafts/{id}/reject` | Reject a pending draft |
+| POST | `/api/giraffe-jp/projects/{id}/formalwear-profile` | Create formalwear order profile |
+| POST | `/api/giraffe-jp/projects/{id}/c2b2m-edges/initialize` | Initialize default C2B2M role edges |
 
-See `docs/api_reference.md` for the full API reference.
-
----
-
-## Acceptance Test
-
-```bash
-BASE_URL=http://localhost:8000 uv run python scripts/run_v1_acceptance_apparel_order.py
-```
-
-Expected output:
-```
-GIRAFFE APPAREL & TEXTILE V1 ACCEPTANCE: PASS
-```
-
-5x readiness verification:
-```bash
-BASE_URL=http://localhost:8000 uv run python scripts/verify_v1_product_readiness_5x.py
-```
+See `docs/api_reference.md` and `docs/giraffe_jp_api_reference.md` for the full API reference.
 
 ---
 
@@ -412,7 +432,18 @@ GLTG results are persisted to the `delivery_feasibility_packets` table and recor
 
 ```
 api/           FastAPI routes and app entry point
+  routes/
+    giraffe_jp_service_nodes.py      Qualified production partner network nodes
+    giraffe_jp_message_permissions.py  Message category auto-send permissions
+    giraffe_jp_conversations.py      Web dialog and email communication layer
+    giraffe_jp_formalwear.py         Formalwear C2B2M order extension
 src/           Business logic and service modules
+  giraffe_jp/  Giraffe JP service package
+    schemas.py           Pydantic v2 schemas
+    service.py           Service-core CRUD helpers
+    message_permissions.py  22 default categories + is_auto_send_allowed()
+    communication.py     Thread, message, draft, approve/reject logic
+    formalwear.py        Profile creation + C2B2M edge initialization
   gpm/         GPM HTTP client and schemas (pricing benchmark integration)
   lead_time/   GLTG adapter (build_gltg_input_from_order, evaluate_delivery_feasibility)
   services/    DeliveryFeasibilityService (GLTG single entry point)
@@ -430,6 +461,9 @@ src/           Business logic and service modules
 libs/GLTG/     GLTG engine (local package — gltg)
 alembic/       Database migrations
 tests/         API and unit test suite
+  unit/        Pure-Python tests (no DB)
+  api/         Integration tests (require live PostgreSQL)
+  db/          DB-layer tests (in-memory SQLite)
 scripts/       Seed data, acceptance, readiness scripts
 docs/          Product documentation
 ```
@@ -450,6 +484,8 @@ docs/          Product documentation
 | `docs/sme_designer_ecosystem.md` | SME and designer use cases |
 | `docs/acceptance_criteria_v1.md` | V1 acceptance criteria |
 | `docs/release_notes_v1.md` | Release notes |
+| `docs/giraffe_jp_service_backend.md` | Giraffe JP backend architecture |
+| `docs/giraffe_jp_api_reference.md` | Giraffe JP API reference |
 
 ---
 
