@@ -16,6 +16,10 @@ from api.routes.qc import router as qc_router
 from api.routes.logistics import router as logistics_router
 from api.routes.execution_graph import router as execution_graph_router
 from api.routes.role_switching import router as role_switching_router
+from api.routes.giraffe_jp_service_nodes import router as giraffe_jp_service_nodes_router
+from api.routes.giraffe_jp_message_permissions import router as giraffe_jp_message_permissions_router
+from api.routes.giraffe_jp_conversations import router as giraffe_jp_conversations_router
+from api.routes.giraffe_jp_formalwear import router as giraffe_jp_formalwear_router
 from src.actors.role_resolver import resolve_role_context
 from src.m_side.dependencies.dependency_planner import plan_upstream_dependencies
 from src.m_side.rollup.supplier_response_rollup import generate_supplier_response_rollup
@@ -51,6 +55,10 @@ app.include_router(qc_router, prefix="/api", tags=["qc"])
 app.include_router(logistics_router, prefix="/api", tags=["logistics"])
 app.include_router(execution_graph_router, prefix="/api", tags=["execution_graph"])
 app.include_router(role_switching_router)
+app.include_router(giraffe_jp_service_nodes_router, prefix="/api/giraffe-jp", tags=["giraffe_jp_service_core"])
+app.include_router(giraffe_jp_message_permissions_router, prefix="/api/giraffe-jp", tags=["giraffe_jp_message_permissions"])
+app.include_router(giraffe_jp_conversations_router, prefix="/api/giraffe-jp", tags=["giraffe_jp_conversations"])
+app.include_router(giraffe_jp_formalwear_router, prefix="/api/giraffe-jp", tags=["giraffe_jp_formalwear"])
 
 # The role-switching pipeline stages reachable at /api/role-switching/run-upstream-pipeline.
 ROLE_SWITCHING_PIPELINE_STAGES = [
