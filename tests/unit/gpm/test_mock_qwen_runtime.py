@@ -72,13 +72,19 @@ def test_output_has_all_required_keys(runtime: MockQwenRuntime) -> None:
     for key in (
         "normalized_product_type", "normalized_material", "normalized_process_tags",
         "is_comparable", "comparability_score", "detected_mismatch_flags",
-        "evidence_ids", "reason", "confidence",
+        "missing_fields", "risk_explanation",
+        "evidence_ids", "reason", "confidence", "human_approval_required",
     ):
         assert key in out, f"Missing key: {key}"
 
 
-def test_runtime_name() -> None:
-    assert MockQwenRuntime.runtime_name == "mock_qwen"
+def test_runtime_mode() -> None:
+    assert MockQwenRuntime.runtime_mode == "mock"
+
+
+def test_human_approval_required_always_true(runtime: MockQwenRuntime) -> None:
+    out = runtime.generate_json(CANONICAL_PROMPT, schema_name="qwen_semantic_analysis")
+    assert out["human_approval_required"] is True
 
 
 def test_deterministic_same_input(runtime: MockQwenRuntime) -> None:
