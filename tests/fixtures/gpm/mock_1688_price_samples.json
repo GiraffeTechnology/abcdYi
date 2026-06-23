@@ -1,97 +1,22 @@
 [
-  {
-    "id": "sample-001",
-    "source_platform": "mock_1688",
-    "supplier_id": "supplier_a",
-    "product_title": "men cotton shirt OEM 定制纯棉衬衫",
-    "price_min": 25,
-    "price_max": 32,
-    "price_currency": "CNY",
-    "price_unit": "piece",
-    "moq": 1000,
-    "moq_unit": "piece",
-    "usable_for_benchmark": true,
-    "ladder_prices": [
-      {"min_qty": 500, "price": 32},
-      {"min_qty": 3000, "price": 28},
-      {"min_qty": 10000, "price": 25}
-    ],
-    "raw_response_id": "mock"
-  },
-  {
-    "id": "sample-002",
-    "source_platform": "mock_1688",
-    "supplier_id": "supplier_b",
-    "product_title": "100% cotton shirt 纯棉男壱",
-    "price_min": 27,
-    "price_max": 35,
-    "price_currency": "CNY",
-    "price_unit": "piece",
-    "moq": 1000,
-    "moq_unit": "piece",
-    "usable_for_benchmark": true,
-    "ladder_prices": [
-      {"min_qty": 500, "price": 35},
-      {"min_qty": 3000, "price": 30},
-      {"min_qty": 10000, "price": 27}
-    ],
-    "raw_response_id": "mock"
-  },
-  {
-    "id": "sample-003",
-    "source_platform": "mock_1688",
-    "supplier_id": "supplier_c",
-    "product_title": "OEM cotton shirt 定制衬衫",
-    "price_min": 29,
-    "price_max": 38,
-    "price_currency": "CNY",
-    "price_unit": "piece",
-    "moq": 1000,
-    "moq_unit": "piece",
-    "usable_for_benchmark": true,
-    "ladder_prices": [
-      {"min_qty": 500, "price": 38},
-      {"min_qty": 3000, "price": 33},
-      {"min_qty": 10000, "price": 29}
-    ],
-    "raw_response_id": "mock"
-  },
-  {
-    "id": "sample-004",
-    "source_platform": "mock_1688",
-    "supplier_id": "supplier_d",
-    "product_title": "men shirt cotton 男壱纯棉",
-    "price_min": 31,
-    "price_max": 40,
-    "price_currency": "CNY",
-    "price_unit": "piece",
-    "moq": 1000,
-    "moq_unit": "piece",
-    "usable_for_benchmark": true,
-    "ladder_prices": [
-      {"min_qty": 500, "price": 40},
-      {"min_qty": 3000, "price": 35},
-      {"min_qty": 10000, "price": 31}
-    ],
-    "raw_response_id": "mock"
-  },
-  {
-    "id": "sample-005",
-    "source_platform": "mock_1688",
-    "supplier_id": "supplier_e",
-    "product_title": "pure cotton shirt OEM custom",
-    "price_min": 32,
-    "price_max": 42,
-    "price_currency": "CNY",
-    "price_unit": "piece",
-    "moq": 1000,
-    "moq_unit": "piece",
-    "usable_for_benchmark": true,
-    "ladder_prices": [
-      {"min_qty": 500, "price": 42},
-      {"min_qty": 3000, "price": 36},
-      {"min_qty": 10000, "price": 32}
-    ],
-    "raw_response_id": "mock"
-  }
+  {"id":"sample-001","source_platform":"mock_1688","supplier_id":"supplier_a","product_title":"men cotton shirt OEM 定制纯棉衬衫","price_min":32,"price_max":40,"price_currency":"CNY","price_unit":"piece","moq":1000,"moq_unit":"piece","usable_for_benchmark":true,"ladder_prices":[{"min_qty":500,"price":40},{"min_qty":3000,"price":34},{"min_qty":10000,"price":26}],"raw_response_id":"mock"},
+  {"id":"sample-002","source_platform":"mock_1688","supplier_id":"supplier_b","product_title":"100% cotton men shirt 纯棉男衬衫","price_min":33,"price_max":41,"price_currency":"CNY","price_unit":"piece","moq":1000,"moq_unit":"piece","usable_for_benchmark":true,"ladder_prices":[{"min_qty":500,"price":41},{"min_qty":3000,"price":35},{"min_qty":10000,"price":27}],"raw_response_id":"mock"},
+  {"id":"sample-003","source_platform":"mock_1688","supplier_id":"supplier_c","product_title":"OEM cotton shirt 定制男士衬衫","price_min":34,"price_max":42,"price_currency":"CNY","price_unit":"piece","moq":1000,"moq_unit":"piece","usable_for_benchmark":true,"ladder_prices":[{"min_qty":500,"price":42},{"min_qty":3000,"price":36},{"min_qty":10000,"price":28}],"raw_response_id":"mock"},
+  {"id":"sample-004","source_platform":"mock_1688","supplier_id":"supplier_d","product_title":"men shirt 100% cotton 男衬衫纯棉","price_min":35,"price_max":43,"price_currency":"CNY","price_unit":"piece","moq":1000,"moq_unit":"piece","usable_for_benchmark":true,"ladder_prices":[{"min_qty":500,"price":43},{"min_qty":3000,"price":37},{"min_qty":10000,"price":29}],"raw_response_id":"mock"},
+  {"id":"sample-005","source_platform":"mock_1688","supplier_id":"supplier_e","product_title":"pure cotton shirt OEM custom 纯棉衬衫定制","price_min":36,"price_max":44,"price_currency":"CNY","price_unit":"piece","moq":1000,"moq_unit":"piece","usable_for_benchmark":true,"ladder_prices":[{"min_qty":500,"price":44},{"min_qty":3000,"price":38},{"min_qty":10000,"price":30}],"raw_response_id":"mock"},
+  {"id":"sample-006","source_platform":"mock_1688","supplier_id":"supplier_f","product_title":"cotton shirt OEM 纯棉衬衫","price_min":37,"price_max":45,"price_currency":"CNY","price_unit":"piece","moq":1000,"moq_unit":"piece","usable_for_benchmark":true,"ladder_prices":[{"min_qty":500,"price":45},{"min_qty":3000,"price":39},{"min_qty":10000,"price":31}],"raw_response_id":"mock"},
+  {"id":"sample-007","source_platform":"mock_1688","supplier_id":"supplier_g","product_title":"men cotton shirt wholesale 男衬衫纯棉批发","price_min":38,"price_max":46,"price_currency":"CNY","price_unit":"piece","moq":1000,"moq_unit":"piece","usable_for_benchmark":true,"ladder_prices":[{"min_qty":500,"price":46},{"min_qty":3000,"price":40},{"min_qty":10000,"price":32}],"raw_response_id":"mock"},
+  {"id":"sample-008","source_platform":"mock_1688","supplier_id":"supplier_h","product_title":"OEM men shirt 定制男衬衫 cotton","price_min":39,"price_max":47,"price_currency":"CNY","price_unit":"piece","moq":1000,"moq_unit":"piece","usable_for_benchmark":true,"ladder_prices":[{"min_qty":500,"price":47},{"min_qty":3000,"price":41},{"min_qty":10000,"price":33}],"raw_response_id":"mock"},
+  {"id":"sample-009","source_platform":"mock_1688","supplier_id":"supplier_i","product_title":"shirt cotton OEM 衬衫纯棉定制","price_min":40,"price_max":48,"price_currency":"CNY","price_unit":"piece","moq":1000,"moq_unit":"piece","usable_for_benchmark":true,"ladder_prices":[{"min_qty":500,"price":48},{"min_qty":3000,"price":42},{"min_qty":10000,"price":34}],"raw_response_id":"mock"},
+  {"id":"sample-010","source_platform":"mock_1688","supplier_id":"supplier_j","product_title":"cotton men shirt OEM 纯棉男衬衫定制","price_min":41,"price_max":49,"price_currency":"CNY","price_unit":"piece","moq":1000,"moq_unit":"piece","usable_for_benchmark":true,"ladder_prices":[{"min_qty":500,"price":49},{"min_qty":3000,"price":43},{"min_qty":10000,"price":35}],"raw_response_id":"mock"},
+  {"id":"sample-011","source_platform":"mock_1688","supplier_id":"supplier_k","product_title":"men OEM cotton shirt 男纯棉衬衫","price_min":42,"price_max":50,"price_currency":"CNY","price_unit":"piece","moq":1000,"moq_unit":"piece","usable_for_benchmark":true,"ladder_prices":[{"min_qty":500,"price":50},{"min_qty":3000,"price":44},{"min_qty":10000,"price":36}],"raw_response_id":"mock"},
+  {"id":"sample-012","source_platform":"mock_1688","supplier_id":"supplier_l","product_title":"shirt OEM 衬衫定制 cotton man","price_min":43,"price_max":51,"price_currency":"CNY","price_unit":"piece","moq":1000,"moq_unit":"piece","usable_for_benchmark":true,"ladder_prices":[{"min_qty":500,"price":51},{"min_qty":3000,"price":45},{"min_qty":10000,"price":37}],"raw_response_id":"mock"},
+  {"id":"sample-013","source_platform":"mock_1688","supplier_id":"supplier_m","product_title":"pure cotton OEM shirt 纯棉定制衬衫","price_min":44,"price_max":52,"price_currency":"CNY","price_unit":"piece","moq":1000,"moq_unit":"piece","usable_for_benchmark":true,"ladder_prices":[{"min_qty":500,"price":52},{"min_qty":3000,"price":46},{"min_qty":10000,"price":38}],"raw_response_id":"mock"},
+  {"id":"sample-014","source_platform":"mock_1688","supplier_id":"supplier_n","product_title":"cotton shirt men OEM 纯棉男衬衫批发","price_min":45,"price_max":53,"price_currency":"CNY","price_unit":"piece","moq":1000,"moq_unit":"piece","usable_for_benchmark":true,"ladder_prices":[{"min_qty":500,"price":53},{"min_qty":3000,"price":47},{"min_qty":10000,"price":39}],"raw_response_id":"mock"},
+  {"id":"sample-015","source_platform":"mock_1688","supplier_id":"supplier_o","product_title":"men cotton shirt 男衬衫纯棉 OEM","price_min":46,"price_max":54,"price_currency":"CNY","price_unit":"piece","moq":1000,"moq_unit":"piece","usable_for_benchmark":true,"ladder_prices":[{"min_qty":500,"price":54},{"min_qty":3000,"price":48},{"min_qty":10000,"price":40}],"raw_response_id":"mock"},
+  {"id":"sample-016","source_platform":"mock_1688","supplier_id":"supplier_p","product_title":"OEM shirt cotton 定制衬衫纯棉 man","price_min":47,"price_max":55,"price_currency":"CNY","price_unit":"piece","moq":1000,"moq_unit":"piece","usable_for_benchmark":true,"ladder_prices":[{"min_qty":500,"price":55},{"min_qty":3000,"price":49},{"min_qty":10000,"price":41}],"raw_response_id":"mock"},
+  {"id":"sample-017","source_platform":"mock_1688","supplier_id":"supplier_q","product_title":"cotton shirt wholesale OEM 纯棉衬衫批发定制","price_min":48,"price_max":56,"price_currency":"CNY","price_unit":"piece","moq":1000,"moq_unit":"piece","usable_for_benchmark":true,"ladder_prices":[{"min_qty":500,"price":56},{"min_qty":3000,"price":50},{"min_qty":10000,"price":42}],"raw_response_id":"mock"},
+  {"id":"sample-018","source_platform":"mock_1688","supplier_id":"supplier_r","product_title":"men OEM shirt 纯棉男士衬衫定制 cotton","price_min":49,"price_max":57,"price_currency":"CNY","price_unit":"piece","moq":1000,"moq_unit":"piece","usable_for_benchmark":true,"ladder_prices":[{"min_qty":500,"price":57},{"min_qty":3000,"price":51},{"min_qty":10000,"price":43}],"raw_response_id":"mock"},
+  {"id":"sample-019","source_platform":"mock_1688","supplier_id":"supplier_s","product_title":"shirt cotton man OEM 衬衫纯棉定制批发","price_min":50,"price_max":58,"price_currency":"CNY","price_unit":"piece","moq":1000,"moq_unit":"piece","usable_for_benchmark":true,"ladder_prices":[{"min_qty":500,"price":58},{"min_qty":3000,"price":52},{"min_qty":10000,"price":44}],"raw_response_id":"mock"},
+  {"id":"sample-020","source_platform":"mock_1688","supplier_id":"supplier_t","product_title":"cotton OEM men shirt 纯棉定制男衬衫","price_min":51,"price_max":59,"price_currency":"CNY","price_unit":"piece","moq":1000,"moq_unit":"piece","usable_for_benchmark":true,"ladder_prices":[{"min_qty":500,"price":59},{"min_qty":3000,"price":53},{"min_qty":10000,"price":45}],"raw_response_id":"mock"}
 ]
