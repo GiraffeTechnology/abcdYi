@@ -75,3 +75,7 @@ data/supplier_memory/
 data/industrial_execution_graph/
 test.db
 ci_test.db
+
+# GPM probe/test output (directories tracked via .gitkeep)
+data/gpm/raw_api_responses/*.json
+data/gpm/supplier_price_samples/*.json
