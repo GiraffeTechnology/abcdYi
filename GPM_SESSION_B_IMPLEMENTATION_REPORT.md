@@ -86,19 +86,20 @@ All adapters are in `src/gpm/llm_adapters/`.
 `BenchmarkEngine.build_benchmark()` pipeline:
 
 1. Filter samples using `SampleComparator` (requires `usable_for_benchmark=True` and `comparability_score >= 0.60`)
-2. Extract effective price per sample via `PriceNormalizer`:
-   - If ladder prices exist: select tier matching `target_quantity`
+2. Exclude samples whose `price_unit` does not match the requirement unit via `UnitNormalizer` (skipped when sample has no `price_unit` field)
+3. Extract effective price per sample via `PriceNormalizer`:
+   - If ladder prices exist: select tier matching `target_quantity` (tiers sorted numerically by `min_qty`)
    - Otherwise: use `(price_min + price_max) / 2`
-3. Sort valid prices and compute:
+4. Sort valid prices and compute:
    - `benchmark_low` = P25
    - `benchmark_median` = P50
    - `benchmark_high` = P75
    - `weighted_median` = same as P50 (extensible)
-4. Assign confidence:
+5. Assign confidence:
    - `high`: ≥ 20 comparable samples
    - `medium`: 10–19 comparable samples
    - `low`: < 10 comparable samples
-5. Track `captured_from` / `captured_to` from sample timestamps
+6. Track `captured_from` / `captured_to` from sample timestamps
 
 ---
 
@@ -174,6 +175,7 @@ All tests run without database, API keys, or network access.
 3. Only `comparability_score` from the mock adapter is used for filtering; when using `QwenMNNAdapter`, the threshold can be adjusted in `SampleComparator`
 4. Currency normalization is not implemented — all prices assumed in same currency
 5. Session B uses standalone fixture samples; integration with Session A production models requires import path alignment (see Section 10)
+6. Unit normalization handles per-piece aliases only (`pcs`, `pc`, `pieces`, `件`, `条` → `piece`); cross-unit conversion (e.g., piece → dozen, meter, gram) is not supported — samples with unrecognized or mismatched `price_unit` are excluded from the benchmark
 
 ---
 

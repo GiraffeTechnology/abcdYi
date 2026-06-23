@@ -8,12 +8,14 @@ from src.gpm.models.benchmark_snapshot import GPMBenchmarkSnapshot
 from src.gpm.models.semantic_normalization import GPMSemanticNormalization
 from src.gpm.normalization.sample_comparator import SampleComparator
 from src.gpm.normalization.price_normalizer import PriceNormalizer
+from src.gpm.normalization.unit_normalizer import UnitNormalizer
 
 
 class BenchmarkEngine:
     def __init__(self) -> None:
         self._comparator = SampleComparator()
         self._price_normalizer = PriceNormalizer()
+        self._unit_normalizer = UnitNormalizer()
 
     def build_benchmark(
         self,
@@ -25,6 +27,8 @@ class BenchmarkEngine:
         if target_qty is not None:
             target_qty = Decimal(str(target_qty))
 
+        req_unit = self._unit_normalizer.normalize_unit(requirement.get("unit", "piece"))
+
         usable_pairs = self._comparator.filter_usable(samples, normalizations)
         excluded = len(samples) - len(usable_pairs)
 
@@ -32,6 +36,13 @@ class BenchmarkEngine:
         timestamps: list[datetime] = []
 
         for sample, norm in usable_pairs:
+            sample_unit_raw = getattr(sample, "price_unit", None) or (
+                sample.get("price_unit") if isinstance(sample, dict) else None
+            )
+            if sample_unit_raw is not None and self._unit_normalizer.normalize_unit(sample_unit_raw) != req_unit:
+                excluded += 1
+                continue
+
             price = self._price_normalizer.effective_price(sample, target_qty)
             if price is None:
                 excluded += 1

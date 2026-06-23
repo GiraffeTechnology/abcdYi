@@ -27,7 +27,7 @@ class PriceNormalizer:
 
         if ladder and target_quantity is not None:
             selected = None
-            for tier in sorted(ladder, key=lambda t: t.get("min_qty", 0) if isinstance(t, dict) else t["min_qty"]):
+            for tier in sorted(ladder, key=lambda t: int(t.get("min_qty", 0) if isinstance(t, dict) else t["min_qty"])):
                 min_qty = Decimal(str(tier.get("min_qty", 0) if isinstance(tier, dict) else tier["min_qty"]))
                 if target_quantity >= min_qty:
                     selected = Decimal(str(tier.get("price", 0) if isinstance(tier, dict) else tier["price"]))
