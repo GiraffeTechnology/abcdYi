@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-import json
 import re
+from typing import Any
 
 
 class MockQwenRuntime:
-    """Deterministic mock Qwen runtime for offline tests."""
+    """Deterministic mock Qwen runtime for offline tests and CI."""
 
-    runtime_name = "mock_qwen"
+    runtime_mode = "mock"
 
-    def generate_json(self, prompt: str, schema_name: str, max_tokens: int = 1024) -> dict:
+    def generate_json(self, prompt: str, schema_name: str) -> dict[str, Any]:
         prompt_lower = prompt.lower()
 
         is_shirt = bool(re.search(r"shirt|衬衫", prompt_lower))
@@ -49,7 +49,7 @@ class MockQwenRuntime:
         # Extract evidence IDs from prompt
         evidence_ids: list[str] = re.findall(r'"id":\s*"(ev_[^"]+)"', prompt)
         if not evidence_ids:
-            evidence_ids = re.findall(r'ev_[a-zA-Z0-9_-]+', prompt)
+            evidence_ids = re.findall(r"ev_[a-zA-Z0-9_-]+", prompt)
 
         return {
             "normalized_product_type": normalized_product_type,
@@ -58,7 +58,10 @@ class MockQwenRuntime:
             "is_comparable": is_comparable,
             "comparability_score": comparability_score,
             "detected_mismatch_flags": [],
+            "missing_fields": [],
+            "risk_explanation": "",
             "evidence_ids": evidence_ids[:5],
             "reason": reason,
             "confidence": confidence,
+            "human_approval_required": True,
         }

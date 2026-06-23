@@ -19,7 +19,7 @@ VALID_POSITIONS = frozenset({
     "insufficient_data",
 })
 
-_FORBIDDEN_PATTERNS = (
+_FORBIDDEN_TEXT_PATTERNS = (
     "dispatch quote",
     "send quote to buyer",
     "place order",
@@ -30,6 +30,15 @@ _FORBIDDEN_PATTERNS = (
     "automatically approved",
 )
 
+# These keys must never appear in Qwen output — they indicate unauthorized business actions.
+_FORBIDDEN_KEYS = frozenset({
+    "send_quote",
+    "dispatch_quote",
+    "place_order",
+    "make_payment",
+    "auto_approve",
+})
+
 REQUIRED_KEYS = {
     "normalized_product_type",
     "is_comparable",
@@ -37,6 +46,7 @@ REQUIRED_KEYS = {
     "evidence_ids",
     "reason",
     "confidence",
+    "human_approval_required",
 }
 
 
@@ -54,6 +64,13 @@ class QwenOutputValidator:
         missing = REQUIRED_KEYS - set(output.keys())
         if missing:
             raise QwenOutputValidationError(f"Qwen output missing required keys: {missing}")
+
+        # human_approval_required must always be True — no exceptions
+        if output.get("human_approval_required") is not True:
+            raise QwenOutputValidationError(
+                "human_approval_required must be True in Qwen output. "
+                "Qwen must not authorize commercial actions without human review."
+            )
 
         score = output.get("comparability_score")
         if not isinstance(score, (int, float)):
@@ -78,10 +95,10 @@ class QwenOutputValidator:
 
         self._check_no_invented_prices(output)
         self._check_no_invented_moq(output)
+        self._check_no_forbidden_keys(output)
         self._check_no_forbidden_instructions(output)
 
     def _check_no_invented_prices(self, output: dict) -> None:
-        reason = str(output.get("reason", "")).lower()
         for field_name in ("price", "unit_price", "quote_price", "invented_price"):
             if field_name in output:
                 raise QwenOutputValidationError(
@@ -97,9 +114,17 @@ class QwenOutputValidator:
                     "MOQ values must come from supplier evidence, not Qwen output."
                 )
 
+    def _check_no_forbidden_keys(self, output: dict) -> None:
+        present = _FORBIDDEN_KEYS & set(output.keys())
+        if present:
+            raise QwenOutputValidationError(
+                f"Qwen output contains forbidden action key(s): {sorted(present)}. "
+                "Buyer-facing quote dispatch, orders, and payments require human approval."
+            )
+
     def _check_no_forbidden_instructions(self, output: dict) -> None:
         text = " ".join(str(v).lower() for v in output.values() if isinstance(v, str))
-        for pattern in _FORBIDDEN_PATTERNS:
+        for pattern in _FORBIDDEN_TEXT_PATTERNS:
             if pattern in text:
                 raise QwenOutputValidationError(
                     f"Qwen output contains forbidden instruction: {pattern!r}. "
@@ -108,7 +133,7 @@ class QwenOutputValidator:
 
 
 class GPMServiceOutputValidator:
-    """Validate the combined GPMQwenContextService output dict.
+    """Validate the combined service output dict.
 
     Checks Qwen semantic analysis fields PLUS Session B guidance fields merged
     into a single output. Ensures human_approval_required is always True,
