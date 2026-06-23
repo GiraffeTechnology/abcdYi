@@ -4,6 +4,7 @@ from src.gpm.models.supplier_price_sample import GPMSupplierPriceSample
 from .semantic_normalization import GPMSemanticNormalization
 from .benchmark_snapshot import GPMBenchmarkSnapshot
 from .quote_guidance import GPMQuoteGuidance
+from .qwen_semantic_analysis import QwenSemanticAnalysis
 
 __all__ = [
     "PricingQuery",
@@ -12,4 +13,5 @@ __all__ = [
     "GPMSemanticNormalization",
     "GPMBenchmarkSnapshot",
     "GPMQuoteGuidance",
+    "QwenSemanticAnalysis",
 ]
