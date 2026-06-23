@@ -2,6 +2,23 @@ from __future__ import annotations
 
 from src.gpm.context.gpm_context_bundle import GPMContextBundle
 
+VALID_RECOMMENDATIONS = frozenset({
+    "accept",
+    "negotiate",
+    "reject",
+    "request_more_info",
+    "human_review_required",
+})
+
+VALID_POSITIONS = frozenset({
+    "below_market",
+    "within_low_range",
+    "within_mid_range",
+    "within_high_range",
+    "above_market",
+    "insufficient_data",
+})
+
 _FORBIDDEN_PATTERNS = (
     "dispatch quote",
     "send quote to buyer",
@@ -88,3 +105,34 @@ class QwenOutputValidator:
                     f"Qwen output contains forbidden instruction: {pattern!r}. "
                     "Buyer-facing quote dispatch, orders, and payments require human approval."
                 )
+
+
+class GPMServiceOutputValidator:
+    """Validate the combined GPMQwenContextService output dict.
+
+    Checks Qwen semantic analysis fields PLUS Session B guidance fields merged
+    into a single output. Ensures human_approval_required is always True,
+    and recommendation/position values are from the allowed sets.
+    """
+
+    def validate(self, output: dict, bundle: GPMContextBundle) -> None:
+        QwenOutputValidator().validate(output, bundle)
+
+        if not output.get("human_approval_required"):
+            raise QwenOutputValidationError(
+                "human_approval_required must be True in service output."
+            )
+
+        recommendation = output.get("accept_recommendation")
+        if recommendation is not None and recommendation not in VALID_RECOMMENDATIONS:
+            raise QwenOutputValidationError(
+                f"accept_recommendation {recommendation!r} is not a valid value. "
+                f"Must be one of: {sorted(VALID_RECOMMENDATIONS)}"
+            )
+
+        position = output.get("supplier_quote_position")
+        if position is not None and position not in VALID_POSITIONS:
+            raise QwenOutputValidationError(
+                f"supplier_quote_position {position!r} is not a valid value. "
+                f"Must be one of: {sorted(VALID_POSITIONS)}"
+            )

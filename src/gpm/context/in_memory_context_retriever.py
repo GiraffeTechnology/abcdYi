@@ -100,7 +100,17 @@ class InMemoryGPMContextRetriever:
             if isinstance(s, dict):
                 price_sample_dicts.append(s)
             else:
-                price_sample_dicts.append({"id": getattr(s, "id", ""), "product_title": getattr(s, "product_title", "")})
+                d: dict = {}
+                for key in (
+                    "id", "product_title", "price_min", "price_max", "price_currency",
+                    "price_unit", "moq", "moq_unit", "ladder_prices", "material",
+                    "source_platform", "supplier_id", "usable_for_benchmark",
+                    "captured_at", "observed_at", "invalid_reasons",
+                ):
+                    val = getattr(s, key, None)
+                    if val is not None:
+                        d[key] = val
+                price_sample_dicts.append(d)
 
         return GPMContextBundle(
             bundle_id=f"bundle_{requirement.get('id', 'req')}",
