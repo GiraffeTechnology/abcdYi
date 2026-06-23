@@ -7,7 +7,7 @@ class QwenMNNAdapter(LocalLLMAdapter):
     """
     Stub adapter for a locally-deployed Qwen model via MNN runtime.
 
-    Never calls Qwen cloud API, DashScope, or any external LLM endpoint.
+    Never calls cloud-hosted LLM APIs or external inference endpoints.
     Raises RuntimeError when the local MNN runtime is not configured.
     """
 
