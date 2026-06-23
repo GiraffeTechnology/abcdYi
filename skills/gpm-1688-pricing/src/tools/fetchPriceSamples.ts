@@ -24,7 +24,7 @@ export interface FetchPriceSamplesOutput {
 }
 
 /**
- * Session A skeleton — connection to the Python GPM backend is wired in Session B.
+ * Session A skeleton — TypeScript-to-Python backend wiring is deferred to a future integration PR.
  * This skill does not scrape websites, place orders, make payments, or call external LLM APIs.
  */
 export async function fetchPriceSamples(
@@ -32,6 +32,6 @@ export async function fetchPriceSamples(
 ): Promise<FetchPriceSamplesOutput> {
   throw new Error(
     "fetch_price_samples: GPM backend not yet connected. " +
-    "This skill skeleton is provided for Session B integration."
+    "Backend wiring is deferred to a future integration PR."
   );
 }
