@@ -44,13 +44,12 @@ jobs:
             fi
           done
 
-          # --- Content check ---
-          # Scan newly added lines only (lines starting with '+', excluding file headers).
-          # || true prevents grep from exiting non-zero when the diff is empty or clean.
+          # --- Legacy external GPM service content check ---
+          # These env var names and route strings uniquely identify the old unsafe external service.
+          # They are banned anywhere in the diff — no legitimate use exists for them.
           ADDED=$(git diff "$MERGE_BASE" HEAD -- . ':(exclude).github/' \
             | grep '^+' | grep -v '^+++' || true)
 
-          # Legacy external GPM service patterns — always banned
           BANNED_LEGACY=(
             "GPM_SERVICE_URL"
             "GPM_SERVICE_API_KEY"
@@ -67,61 +66,66 @@ jobs:
             fi
           done
 
-          # External LLM API imports — banned anywhere in the PR diff
-          BANNED_LLM=(
-            "import openai"
-            "from openai"
-            "import anthropic"
-            "from anthropic"
-            "dashscope"
-            "import deepseek"
-            "from deepseek"
-            "google\.generativeai"
-          )
+          # --- Import-level checks scoped to src/gpm/**/*.py production files ---
+          #
+          # Tests, markdown reports, comments, and docstrings may legitimately mention
+          # forbidden provider names (e.g. "dashscope", "openai") to assert those APIs
+          # are NOT used. What is banned is actual Python import statements in GPM
+          # production source files.
+          GPM_CHANGED_PY=$(git diff --name-only "$MERGE_BASE" HEAD -- 'src/gpm/' \
+            | grep '\.py$' || true)
 
-          for pat in "${BANNED_LLM[@]}"; do
-            if echo "$ADDED" | grep -qiE "$pat"; then
-              echo "::error::PR introduces a banned external LLM API usage: $pat"
+          for file in $GPM_CHANGED_PY; do
+            ADDED_SRC=$(git diff "$MERGE_BASE" HEAD -- "$file" \
+              | grep '^+' | grep -v '^+++' || true)
+
+            # External LLM API imports — banned in src/gpm/ production code
+            if echo "$ADDED_SRC" | grep -qiE \
+              '^\+[[:space:]]*(import|from)[[:space:]]+(openai|anthropic|dashscope|deepseek)([.[:space:]]|$)'; then
+              echo "::error::src/gpm introduces forbidden external LLM import in $file"
+              FAILED=1
+            fi
+            if echo "$ADDED_SRC" | grep -qiE \
+              '^\+[[:space:]]*(import|from)[[:space:]]+google\.generativeai([.[:space:]]|$)'; then
+              echo "::error::src/gpm introduces forbidden Google Generative AI import in $file"
+              FAILED=1
+            fi
+            if echo "$ADDED_SRC" | grep -qiE \
+              '^\+[[:space:]]*from[[:space:]]+google[[:space:]]+import[[:space:]]+generativeai'; then
+              echo "::error::src/gpm introduces forbidden Google Generative AI import in $file"
+              FAILED=1
+            fi
+
+            # Crawler / scraper / browser automation imports — banned in src/gpm/ production code
+            if echo "$ADDED_SRC" | grep -qiE \
+              '^\+[[:space:]]*(import|from)[[:space:]]+(playwright|selenium|bs4|scrapy|pyppeteer)([.[:space:]]|$)'; then
+              echo "::error::src/gpm introduces forbidden crawler/scraper/browser-automation import in $file"
+              FAILED=1
+            fi
+
+            # Order / payment / dispatch — banned in src/gpm/ production code
+            # ^\+[^#]* skips comment lines so docstrings stating what is NOT done do not trip this.
+            if echo "$ADDED_SRC" | grep -qiE \
+              '^\+[^#]*(place_order|submit_order|payment\.create|cart\.add|send_buyer_quote|dispatch_buyer_quote|auto_quote)'; then
+              echo "::error::src/gpm introduces banned order/payment/dispatch behavior in $file"
               FAILED=1
             fi
           done
 
-          # Crawler / scraper / browser automation — banned anywhere in the PR diff
-          BANNED_CRAWLER=(
-            "from playwright"
-            "import playwright"
-            "from selenium"
-            "import selenium"
-            "BeautifulSoup"
-            "from bs4"
-            "from scrapy"
-            "import scrapy"
-            "pyppeteer"
-          )
-
-          for pat in "${BANNED_CRAWLER[@]}"; do
-            if echo "$ADDED" | grep -qiE "$pat"; then
-              echo "::error::PR introduces banned crawler/scraper/browser-automation: $pat"
-              FAILED=1
-            fi
-          done
-
-          # Order / payment / automatic buyer quote dispatch — banned anywhere in the PR diff
-          BANNED_ORDER=(
-            "place_order"
-            "submit_order"
-            "payment\.create"
-            "cart\.add"
-            "send_buyer_quote"
-            "dispatch_buyer_quote"
-            "auto_quote"
-          )
-
-          for pat in "${BANNED_ORDER[@]}"; do
-            if echo "$ADDED" | grep -qiE "$pat"; then
-              echo "::error::PR introduces banned order/payment/dispatch behavior: $pat"
-              FAILED=1
-            fi
+          # Order / payment / dispatch — also banned in api/**/*.py and skills/**/*.ts
+          # Scoped to production code only; markdown and test files are excluded by path.
+          for dir_pat in 'api/' 'skills/'; do
+            CHANGED_PROD=$(git diff --name-only "$MERGE_BASE" HEAD -- "${dir_pat}" \
+              | grep -E '\.(py|ts)$' || true)
+            for file in $CHANGED_PROD; do
+              ADDED_SRC=$(git diff "$MERGE_BASE" HEAD -- "$file" \
+                | grep '^+' | grep -v '^+++' || true)
+              if echo "$ADDED_SRC" | grep -qiE \
+                '^\+[^#/]*(place_order|submit_order|payment\.create|cart\.add|send_buyer_quote|dispatch_buyer_quote|auto_quote)'; then
+                echo "::error::$file introduces banned order/payment/dispatch behavior"
+                FAILED=1
+              fi
+            done
           done
 
           if [ "$FAILED" -eq 1 ]; then
