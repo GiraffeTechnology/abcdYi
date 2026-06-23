@@ -175,8 +175,8 @@ Skeleton at `skills/gpm-1688-pricing/`:
 - `SKILL.md`: Declares constraints (no scraping, no orders, no payments, no LLM API calls),
   required benchmark fields, and Session A tool contract.
 - `src/index.ts`: Exports `tools.fetch_price_samples`.
-- `src/tools/fetchPriceSamples.ts`: TypeScript skeleton; connection to GPM Python backend
-  deferred to Session B.
+- `src/tools/fetchPriceSamples.ts`: TypeScript skeleton; TypeScript-to-Python backend wiring
+  is deferred to a future integration PR, not Session B.
 - `config.example.json`: Documents the five required environment variables.
 
 ---
@@ -215,7 +215,9 @@ All 14 tests pass. No external credentials required. No live API called.
    are stored verbatim from the API. Semantic normalization is Session B scope.
 
 4. **TypeScript skill is not wired to Python backend.** `fetchPriceSamples` throws
-   `NotImplementedError`. HTTP/subprocess integration is Session B scope.
+   `NotImplementedError`. TypeScript-to-Python backend wiring is deferred to a future
+   integration PR. Session B is responsible for Qwen normalization, benchmark engine,
+   and quote guidance engine only.
 
 5. **No benchmark price range calculation.** Session A only collects and validates samples.
    Range computation is Session B scope.

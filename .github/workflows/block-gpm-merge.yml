@@ -8,10 +8,10 @@ jobs:
   check-branch:
     runs-on: ubuntu-latest
     steps:
-      - name: Reject GPM branch by name
+      - name: Reject legacy GPM service branch by name
         if: contains(github.head_ref, 'giraffe-pricing-model')
         run: |
-          echo "::error::GPM service branch must never merge into main. This check fails by design."
+          echo "::error::Legacy GPM service branch must never merge into main. This check fails by design."
           exit 1
 
       - name: Checkout PR
@@ -19,7 +19,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Reject GPM code reintroduction
+      - name: Reject legacy GPM service code and unsafe patterns
         env:
           BASE_REF: ${{ github.base_ref }}
         run: |
@@ -29,43 +29,97 @@ jobs:
           FAILED=0
 
           # --- Path check ---
-          # Detect banned file paths regardless of content (empty files would
-          # slip through a content-only scan). Uses --name-only so the file
-          # header lines that grep -v '+++' would strip are never involved.
+          # src/gpm/ is the new approved lightweight local GPM module — allowed.
+          # api/routes/gpm.py is the legacy external-service API route — still banned.
           CHANGED_FILES=$(git diff --name-only "$MERGE_BASE" HEAD -- . ':(exclude).github/' || true)
 
           BANNED_PATHS=(
-            "src/gpm/"
             "api/routes/gpm\.py"
           )
 
           for pat in "${BANNED_PATHS[@]}"; do
             if echo "$CHANGED_FILES" | grep -qE "$pat"; then
-              echo "::error::PR adds or reintroduces banned GPM path: $pat"
+              echo "::error::PR adds or reintroduces banned legacy GPM path: $pat"
               FAILED=1
             fi
           done
 
           # --- Content check ---
-          # Scan newly added lines for banned strings.
-          # || true prevents grep from exiting non-zero when a PR only deletes
-          # lines or only modifies .github/ (empty ADDED is valid and safe).
+          # Scan newly added lines only (lines starting with '+', excluding file headers).
+          # || true prevents grep from exiting non-zero when the diff is empty or clean.
           ADDED=$(git diff "$MERGE_BASE" HEAD -- . ':(exclude).github/' \
             | grep '^+' | grep -v '^+++' || true)
 
-          BANNED_CONTENT=(
+          # Legacy external GPM service patterns — always banned
+          BANNED_LEGACY=(
             "GPM_SERVICE_URL"
             "GPM_SERVICE_API_KEY"
-            "src\.gpm"
             "/api/gpm"
             "gpm_router"
             "submit_order_to_buffer"
             "push_order_to_gpm_buffer"
           )
 
-          for pat in "${BANNED_CONTENT[@]}"; do
+          for pat in "${BANNED_LEGACY[@]}"; do
             if echo "$ADDED" | grep -qE "$pat"; then
-              echo "::error::PR adds or reintroduces banned GPM content: $pat"
+              echo "::error::PR reintroduces banned legacy GPM service content: $pat"
+              FAILED=1
+            fi
+          done
+
+          # External LLM API imports — banned anywhere in the PR diff
+          BANNED_LLM=(
+            "import openai"
+            "from openai"
+            "import anthropic"
+            "from anthropic"
+            "dashscope"
+            "import deepseek"
+            "from deepseek"
+            "google\.generativeai"
+          )
+
+          for pat in "${BANNED_LLM[@]}"; do
+            if echo "$ADDED" | grep -qiE "$pat"; then
+              echo "::error::PR introduces a banned external LLM API usage: $pat"
+              FAILED=1
+            fi
+          done
+
+          # Crawler / scraper / browser automation — banned anywhere in the PR diff
+          BANNED_CRAWLER=(
+            "from playwright"
+            "import playwright"
+            "from selenium"
+            "import selenium"
+            "BeautifulSoup"
+            "from bs4"
+            "from scrapy"
+            "import scrapy"
+            "pyppeteer"
+          )
+
+          for pat in "${BANNED_CRAWLER[@]}"; do
+            if echo "$ADDED" | grep -qiE "$pat"; then
+              echo "::error::PR introduces banned crawler/scraper/browser-automation: $pat"
+              FAILED=1
+            fi
+          done
+
+          # Order / payment / automatic buyer quote dispatch — banned anywhere in the PR diff
+          BANNED_ORDER=(
+            "place_order"
+            "submit_order"
+            "payment\.create"
+            "cart\.add"
+            "send_buyer_quote"
+            "dispatch_buyer_quote"
+            "auto_quote"
+          )
+
+          for pat in "${BANNED_ORDER[@]}"; do
+            if echo "$ADDED" | grep -qiE "$pat"; then
+              echo "::error::PR introduces banned order/payment/dispatch behavior: $pat"
               FAILED=1
             fi
           done
@@ -73,4 +127,6 @@ jobs:
           if [ "$FAILED" -eq 1 ]; then
             exit 1
           fi
-          echo "GPM code scan passed — no banned patterns found in diff."
+
+          echo "GPM code scan passed — no banned patterns found."
+          echo "Approved: src/gpm/ lightweight local module is permitted to merge."
