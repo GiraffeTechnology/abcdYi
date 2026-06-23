@@ -8,11 +8,11 @@ sys.path.insert(0, ".")
 
 
 def main() -> None:
-    enabled = os.environ.get("GPM_ENABLE_LIVE_QWEN_MNN_TESTS", "0").strip() == "1"
+    enabled = os.environ.get("GPM_ENABLE_LIVE_QWEN_MNN_TESTS", "0").strip().lower() in ("1", "true", "yes")
 
     if not enabled:
         print("GPM QWEN MNN SMOKE: SKIPPED")
-        print("reason: set GPM_ENABLE_LIVE_QWEN_MNN_TESTS=1 to enable live local runtime check")
+        print("reason: set GPM_ENABLE_LIVE_QWEN_MNN_TESTS=true to enable live local runtime check")
         return
 
     model_path = os.environ.get("GPM_QWEN_MNN_MODEL_PATH", "").strip()
@@ -27,10 +27,13 @@ def main() -> None:
         sys.exit(1)
 
     try:
+        from src.gpm.qwen.qwen_runtime_config import QwenRuntimeConfig
         from src.gpm.qwen.qwen_mnn_runtime import QwenMNNRuntime
-        runtime = QwenMNNRuntime()
+        config = QwenRuntimeConfig.from_env()
+        runtime = QwenMNNRuntime(config=config)
         print("GPM QWEN MNN SMOKE: PASS")
-        print(f"runtime: {runtime.runtime_name}")
+        print(f"runtime_mode: {runtime.runtime_mode}")
+        print(f"model_path: {model_path}")
     except RuntimeError as e:
         print("GPM QWEN MNN SMOKE: FAIL")
         print(f"reason: {e}")
