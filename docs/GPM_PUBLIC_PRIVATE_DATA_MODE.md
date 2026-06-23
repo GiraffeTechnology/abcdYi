@@ -1,60 +1,65 @@
 # GPM Public / Private Data Mode
 
-## Summary
-
-GPM Core is shared between public and private deployments. The difference between public and private mode is the data source, not the analysis architecture.
+The `GPMContextBundle` supports four data modes that control which evidence categories are assembled for Qwen semantic analysis and benchmark computation.
 
 ## Data Modes
 
-### Public Mode
+| Mode | Description | Use Case |
+|---|---|---|
+| `mock` | Deterministic synthetic data | CI, unit tests, smoke tests |
+| `public` | Only public market evidence (1688, public APIs) | Default server mode without private data consent |
+| `private` | Full context including private order history | Operator-enabled with tenant consent |
+| `mixed` | Public + partial private, controlled by retriever | Configurable per-tenant |
 
-Public mode uses externally sourced market data:
+## Privacy Rules
 
-- Authorized marketplace APIs (e.g. 1688 / Alibaba)
-- CSV / Excel benchmark imports
-- Public benchmark caches
-- Non-customer public price evidence
+1. **Default is public**: `include_private_data=False` in all service calls unless operator explicitly enables it.
+2. **Private data requires consent**: Private order history, supplier pricing history, and ERP data are only included when `include_private_data=True` is passed by an authorized operator path.
+3. **No credentials in bundles**: `ContextBundleValidator` rejects any bundle containing credential-looking keys (`password`, `token`, `api_key`, etc.).
+4. **Qwen never sees raw credentials**: `GPMContextBundle.to_prompt_payload()` strips credential-looking keys from evidence excerpts before building the prompt.
 
-### Private Mode
+## GPMSemanticQuoteService
 
-Private mode uses customer-controlled internal data:
+The Session D main service accepts `include_private_data` as an explicit parameter:
 
-- Customer ERP
-- Historical supplier quotes
-- Past purchase orders
-- Internal supplier memory
-- Private procurement records
-
-## Shared Architecture
-
-Both modes produce a `GPMContextBundle` and follow the same core flow:
-
-```
-Data source
-→ evidence references (GPMEvidenceReference)
-→ GPMContextBundle
-→ local Qwen semantic analysis
-→ deterministic benchmark + quote guidance engines
-→ auditable GPMQuoteGuidance
+```python
+output = service.run(
+    tenant_id="t_123",
+    rfq_id="rfq_456",
+    include_private_data=False,  # default: public data only
+)
 ```
 
-## Persistent Memory
+With private data enabled (operator-authorized path only):
 
-GPM does not train on customer data by default.
+```python
+output = service.run(
+    tenant_id="t_123",
+    rfq_id="rfq_456",
+    include_private_data=True,  # requires operator authorization
+)
+```
 
-- Customer data remains in a customer-controlled data layer.
-- Local Qwen reads retrieved context at inference time only.
-- Persistent memory is implemented through DB / document store / RAG, not silent model weight updates.
-- Fine-tuning is future optional explicit work requiring separate approval.
+## Mock Mode
 
-## Human Approval
+In `mock` mode, the `MockContextRetriever` returns a synthetic context bundle with:
+- 20 canonical price samples (men's cotton shirt, 24.0→46.04 CNY range)
+- No real supplier identities
+- No private tenant data
+- `data_mode="mock"`
 
-Any buyer-facing quote dispatch requires explicit human approval (`human_approval_required = True`). Qwen is never permitted to authorize buyer-facing quote dispatch, place orders, or make payments.
+The mock scenario is deterministic: P50 ≈ 35.02, P75 ≈ 40.53, supplier quote 38.5 CNY → `within_high_range` → `negotiate`.
 
-## What GPM Does Not Do
+## Evidence Grounding
 
-- No external LLM API calls (no OpenAI, Anthropic, DashScope, Gemini, DeepSeek).
-- No Qwen cloud calls.
-- No silent model training on customer data.
-- No automatic order placement.
-- No automatic buyer quote dispatch.
+All evidence cited in Qwen output must be grounded in the context bundle:
+
+```text
+QwenOutputValidator checks:
+  every evidence_id in output must exist in bundle.evidence_ids()
+  hallucinated IDs are rejected with QwenOutputValidationError
+```
+
+## Human Approval Required
+
+Regardless of data mode, `human_approval_required` is always `True` in all service output. No business action (quote dispatch, order, payment) may be taken automatically.
