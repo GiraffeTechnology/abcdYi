@@ -63,19 +63,21 @@ def load_or_generate_samples() -> list[MockSample]:
             ))
         return samples
 
-    titles = [
+    base_titles = [
         "men cotton shirt OEM custom 定制纯棉衬衫",
-        "100% cotton men shirt 纯棉男壱",
+        "100% cotton men shirt 纯棉男衬衫",
         "OEM cotton shirt 定制衬衫",
-        "men shirt cotton 男壱纯棉",
-        "pure cotton shirt OEM",
+        "men shirt cotton 男衬衫纯棉",
+        "pure cotton shirt OEM 纯棉定制",
     ]
+    # 20 samples with prices at 10000 units from 26 to 45 CNY.
+    # Produces high confidence (n>=20), P50=35.5, P75=40.25,
+    # placing quote=38.5 CNY in within_high_range -> negotiate.
+    prices_at_10k = list(range(26, 46))  # 26..45
+    titles = [base_titles[i % len(base_titles)] for i in range(20)]
     prices = [
-        (28, 32, [{"min_qty": 500, "price": 32}, {"min_qty": 3000, "price": 28}, {"min_qty": 10000, "price": 25}]),
-        (30, 35, [{"min_qty": 500, "price": 35}, {"min_qty": 3000, "price": 30}, {"min_qty": 10000, "price": 27}]),
-        (33, 38, [{"min_qty": 500, "price": 38}, {"min_qty": 3000, "price": 33}, {"min_qty": 10000, "price": 29}]),
-        (35, 40, [{"min_qty": 500, "price": 40}, {"min_qty": 3000, "price": 35}, {"min_qty": 10000, "price": 31}]),
-        (36, 42, [{"min_qty": 500, "price": 42}, {"min_qty": 3000, "price": 36}, {"min_qty": 10000, "price": 32}]),
+        (p + 14, p + 22, [{"min_qty": 500, "price": p + 22}, {"min_qty": 3000, "price": p + 8}, {"min_qty": 10000, "price": p}])
+        for p in prices_at_10k
     ]
     samples = []
     for i, (title, (pmin, pmax, ladder)) in enumerate(zip(titles, prices)):
