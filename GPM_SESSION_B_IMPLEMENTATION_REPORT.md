@@ -177,36 +177,49 @@ All tests run without database, API keys, or network access.
 
 ---
 
-## 10. Integration Notes for Session A
+## 10. Combined Package — Session A + Session B
 
-When Session A PR is merged, replace fixture-based samples with `GPMSupplierPriceSample` objects:
+Session A (merged via PR #9) provides the data ingestion foundation.  
+This PR (Session B) adds the intelligence layer on top. Together they form one coherent GPM Lightweight package.
+
+`GPMSupplierPriceSample` objects produced by Session A are consumed directly by Session B:
 
 ```python
 from src.gpm.services.gpm_quote_guidance_service import GPMQuoteGuidanceService
-# Session A sample objects are duck-type compatible:
-# they expose: id, product_title, price_min, price_max, ladder_prices,
-# usable_for_benchmark, supplier_id, captured_at
+# GPMSupplierPriceSample exposes: id, product_title, price_min, price_max,
+# ladder_prices, usable_for_benchmark, supplier_id, captured_at
 service = GPMQuoteGuidanceService(llm_adapter=MockLLMAdapter())
 benchmark, guidance, report = service.run(requirement, session_a_samples, supplier_quote)
 ```
 
 Integrated flow:
-```
-Session A:
-  1688 API / Mock1688PricingAdapter
-    ↓
-  GPMSupplierPriceSample (validated)
 
-Session B:
-  GPMSupplierPriceSample
-    ↓
-  MockLLMAdapter / QwenMNNAdapter (normalization)
-    ↓
-  BenchmarkEngine (P25/P50/P75)
-    ↓
-  QuoteGuidanceEngine (accept/negotiate/reject)
-    ↓
-  GPMMarkdownReportBuilder (human-readable output)
+```
+1688 API / Mock1688PricingAdapter  (Session A)
+  ↓
+GPMSupplierPriceSample (validated)  (Session A)
+  ↓
+MockLLMAdapter / QwenMNNAdapter (normalization)  (Session B)
+  ↓
+BenchmarkEngine (P25/P50/P75)  (Session B)
+  ↓
+QuoteGuidanceEngine (accept/negotiate/reject)  (Session B)
+  ↓
+GPMMarkdownReportBuilder (human-readable output)  (Session B)
 ```
 
-No duplicate persistence or API adapter logic between sessions.
+No duplicate persistence or API adapter logic between layers.
+
+**Combined test results (77/77 pass):**
+
+| Suite | Tests |
+|---|---|
+| Session A unit (required fields, mock adapter, raw response store) | 14 |
+| Session B unit (benchmark, comparator, mock LLM, quote guidance, no-external-LLM guard) | 59 |
+| Session A integration (mock flow end-to-end) | 1 |
+| Session B integration (mock quote guidance E2E) | 3 |
+
+**Session A probe (mock mode):** `PASS` — 25 samples, 22 valid, 3 invalid  
+**Session B mock quote guidance:** `PASS` — `within_high_range / negotiate / human_approval_required=True`
+
+TypeScript-to-Python backend wiring is deferred to a future integration PR.
