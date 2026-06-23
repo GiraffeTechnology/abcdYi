@@ -1,0 +1,7 @@
+{
+  "GPM_1688_APP_KEY": "your_app_key_here",
+  "GPM_1688_APP_SECRET": "your_app_secret_here",
+  "GPM_1688_ACCESS_TOKEN": "your_access_token_here",
+  "GPM_1688_API_BASE_URL": "https://gw.api.1688.com",
+  "GPM_ENABLE_LIVE_1688_TESTS": "false"
+}
