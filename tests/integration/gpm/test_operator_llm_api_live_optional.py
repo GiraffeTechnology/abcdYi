@@ -1,4 +1,4 @@
-"""Optional live LLM API test — skipped unless GPM_ENABLE_QWEN_LLM_API=true and token is set."""
+"""Optional live LLM API test — skipped unless GPM_ENABLE_LLM_API=true and token is set."""
 from __future__ import annotations
 
 import os
@@ -10,14 +10,17 @@ from src.gpm.llm_adapters.qwen_local_runtime import QwenLocalRuntime
 from src.gpm.qwen.qwen_runtime_config import QwenRuntimeConfig
 from src.gpm.services.gpm_semantic_quote_service import GPMSemanticQuoteService
 from src.gpm.validators.qwen_output_validator import QwenOutputValidator
-from src.gpm.context.mock_context_retriever import MockContextRetriever
 from src.gpm.validators.context_bundle_validator import ContextBundleValidator
 
 
 def _live_enabled() -> bool:
-    enabled = os.environ.get("GPM_ENABLE_QWEN_LLM_API", "").lower() in ("1", "true", "yes")
+    enabled = (
+        os.environ.get("GPM_ENABLE_LLM_API", "").lower() in ("1", "true", "yes")
+        or os.environ.get("GPM_ENABLE_QWEN_LLM_API", "").lower() in ("1", "true", "yes")
+    )
     has_token = bool(
-        os.environ.get("QWEN_API_KEY", "").strip()
+        os.environ.get("GPM_LLM_API_KEY", "").strip()
+        or os.environ.get("QWEN_API_KEY", "").strip()
         or os.environ.get("DASHSCOPE_API_KEY", "").strip()
     )
     return enabled and has_token
@@ -25,14 +28,14 @@ def _live_enabled() -> bool:
 
 pytestmark = pytest.mark.skipif(
     not _live_enabled(),
-    reason="GPM_ENABLE_QWEN_LLM_API=true and QWEN_API_KEY/DASHSCOPE_API_KEY required for live test",
+    reason="GPM_ENABLE_LLM_API=true and GPM_LLM_API_KEY (or QWEN_API_KEY/DASHSCOPE_API_KEY) required for live test",
 )
 
 
 def test_live_llm_api_response_parses_as_json() -> None:
     config = QwenRuntimeConfig.from_env()
     assert config.runtime_mode == "llm_api", (
-        "Set GPM_QWEN_RUNTIME_MODE=llm_api to run live test"
+        "Set GPM_LLM_RUNTIME_MODE=llm_api (or GPM_QWEN_RUNTIME_MODE=llm_api) to run live test"
     )
     runtime = QwenLocalRuntime(config=config)
     retriever = MockContextRetriever()
