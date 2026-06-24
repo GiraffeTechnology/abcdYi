@@ -1,12 +1,14 @@
 """GPM Session D LLM API smoke test.
 
-With GPM_RUNTIME_PROFILE=server (or GPM_LLM_RUNTIME_MODE=llm_api), the resolver
-attempts the operator LLM API. Missing token or disabled API → SKIPPED with clear reason.
+With GPM_RUNTIME_PROFILE=lightweight or server, the resolver attempts the local MNN
+model first, then the operator LLM API if explicitly allowed. Missing token, disabled
+API, or no configured runtime → SKIPPED with a clear reason.
 No token is ever printed or persisted.
 
-Operator configuration (server profile + API-first):
-    GPM_RUNTIME_PROFILE=server           (enables API-first auto-resolution)
-    GPM_ENABLE_LLM_API=true              (canonical; GPM_ENABLE_QWEN_LLM_API is alias)
+Operator configuration (server/lightweight profile):
+    GPM_RUNTIME_PROFILE=server           (or lightweight; enables local-first resolution)
+    GPM_QWEN_MNN_MODEL_PATH=/path/...    (preferred: local model, no network)
+    GPM_ENABLE_LLM_API=true              (optional: allow API fallback after local fails)
     GPM_LLM_API_KEY=<operator-token>     (canonical; QWEN_API_KEY / DASHSCOPE_API_KEY are aliases)
     GPM_LLM_API_MODEL=<model name>       (optional; QWEN_API_MODEL is alias)
 
@@ -22,6 +24,8 @@ sys.path.insert(0, ".")
 _REASON_LABELS: dict[str, str] = {
     "missing_token": "missing operator token",
     "api_disabled": "LLM API mode is disabled",
+    "local_model_unavailable": "local model initialization failed",
+    "no_runtime_configured": "no LLM runtime configured",
     "invalid_token": "invalid or unauthorized token",
     "timeout": "provider request timed out",
     "non_json_response": "provider returned non-JSON response",
