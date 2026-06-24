@@ -22,7 +22,7 @@ class GPMSemanticQuoteService:
         ContextRetriever -> GPMContextBundle
         -> ContextBundleValidator
         -> Prompt builder
-        -> QwenLocalRuntime (mock | mnn | llm_api)
+        -> QwenLocalRuntime (mock | mnn | llm_api | auto)
         -> QwenOutputValidator
         -> BenchmarkEngine + QuoteGuidanceEngine
         -> final semantic quote packet with human_approval_required: True
@@ -40,7 +40,7 @@ class GPMSemanticQuoteService:
         rfq_id: str | None = None,
         supplier_response_id: str | None = None,
         include_private_data: bool = False,
-        runtime_mode: Literal["mock", "mnn", "llm_api"] | None = None,
+        runtime_mode: Literal["mock", "mnn", "llm_api", "auto"] | None = None,
     ) -> dict[str, Any]:
         runtime = self._resolve_runtime(runtime_mode)
 
@@ -116,25 +116,19 @@ class GPMSemanticQuoteService:
             "explanation": analysis.reason,
         }
 
-    def _resolve_runtime(self, runtime_mode: Literal["mock", "mnn", "llm_api"] | None) -> QwenLocalRuntime:
+    def _resolve_runtime(
+        self, runtime_mode: Literal["mock", "mnn", "llm_api", "auto"] | None
+    ) -> QwenLocalRuntime:
+        from src.gpm.qwen.qwen_runtime_resolver import resolve_runtime
+
         if self._runtime is not None:
             return self._runtime
 
         if runtime_mode is not None:
+            import dataclasses
             env_config = QwenRuntimeConfig.from_env()
-            config = QwenRuntimeConfig(
-                runtime_mode=runtime_mode,
-                mnn_model_path=env_config.mnn_model_path,
-                mnn_tokenizer_path=env_config.mnn_tokenizer_path,
-                mnn_backend=env_config.mnn_backend,
-                enable_live_mnn_tests=env_config.enable_live_mnn_tests,
-                enable_llm_api=env_config.enable_llm_api,
-                llm_api_key=env_config.llm_api_key,
-                llm_api_base_url=env_config.llm_api_base_url,
-                llm_api_model=env_config.llm_api_model,
-                llm_provider=env_config.llm_provider,
-                api_timeout_seconds=env_config.api_timeout_seconds,
-            )
-            return QwenLocalRuntime(config=config)
+            config = dataclasses.replace(env_config, runtime_mode=runtime_mode)
+        else:
+            config = QwenRuntimeConfig.from_env()
 
-        return QwenLocalRuntime(config=QwenRuntimeConfig.from_env())
+        return resolve_runtime(config)
