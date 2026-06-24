@@ -10,11 +10,11 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture(scope="module", autouse=True)
 def _reset_deps_cache():
-    from src.gpm.api.deps import get_quote_guidance_service, get_runtime_config
-    get_quote_guidance_service.cache_clear()
+    from src.gpm.api.deps import get_quote_guidance_service, get_runtime_config, _try_build_service
+    _try_build_service.cache_clear()
     get_runtime_config.cache_clear()
     yield
-    get_quote_guidance_service.cache_clear()
+    _try_build_service.cache_clear()
     get_runtime_config.cache_clear()
 
 
@@ -53,6 +53,7 @@ def test_full_quote_guidance_flow(client):
     get_r = client.get(f"/api/gpm/quote-guidance/{pid}")
     assert get_r.status_code == 200
     assert get_r.json()["packet"]["packet_id"] == pid
+    assert get_r.json()["operator_action_required"] is True
 
     approve_r = client.post(f"/api/gpm/quote-guidance/{pid}/approve", json={
         "operator_id": "op-integration",
@@ -62,7 +63,9 @@ def test_full_quote_guidance_flow(client):
     assert approve_r.json()["approval_record"]["approval_status"] == "approved"
     assert approve_r.json()["dispatched"] is False
 
-    dbl = client.post(f"/api/gpm/quote-guidance/{pid}/approve", json={"operator_id": "op-integration"})
+    dbl = client.post(
+        f"/api/gpm/quote-guidance/{pid}/approve", json={"operator_id": "op-integration"}
+    )
     assert dbl.status_code == 409
 
 

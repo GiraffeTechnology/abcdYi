@@ -4,6 +4,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from src.gpm.api.auth import GPMAuthContext, require_gpm_auth, resolve_tenant_id
 from src.gpm.api.deps import get_quote_guidance_service
 from src.gpm.api.schemas import ApprovalRequest, QuoteGuidanceRequest, RejectionRequest
 from src.gpm.audit.gpm_audit_writer import GPMAuditWriter
@@ -51,9 +52,11 @@ def gpm_capabilities() -> dict:
 def create_quote_guidance(
     req: QuoteGuidanceRequest,
     svc: Annotated[GPMQuoteGuidanceApiService, Depends(get_quote_guidance_service)],
+    auth: Annotated[GPMAuthContext, Depends(require_gpm_auth)],
 ) -> dict:
+    effective_tenant_id = resolve_tenant_id(req.tenant_id, auth)
     result = svc.generate_quote_guidance(
-        tenant_id=req.tenant_id,
+        tenant_id=effective_tenant_id,
         project_id=req.project_id,
         rfq_id=req.rfq_id,
         supplier_response_id=req.supplier_response_id,
@@ -109,6 +112,7 @@ def create_quote_guidance(
 def get_quote_guidance(
     packet_id: str,
     svc: Annotated[GPMQuoteGuidanceApiService, Depends(get_quote_guidance_service)],
+    auth: Annotated[GPMAuthContext, Depends(require_gpm_auth)],
 ) -> dict:
     packet = svc.get_packet(packet_id)
     if packet is None:
@@ -116,10 +120,17 @@ def get_quote_guidance(
             status_code=404,
             detail={"error": f"Packet {packet_id} not found"},
         )
+    if auth.tenant_id is not None and packet.tenant_id is not None:
+        if auth.tenant_id != packet.tenant_id:
+            raise HTTPException(
+                status_code=403,
+                detail={"error": "Packet belongs to a different tenant"},
+            )
     return {
         "status": "ok",
         "packet": packet.to_dict(),
         "human_approval_required": True,
+        "operator_action_required": True,
     }
 
 
@@ -128,6 +139,7 @@ def approve_quote_guidance(
     packet_id: str,
     req: ApprovalRequest,
     svc: Annotated[GPMQuoteGuidanceApiService, Depends(get_quote_guidance_service)],
+    auth: Annotated[GPMAuthContext, Depends(require_gpm_auth)],
 ) -> dict:
     packet = svc.get_packet(packet_id)
     if packet is None:
@@ -135,6 +147,12 @@ def approve_quote_guidance(
             status_code=404,
             detail={"error": f"Packet {packet_id} not found"},
         )
+    if auth.tenant_id is not None and packet.tenant_id is not None:
+        if auth.tenant_id != packet.tenant_id:
+            raise HTTPException(
+                status_code=403,
+                detail={"error": "Packet belongs to a different tenant"},
+            )
     if packet.approval_status != "pending":
         raise HTTPException(
             status_code=409,
@@ -170,6 +188,7 @@ def reject_quote_guidance(
     packet_id: str,
     req: RejectionRequest,
     svc: Annotated[GPMQuoteGuidanceApiService, Depends(get_quote_guidance_service)],
+    auth: Annotated[GPMAuthContext, Depends(require_gpm_auth)],
 ) -> dict:
     packet = svc.get_packet(packet_id)
     if packet is None:
@@ -177,6 +196,12 @@ def reject_quote_guidance(
             status_code=404,
             detail={"error": f"Packet {packet_id} not found"},
         )
+    if auth.tenant_id is not None and packet.tenant_id is not None:
+        if auth.tenant_id != packet.tenant_id:
+            raise HTTPException(
+                status_code=403,
+                detail={"error": "Packet belongs to a different tenant"},
+            )
     if packet.approval_status != "pending":
         raise HTTPException(
             status_code=409,
