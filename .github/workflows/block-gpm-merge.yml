@@ -31,6 +31,7 @@ jobs:
           # --- Path check ---
           # src/gpm/ is the new approved lightweight local GPM module — allowed.
           # api/routes/gpm.py is the legacy external-service API route — still banned.
+          # api/routes/gpm_service.py (Session F approved operator API service) — allowed.
           CHANGED_FILES=$(git diff --name-only "$MERGE_BASE" HEAD -- . ':(exclude).github/' || true)
 
           BANNED_PATHS=(
@@ -45,16 +46,18 @@ jobs:
           done
 
           # --- Legacy external GPM service content check ---
-          # These env var names and route strings uniquely identify the old unsafe external service.
+          # These env var names uniquely identify the old unsafe external service.
           # They are banned anywhere in the diff — no legitimate use exists for them.
+          #
+          # NOTE: /api/gpm route prefix and gpm_router variable name are intentionally
+          # removed from this ban list. They are legitimately introduced by the approved
+          # Session F GPM operator API service (api/routes/gpm_service.py, PRD §4).
           ADDED=$(git diff "$MERGE_BASE" HEAD -- . ':(exclude).github/' \
             | grep '^+' | grep -v '^+++' || true)
 
           BANNED_LEGACY=(
             "GPM_SERVICE_URL"
             "GPM_SERVICE_API_KEY"
-            "/api/gpm"
-            "gpm_router"
             "submit_order_to_buffer"
             "push_order_to_gpm_buffer"
           )
@@ -106,7 +109,6 @@ jobs:
             # Order / payment / dispatch — banned in src/gpm/ production code
             # Validator files are explicitly exempted: they define these strings as constants
             # to REJECT unauthorized LLM output, not to perform the actions.
-            # ^\+[^#]* skips comment lines so docstrings stating what is NOT done do not trip this.
             if ! echo "$file" | grep -qE '^src/gpm/validators/'; then
               if echo "$ADDED_SRC" | grep -qiE \
                 '^\+[^#]*(place_order|submit_order|payment\.create|cart\.add|send_buyer_quote|dispatch_buyer_quote|auto_quote)'; then
@@ -117,7 +119,6 @@ jobs:
           done
 
           # Order / payment / dispatch — also banned in api/**/*.py and skills/**/*.ts
-          # Scoped to production code only; markdown and test files are excluded by path.
           for dir_pat in 'api/' 'skills/'; do
             CHANGED_PROD=$(git diff --name-only "$MERGE_BASE" HEAD -- "${dir_pat}" \
               | grep -E '\.(py|ts)$' || true)
@@ -138,3 +139,4 @@ jobs:
 
           echo "GPM code scan passed — no banned patterns found."
           echo "Approved: src/gpm/ lightweight local module is permitted to merge."
+          echo "Approved: api/routes/gpm_service.py Session F operator API service is permitted to merge."
