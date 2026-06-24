@@ -3,13 +3,18 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Any, Literal
 
 from src.gpm.context.evidence_reference import GPMEvidenceReference
 
 _CREDENTIAL_KEYS = frozenset({
-    "password", "secret", "token", "api_key", "apikey", "credential",
-    "private_key", "access_key", "auth", "bearer",
+    # Base set
+    "password", "passwd", "secret", "token", "api_key", "apikey", "credential",
+    "private_key", "access_key", "auth", "bearer", "authorization", "cookie",
+    "session",
+    # Extended variants
+    "access_token", "refresh_token", "api_token", "authorization_header",
+    "id_token", "client_secret", "jwt", "x_api_key",
 })
 
 
@@ -18,6 +23,15 @@ def _has_credential_keys(d: dict) -> bool:
         if key.lower() in _CREDENTIAL_KEYS:
             return True
     return False
+
+
+def _scrub_credentials(d: Any) -> Any:
+    """Recursively remove credential keys from dicts and lists."""
+    if isinstance(d, dict):
+        return {k: _scrub_credentials(v) for k, v in d.items() if k.lower() not in _CREDENTIAL_KEYS}
+    if isinstance(d, list):
+        return [_scrub_credentials(item) for item in d]
+    return d
 
 
 @dataclass
@@ -72,9 +86,7 @@ class GPMContextBundle:
                 "observed_at": e.observed_at.isoformat() if e.observed_at else None,
             }
             if e.payload_excerpt:
-                # Drop credential-looking keys from excerpts
-                safe = {k: v for k, v in e.payload_excerpt.items() if k.lower() not in _CREDENTIAL_KEYS}
-                entry["payload_excerpt"] = safe
+                entry["payload_excerpt"] = _scrub_credentials(e.payload_excerpt)
             evidence_list.append(entry)
 
         return {

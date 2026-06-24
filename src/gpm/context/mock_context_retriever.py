@@ -91,6 +91,25 @@ def _make_canonical_samples() -> list[_CanonicalSample]:
 class MockContextRetriever:
     """Deterministic retriever for the canonical 10,000 men's cotton shirt GPM scenario."""
 
+    def retrieve(
+        self,
+        *,
+        tenant_id: str | None = None,
+        project_id: str | None = None,
+        rfq_id: str | None = None,
+        supplier_response_id: str | None = None,
+        include_private_data: bool | None = None,
+        evidence_ids: list[str] | None = None,
+    ) -> GPMContextBundle:
+        """Session E primary interface. evidence_ids and include_private_data ignored in mock mode."""
+        return self.build_gpm_context(
+            tenant_id=tenant_id,
+            project_id=project_id,
+            rfq_id=rfq_id,
+            supplier_response_id=supplier_response_id,
+            include_private_data=bool(include_private_data),
+        )
+
     def build_gpm_context(
         self,
         *,
