@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any, Protocol, runtime_checkable
 
+from src.gpm.qwen.gpm_runtime_unavailable_error import GPMRuntimeUnavailableError
 from src.gpm.qwen.qwen_runtime_config import QwenRuntimeConfig
 
 _QWEN_DEFAULT_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
@@ -44,8 +45,27 @@ class _QwenProvider:
         }
         url = f"{self._base_url}/chat/completions"
 
-        response = httpx.post(url, json=payload, headers=headers, timeout=self._timeout)
-        response.raise_for_status()
+        try:
+            response = httpx.post(url, json=payload, headers=headers, timeout=self._timeout)
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise GPMRuntimeUnavailableError(
+                reason=f"LLM API returned HTTP {exc.response.status_code}",
+                attempted_runtime="llm_api",
+                safe_message=(
+                    f"LLM API request failed with HTTP {exc.response.status_code}. "
+                    "Check GPM_LLM_API_KEY and API endpoint availability."
+                ),
+            ) from exc
+        except httpx.RequestError as exc:
+            raise GPMRuntimeUnavailableError(
+                reason=f"LLM API network error: {type(exc).__name__}",
+                attempted_runtime="llm_api",
+                safe_message=(
+                    "LLM API request failed due to a network error. "
+                    "Check connectivity and API endpoint configuration."
+                ),
+            ) from exc
 
         data = response.json()
         content = data["choices"][0]["message"]["content"]
@@ -77,8 +97,27 @@ class _OpenAICompatibleProvider:
         }
         url = f"{self._base_url}/chat/completions"
 
-        response = httpx.post(url, json=payload, headers=headers, timeout=self._timeout)
-        response.raise_for_status()
+        try:
+            response = httpx.post(url, json=payload, headers=headers, timeout=self._timeout)
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise GPMRuntimeUnavailableError(
+                reason=f"LLM API returned HTTP {exc.response.status_code}",
+                attempted_runtime="llm_api",
+                safe_message=(
+                    f"LLM API request failed with HTTP {exc.response.status_code}. "
+                    "Check GPM_LLM_API_KEY and API endpoint availability."
+                ),
+            ) from exc
+        except httpx.RequestError as exc:
+            raise GPMRuntimeUnavailableError(
+                reason=f"LLM API network error: {type(exc).__name__}",
+                attempted_runtime="llm_api",
+                safe_message=(
+                    "LLM API request failed due to a network error. "
+                    "Check connectivity and API endpoint configuration."
+                ),
+            ) from exc
 
         data = response.json()
         content = data["choices"][0]["message"]["content"]
@@ -111,8 +150,27 @@ class _CustomHttpProvider:
         if self._model:
             payload["model"] = self._model
 
-        response = httpx.post(self._base_url, json=payload, headers=headers, timeout=self._timeout)
-        response.raise_for_status()
+        try:
+            response = httpx.post(self._base_url, json=payload, headers=headers, timeout=self._timeout)
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise GPMRuntimeUnavailableError(
+                reason=f"LLM API returned HTTP {exc.response.status_code}",
+                attempted_runtime="llm_api",
+                safe_message=(
+                    f"LLM API request failed with HTTP {exc.response.status_code}. "
+                    "Check GPM_LLM_API_KEY and API endpoint availability."
+                ),
+            ) from exc
+        except httpx.RequestError as exc:
+            raise GPMRuntimeUnavailableError(
+                reason=f"LLM API network error: {type(exc).__name__}",
+                attempted_runtime="llm_api",
+                safe_message=(
+                    "LLM API request failed due to a network error. "
+                    "Check connectivity and API endpoint configuration."
+                ),
+            ) from exc
         return response.json()
 
 

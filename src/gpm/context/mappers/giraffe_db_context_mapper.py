@@ -159,7 +159,7 @@ class GiraffeDBContextMapper:
         )
 
     def _map_evidence_item(self, item: dict) -> tuple[GPMEvidenceReference, dict]:
-        item_id = item.get("id") or str(uuid.uuid4())
+        item_id = item.get("source_id") or item.get("id") or str(uuid.uuid4())
         payload = _strip_credentials(item.get("payload") or {})
         source_platform = item.get("source_platform") or payload.get("source_platform", "unknown")
         raw_payload_hash = item.get("raw_payload_hash")

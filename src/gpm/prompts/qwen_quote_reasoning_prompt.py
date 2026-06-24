@@ -1,17 +1,26 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 from src.gpm.context.gpm_context_bundle import GPMContextBundle
 
 
-def build_qwen_quote_reasoning_prompt(bundle: GPMContextBundle) -> str:
+def build_qwen_quote_reasoning_prompt(
+    bundle: GPMContextBundle,
+    supplier_quote: dict[str, Any] | None = None,
+    benchmark_summary: dict[str, Any] | None = None,
+) -> str:
     """Build a Qwen quote reasoning prompt grounded in the context bundle evidence.
 
     Instructs the model to reason about supplier quote positioning using only
     provided evidence. Never invents prices, MOQ values, or supplier fields.
     """
     payload = bundle.to_prompt_payload()
+    if supplier_quote:
+        payload["supplier_quote"] = supplier_quote
+    if benchmark_summary:
+        payload["benchmark_summary"] = benchmark_summary
     payload_json = json.dumps(payload, ensure_ascii=False, indent=2, default=str)
 
     return f"""You are a GPM (Giraffe Pricing Model) quote reasoning assistant.
@@ -24,7 +33,8 @@ STRICT RULES:
 - human_approval_required must always be true in your output.
 - Do not place orders. Do not make payment. Do not dispatch quotes to buyers.
 - Human approval is required before any buyer-facing action.
-- Do not compute benchmark percentiles — the GPM engine handles all math.
+- Do not recompute benchmark percentiles — the GPM engine handles all math.
+- Do not set margin policy. Margin decisions require human approval.
 
 CONTEXT:
 {payload_json}

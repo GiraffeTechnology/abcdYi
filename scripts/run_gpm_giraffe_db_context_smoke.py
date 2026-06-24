@@ -82,7 +82,11 @@ def main() -> None:
     runtime = QwenLocalRuntime(config=QwenRuntimeConfig(runtime_mode="mock"))
     service = GPMSemanticQuoteService(context_retriever=retriever, qwen_runtime=runtime)
     try:
-        output = service.run()
+        output = service.run(
+            tenant_id=os.environ.get("GPM_GIRAFFE_DB_TENANT_ID") or None,
+            project_id=os.environ.get("GPM_GIRAFFE_DB_PROJECT_ID") or None,
+            rfq_id=os.environ.get("GPM_GIRAFFE_DB_RFQ_ID") or None,
+        )
     except Exception as e:
         print(f"GPM SESSION E GIRAFFE-DB SMOKE: FAIL — service run failed: {e}")
         sys.exit(1)
