@@ -1,52 +1,59 @@
 """GPM Session D LLM API smoke test.
 
-Requires operator configuration:
+With GPM_RUNTIME_PROFILE=server (or GPM_LLM_RUNTIME_MODE=llm_api), the resolver
+attempts the operator LLM API. Missing token or disabled API → SKIPPED with clear reason.
+No token is ever printed or persisted.
+
+Operator configuration (server profile + API-first):
+    GPM_RUNTIME_PROFILE=server           (enables API-first auto-resolution)
     GPM_ENABLE_LLM_API=true              (canonical; GPM_ENABLE_QWEN_LLM_API is alias)
-    GPM_LLM_RUNTIME_MODE=llm_api         (canonical; GPM_QWEN_RUNTIME_MODE is alias)
     GPM_LLM_API_KEY=<operator-token>     (canonical; QWEN_API_KEY / DASHSCOPE_API_KEY are aliases)
     GPM_LLM_API_MODEL=<model name>       (optional; QWEN_API_MODEL is alias)
 
-The token is never printed or persisted.
+Alternative explicit mode:
+    GPM_LLM_RUNTIME_MODE=llm_api         (canonical; GPM_QWEN_RUNTIME_MODE is alias)
 """
 from __future__ import annotations
 
-import os
 import sys
 
 sys.path.insert(0, ".")
 
+_REASON_LABELS: dict[str, str] = {
+    "missing_token": "missing operator token",
+    "api_disabled": "LLM API mode is disabled",
+    "invalid_token": "invalid or unauthorized token",
+    "timeout": "provider request timed out",
+    "non_json_response": "provider returned non-JSON response",
+    "schema_invalid": "provider response failed schema validation",
+    "local_model_missing": "local model path not found",
+    "provider_error": "provider initialization failed",
+}
+
 
 def main() -> None:
-    # Canonical env var first; Qwen-specific aliases as fallback.
-    enabled = (
-        os.environ.get("GPM_ENABLE_LLM_API", "").lower() in ("1", "true", "yes")
-        or os.environ.get("GPM_ENABLE_QWEN_LLM_API", "").lower() in ("1", "true", "yes")
-    )
-    has_token = bool(
-        os.environ.get("GPM_LLM_API_KEY", "").strip()
-        or os.environ.get("QWEN_API_KEY", "").strip()
-        or os.environ.get("DASHSCOPE_API_KEY", "").strip()
-    )
-
-    if not enabled or not has_token:
-        print("GPM SESSION D LLM API SMOKE: SKIPPED")
-        if not enabled:
-            print("reason: set GPM_ENABLE_LLM_API=true (or GPM_ENABLE_QWEN_LLM_API=true)")
-        else:
-            print("reason: set GPM_LLM_API_KEY (or QWEN_API_KEY / DASHSCOPE_API_KEY)")
-        return
-
-    from src.gpm.context.mock_context_retriever import MockContextRetriever
-    from src.gpm.llm_adapters.qwen_local_runtime import QwenLocalRuntime
+    from src.gpm.qwen.gpm_runtime_unavailable_error import GPMRuntimeUnavailableError
     from src.gpm.qwen.qwen_runtime_config import QwenRuntimeConfig
-    from src.gpm.services.gpm_semantic_quote_service import GPMSemanticQuoteService
-    from src.gpm.validators.context_bundle_validator import ContextBundleValidator, ContextBundleValidationError
-    from src.gpm.validators.qwen_output_validator import QwenOutputValidator
+    from src.gpm.qwen.qwen_runtime_resolver import resolve_runtime
 
     config = QwenRuntimeConfig.from_env()
-    if config.runtime_mode != "llm_api":
+
+    try:
+        runtime = resolve_runtime(config)
+    except GPMRuntimeUnavailableError as exc:
+        status = exc.to_status()
         print("GPM SESSION D LLM API SMOKE: SKIPPED")
-        print("reason: set GPM_LLM_RUNTIME_MODE=llm_api (or GPM_QWEN_RUNTIME_MODE=llm_api)")
+        print(f"reason: {_REASON_LABELS.get(status['reason'], status['reason'])}")
+        print(f"operator_action_required: {status['operator_action_required']}")
+        return
+    except RuntimeError as exc:
+        print("GPM SESSION D LLM API SMOKE: FAIL")
+        print(f"reason: {exc}")
+        sys.exit(1)
+
+    if runtime.runtime_mode != "llm_api":
+        print("GPM SESSION D LLM API SMOKE: SKIPPED")
+        print(f"reason: resolved runtime is {runtime.runtime_mode!r}, not llm_api")
         return
 
     # Never print the token
@@ -54,8 +61,16 @@ def main() -> None:
     provider = redacted.get("llm_provider", "qwen")
     model = redacted.get("llm_api_model") or "(default)"
 
-    retriever = MockContextRetriever()
+    from src.gpm.context.mock_context_retriever import MockContextRetriever
+    from src.gpm.prompts.qwen_gpm_normalization_prompt import build_qwen_gpm_normalization_prompt
+    from src.gpm.services.gpm_semantic_quote_service import GPMSemanticQuoteService
+    from src.gpm.validators.context_bundle_validator import (
+        ContextBundleValidationError,
+        ContextBundleValidator,
+    )
+    from src.gpm.validators.qwen_output_validator import QwenOutputValidator
 
+    retriever = MockContextRetriever()
     bundle = retriever.build_gpm_context()
     try:
         ContextBundleValidator().validate(bundle)
@@ -64,9 +79,6 @@ def main() -> None:
         print(f"GPM SESSION D LLM API SMOKE: FAIL\nreason: context bundle validation: {e}")
         sys.exit(1)
 
-    runtime = QwenLocalRuntime(config=config)
-
-    from src.gpm.prompts.qwen_gpm_normalization_prompt import build_qwen_gpm_normalization_prompt
     prompt = build_qwen_gpm_normalization_prompt(bundle)
     try:
         raw = runtime.generate_json(prompt, schema_name="gpm_normalization")
