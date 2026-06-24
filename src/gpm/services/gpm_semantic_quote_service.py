@@ -16,7 +16,7 @@ from src.gpm.validators.qwen_output_validator import QwenOutputValidator
 
 
 class GPMSemanticQuoteService:
-    """Session D main service: context bundle + Qwen semantic analysis + benchmark guidance.
+    """Session D/E main service: context bundle + Qwen semantic analysis + benchmark guidance.
 
     Flow:
         ContextRetriever -> GPMContextBundle
@@ -28,9 +28,20 @@ class GPMSemanticQuoteService:
         -> final semantic quote packet with human_approval_required: True
     """
 
-    def __init__(self, retriever: Any, runtime: QwenLocalRuntime | None = None) -> None:
-        self._retriever = retriever
-        self._runtime = runtime
+    def __init__(
+        self,
+        retriever: Any = None,
+        runtime: QwenLocalRuntime | None = None,
+        context_retriever: Any = None,
+        qwen_runtime: QwenLocalRuntime | None = None,
+    ) -> None:
+        # Accept both old (retriever/runtime) and new (context_retriever/qwen_runtime) param names.
+        _ret = context_retriever if context_retriever is not None else retriever
+        if _ret is None:
+            from src.gpm.context.retrievers.retriever_config import build_context_retriever_from_env
+            _ret = build_context_retriever_from_env()
+        self._retriever = _ret
+        self._runtime = qwen_runtime if qwen_runtime is not None else runtime
 
     def run(
         self,
@@ -39,17 +50,19 @@ class GPMSemanticQuoteService:
         project_id: str | None = None,
         rfq_id: str | None = None,
         supplier_response_id: str | None = None,
-        include_private_data: bool = False,
+        include_private_data: bool | None = None,
         runtime_mode: Literal["mock", "mnn", "llm_api", "auto"] | None = None,
+        evidence_ids: list[str] | None = None,
     ) -> dict[str, Any]:
         runtime = self._resolve_runtime(runtime_mode)
 
-        bundle: GPMContextBundle = self._retriever.build_gpm_context(
+        bundle: GPMContextBundle = self._retriever.retrieve(
             tenant_id=tenant_id,
             project_id=project_id,
             rfq_id=rfq_id,
             supplier_response_id=supplier_response_id,
             include_private_data=include_private_data,
+            evidence_ids=evidence_ids,
         )
 
         ContextBundleValidator().validate(bundle)
