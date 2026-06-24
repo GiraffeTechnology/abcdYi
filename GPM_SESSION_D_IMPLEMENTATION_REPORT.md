@@ -30,7 +30,7 @@ Session D hardens the local Qwen/MNN runtime and adds a provider-agnostic, opera
 | `src/gpm/services/gpm_semantic_quote_service.py` | Session D main service: context + Qwen + benchmark + guidance |
 | `src/gpm/prompts/qwen_quote_reasoning_prompt.py` | Quote reasoning prompt builder |
 | `scripts/run_gpm_llm_api_smoke.py` | Operator LLM API smoke test |
-| `tests/unit/gpm/test_qwen_runtime_config.py` | Config loading, token redaction, frozen guard |
+| `tests/unit/gpm/test_qwen_runtime_config.py` | Config loading, token redaction, frozen guard, canonical env priority |
 | `tests/unit/gpm/test_qwen_runtime_mode_selection.py` | Mode routing and guard tests |
 | `tests/unit/gpm/test_operator_llm_api_runtime_guard.py` | Disabled-by-default, token gate, no leakage |
 | `tests/unit/gpm/test_qwen_output_validator_strict_schema.py` | Strict schema: forbidden keys, human approval, evidence grounding |
@@ -51,7 +51,7 @@ llm_api — operator-selected LLM API, disabled by default, requires explicit to
 |---|---:|---:|---:|---|
 | `mock` | yes | no | yes | none |
 | `mnn` | no | no | gated | `GPM_QWEN_MNN_MODEL_PATH` must exist |
-| `llm_api` | no | yes | never | `GPM_ENABLE_QWEN_LLM_API=true` + token required |
+| `llm_api` | no | yes | never | `GPM_ENABLE_LLM_API=true` + token required |
 
 ## 4. Mock Runtime Behavior
 
@@ -69,19 +69,19 @@ Always includes `human_approval_required: True`, `missing_fields: []`, `risk_exp
 Required for live MNN:
 ```bash
 GPM_ENABLE_LIVE_QWEN_MNN_TESTS=true \
-GPM_QWEN_RUNTIME_MODE=mnn \
+GPM_LLM_RUNTIME_MODE=mnn \
 GPM_QWEN_MNN_MODEL_PATH=/path/to/model.mnn \
 uv run python scripts/run_gpm_qwen_mnn_smoke.py
 ```
 
 ## 6. LLM API Runtime Behavior
 
-`OperatorLLMApiRuntime` is disabled by default. Raises `RuntimeError` unless:
+`OperatorLLMApiRuntime` is disabled by default. Raises `RuntimeError` unless operator explicitly enables it:
 
 ```bash
-GPM_ENABLE_QWEN_LLM_API=true
-GPM_QWEN_RUNTIME_MODE=llm_api
-QWEN_API_KEY=<token>  # or DASHSCOPE_API_KEY
+GPM_ENABLE_LLM_API=true              # canonical (GPM_ENABLE_QWEN_LLM_API is alias)
+GPM_LLM_RUNTIME_MODE=llm_api        # canonical (GPM_QWEN_RUNTIME_MODE is alias)
+GPM_LLM_API_KEY=<operator-token>    # canonical (QWEN_API_KEY / DASHSCOPE_API_KEY are aliases)
 ```
 
 Three providers supported via httpx (no vendor SDK):
@@ -93,7 +93,7 @@ Provider selected by `GPM_LLM_PROVIDER`. Default provider is `qwen`; default run
 
 ## 7. Token Handling and Redaction
 
-- Token is read from `QWEN_API_KEY` (preferred) or `DASHSCOPE_API_KEY` (fallback)
+- Token is read from `GPM_LLM_API_KEY` (canonical), then `QWEN_API_KEY`, then `DASHSCOPE_API_KEY` (Qwen aliases)
 - `QwenRuntimeConfig.redacted()` returns `{"llm_api_key": "***REDACTED***"}` when set
 - Token is never printed, logged, or persisted
 - `.env` files with token values must never be committed
@@ -146,7 +146,7 @@ Required output schema:
 uv run pytest tests/unit/gpm/ tests/integration/gpm/ -v
 ```
 
-Expected: all tests pass. Live LLM API tests are skipped unless `GPM_ENABLE_QWEN_LLM_API=true` and token set.
+Expected: all tests pass. Live LLM API tests are skipped unless `GPM_ENABLE_LLM_API=true` and token set.
 
 ## 11. Local Smoke Output
 
@@ -165,9 +165,9 @@ Run with:
 uv run python scripts/run_gpm_qwen_local_smoke.py
 ```
 
-## 12. Qwen LLM API Smoke Output
+## 12. LLM API Smoke Output
 
-The LLM API smoke requires an operator-provided Qwen token. The token is not available in this environment.
+The LLM API smoke requires an operator-provided token. The token is not available in this environment.
 
 ```text
 Blocked: operator LLM API token is missing.
@@ -175,18 +175,18 @@ Blocked: operator LLM API token is missing.
 
 To run the LLM API smoke when a token is available:
 ```bash
-GPM_ENABLE_QWEN_LLM_API=true \
-GPM_QWEN_RUNTIME_MODE=llm_api \
-QWEN_API_KEY=<operator-provided-token> \
-QWEN_API_MODEL=qwen-turbo \
+GPM_ENABLE_LLM_API=true \
+GPM_LLM_RUNTIME_MODE=llm_api \
+GPM_LLM_PROVIDER=qwen \
+GPM_LLM_API_KEY=<operator-provided-token> \
+GPM_LLM_API_MODEL=qwen-turbo \
 uv run python scripts/run_gpm_llm_api_smoke.py
 ```
 
 Expected output:
 ```text
-GPM SESSION D QWEN API SIMULATION SMOKE: PASS
+GPM SESSION D LLM API SMOKE: PASS
 runtime_mode: llm_api
-llm_api_simulation: enabled
 provider: qwen
 model: qwen-turbo
 context_bundle: built
@@ -211,7 +211,7 @@ No Alembic migrations, no new SQLAlchemy business tables, no giraffe-db direct S
 - Validator rejects any output where `human_approval_required` is not `True`
 - Validator rejects forbidden action keys (`send_quote`, `dispatch_quote`, `place_order`, `make_payment`, `auto_approve`)
 - No automatic buyer quote dispatch, order placement, payment, supplier commitment, or human approval bypass
-- LLM API mode is disabled by default; requires explicit `GPM_ENABLE_QWEN_LLM_API=true` + operator token
+- LLM API mode is disabled by default; requires explicit `GPM_ENABLE_LLM_API=true` + operator token
 - No automatic fallback from local MNN to LLM API
 
 ## 16. Known Limitations
