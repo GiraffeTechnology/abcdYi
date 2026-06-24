@@ -37,9 +37,12 @@ Return a JSON object with exactly these fields:
   "is_comparable": <true|false>,
   "comparability_score": <float 0.0-1.0>,
   "detected_mismatch_flags": ["<string>", ...],
+  "missing_fields": ["<string>", ...],
+  "risk_explanation": "<string or empty string>",
   "evidence_ids": ["<id from evidence_ids list only>", ...],
   "reason": "<brief explanation using only provided evidence>",
-  "confidence": "<low|medium|high>"
+  "confidence": "<low|medium|high>",
+  "human_approval_required": true
 }}
 
 IMPORTANT:
