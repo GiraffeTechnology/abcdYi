@@ -72,6 +72,15 @@ def test_get_not_found(client):
     assert r.status_code == 404
 
 
+def test_get_includes_operator_action_required(client):
+    pid = client.post(
+        "/api/gpm/quote-guidance", json={"rfq_id": "rfq-get"}
+    ).json()["packet"]["packet_id"]
+    r = client.get(f"/api/gpm/quote-guidance/{pid}")
+    assert r.status_code == 200
+    assert r.json()["operator_action_required"] is True
+
+
 def test_approve_flow(client):
     create = client.post("/api/gpm/quote-guidance", json={"rfq_id": "rfq-approve"})
     pid = create.json()["packet"]["packet_id"]
