@@ -10,9 +10,13 @@ from src.gpm.context.evidence_reference import GPMEvidenceReference
 from src.gpm.context.gpm_context_bundle import GPMContextBundle
 
 _CREDENTIAL_KEYS = frozenset({
+    # Base set
     "password", "passwd", "token", "api_key", "apikey", "secret",
     "authorization", "cookie", "session", "private_key", "access_key",
     "auth", "bearer", "credential",
+    # Extended variants
+    "access_token", "refresh_token", "api_token", "authorization_header",
+    "id_token", "client_secret", "jwt", "x_api_key",
 })
 
 

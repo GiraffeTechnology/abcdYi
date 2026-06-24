@@ -18,7 +18,7 @@ class MockContextRetriever:
         project_id: str | None = None,
         rfq_id: str | None = None,
         supplier_response_id: str | None = None,
-        include_private_data: bool = False,
+        include_private_data: bool | None = None,
         evidence_ids: list[str] | None = None,
     ) -> GPMContextBundle:
         return self._legacy.build_gpm_context(
@@ -26,7 +26,7 @@ class MockContextRetriever:
             project_id=project_id,
             rfq_id=rfq_id,
             supplier_response_id=supplier_response_id,
-            include_private_data=include_private_data,
+            include_private_data=bool(include_private_data),
         )
 
     def build_gpm_context(

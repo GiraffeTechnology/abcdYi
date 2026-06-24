@@ -75,8 +75,10 @@ class _MockTransport(httpx.BaseTransport):
 
     def __init__(self, route_responses: dict[str, Any]) -> None:
         self._route_responses = route_responses
+        self.last_request: httpx.Request | None = None
 
     def handle_request(self, request: httpx.Request) -> httpx.Response:
+        self.last_request = request
         path = request.url.path
         for pattern, response_data in self._route_responses.items():
             if pattern in path:
@@ -148,3 +150,59 @@ def test_service_with_giraffe_db_retriever_old_kwarg_names_still_work() -> None:
     service = GPMSemanticQuoteService(retriever=retriever, runtime=runtime)
     output = service.run()
     assert output["human_approval_required"] is True
+
+
+class TestIncludePrivateDataFlow:
+    """Verify include_private_data=None default flows correctly through service → retriever."""
+
+    def _make_transport(self) -> _MockTransport:
+        return _MockTransport({"/gpm/context": _CANONICAL_GIRAFFE_DB_RESPONSE})
+
+    def test_service_run_default_passes_none_to_retriever(self) -> None:
+        """run() default (None) must not force public-only — it defers to the retriever's own default."""
+        transport = self._make_transport()
+        client = GiraffeDBClient(base_url="http://t", transport=transport)
+        # Retriever configured with include_private_data=True via constructor
+        retriever = GiraffeDBContextRetriever(client=client, include_private_data=True)
+        runtime = QwenLocalRuntime(config=QwenRuntimeConfig(runtime_mode="mock"))
+        service = GPMSemanticQuoteService(context_retriever=retriever, qwen_runtime=runtime)
+        # run() with no include_private_data arg → passes None → retriever uses True
+        service.run()
+        payload = json.loads(transport.last_request.content)
+        assert payload["include_private_data"] is True
+
+    def test_service_run_explicit_false_overrides_retriever_default(self) -> None:
+        """Explicitly passing include_private_data=False must force public-only."""
+        transport = self._make_transport()
+        client = GiraffeDBClient(base_url="http://t", transport=transport)
+        retriever = GiraffeDBContextRetriever(client=client, include_private_data=True)
+        runtime = QwenLocalRuntime(config=QwenRuntimeConfig(runtime_mode="mock"))
+        service = GPMSemanticQuoteService(context_retriever=retriever, qwen_runtime=runtime)
+        service.run(include_private_data=False)
+        payload = json.loads(transport.last_request.content)
+        assert payload["include_private_data"] is False
+
+    def test_service_run_explicit_true_overrides_retriever_default_false(self) -> None:
+        """Explicitly passing include_private_data=True must request private context."""
+        transport = self._make_transport()
+        client = GiraffeDBClient(base_url="http://t", transport=transport)
+        retriever = GiraffeDBContextRetriever(client=client, include_private_data=False)
+        runtime = QwenLocalRuntime(config=QwenRuntimeConfig(runtime_mode="mock"))
+        service = GPMSemanticQuoteService(context_retriever=retriever, qwen_runtime=runtime)
+        service.run(include_private_data=True)
+        payload = json.loads(transport.last_request.content)
+        assert payload["include_private_data"] is True
+
+    def test_retriever_config_include_private_data_env_true(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """build_context_retriever_from_env with INCLUDE_PRIVATE_DATA=true → retriever default True."""
+        from src.gpm.context.retrievers.retriever_config import build_context_retriever_from_env
+        from src.gpm.context.retrievers.giraffe_db_context_retriever import GiraffeDBContextRetriever
+
+        monkeypatch.setenv("GPM_CONTEXT_RETRIEVER", "giraffe_db")
+        monkeypatch.setenv("GPM_GIRAFFE_DB_BASE_URL", "http://localhost:9999")
+        monkeypatch.setenv("GPM_GIRAFFE_DB_INCLUDE_PRIVATE_DATA", "true")
+        retriever = build_context_retriever_from_env()
+        assert isinstance(retriever, GiraffeDBContextRetriever)
+        assert retriever._default_include_private_data is True
