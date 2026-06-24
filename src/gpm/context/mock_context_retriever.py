@@ -98,16 +98,16 @@ class MockContextRetriever:
         project_id: str | None = None,
         rfq_id: str | None = None,
         supplier_response_id: str | None = None,
-        include_private_data: bool = False,
+        include_private_data: bool | None = None,
         evidence_ids: list[str] | None = None,
     ) -> GPMContextBundle:
-        """Session E primary interface. evidence_ids ignored in mock mode."""
+        """Session E primary interface. evidence_ids and include_private_data ignored in mock mode."""
         return self.build_gpm_context(
             tenant_id=tenant_id,
             project_id=project_id,
             rfq_id=rfq_id,
             supplier_response_id=supplier_response_id,
-            include_private_data=include_private_data,
+            include_private_data=bool(include_private_data),
         )
 
     def build_gpm_context(

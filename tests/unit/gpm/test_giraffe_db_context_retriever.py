@@ -110,3 +110,15 @@ class TestGiraffeDBContextRetriever:
         assert isinstance(bundle, GPMContextBundle)
         payload = client.create_gpm_context.call_args[0][0]
         assert payload["rfq_id"] == "rfq_001"
+
+    def test_retrieve_none_include_private_uses_constructor_default_true(self) -> None:
+        retriever, client = self._make_retriever(include_private_data=True)
+        retriever.retrieve(include_private_data=None)
+        payload = client.create_gpm_context.call_args[0][0]
+        assert payload["include_private_data"] is True
+
+    def test_retrieve_explicit_false_overrides_constructor_default_true(self) -> None:
+        retriever, client = self._make_retriever(include_private_data=True)
+        retriever.retrieve(include_private_data=False)
+        payload = client.create_gpm_context.call_args[0][0]
+        assert payload["include_private_data"] is False

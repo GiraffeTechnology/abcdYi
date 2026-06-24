@@ -207,3 +207,62 @@ class TestGiraffeDBContextMapperEdgeCases:
         bundle = GiraffeDBContextMapper().map(response)
         assert bundle.created_at.year == 2024
         assert bundle.created_at.month == 6
+
+
+class TestGiraffeDBContextMapperExtendedCredentialStripping:
+    def test_access_token_stripped(self) -> None:
+        evidence = [_pe("pe_001", extra_payload={"access_token": "tok_abc123"})]
+        response = _minimal_response(pricing_evidence=evidence)
+        bundle = GiraffeDBContextMapper().map(response)
+        excerpt = bundle.evidence[0].payload_excerpt or {}
+        assert "access_token" not in excerpt
+
+    def test_refresh_token_stripped(self) -> None:
+        evidence = [_pe("pe_001", extra_payload={"refresh_token": "ref_xyz789"})]
+        response = _minimal_response(pricing_evidence=evidence)
+        bundle = GiraffeDBContextMapper().map(response)
+        excerpt = bundle.evidence[0].payload_excerpt or {}
+        assert "refresh_token" not in excerpt
+
+    def test_api_token_stripped(self) -> None:
+        evidence = [_pe("pe_001", extra_payload={"api_token": "apitok_000"})]
+        response = _minimal_response(pricing_evidence=evidence)
+        bundle = GiraffeDBContextMapper().map(response)
+        excerpt = bundle.evidence[0].payload_excerpt or {}
+        assert "api_token" not in excerpt
+
+    def test_authorization_header_stripped(self) -> None:
+        evidence = [_pe("pe_001", extra_payload={"authorization_header": "Bearer secret"})]
+        response = _minimal_response(pricing_evidence=evidence)
+        bundle = GiraffeDBContextMapper().map(response)
+        excerpt = bundle.evidence[0].payload_excerpt or {}
+        assert "authorization_header" not in excerpt
+
+    def test_nested_api_key_in_sub_dict_stripped(self) -> None:
+        nested = {"meta": {"api_key": "nested_secret", "region": "ap-east"}}
+        evidence = [_pe("pe_001", extra_payload=nested)]
+        response = _minimal_response(pricing_evidence=evidence)
+        bundle = GiraffeDBContextMapper().map(response)
+        excerpt = bundle.evidence[0].payload_excerpt or {}
+        assert "api_key" not in excerpt.get("meta", {})
+        assert excerpt.get("meta", {}).get("region") == "ap-east"
+
+    def test_nested_access_token_in_list_stripped(self) -> None:
+        nested = {"tags": [{"access_token": "tok_list", "name": "tag1"}]}
+        evidence = [_pe("pe_001", extra_payload=nested)]
+        response = _minimal_response(pricing_evidence=evidence)
+        bundle = GiraffeDBContextMapper().map(response)
+        excerpt = bundle.evidence[0].payload_excerpt or {}
+        tag = excerpt.get("tags", [{}])[0]
+        assert "access_token" not in tag
+        assert tag.get("name") == "tag1"
+
+    def test_prompt_payload_strips_credentials_recursively(self) -> None:
+        nested = {"meta": {"client_secret": "cs_secret", "source": "api"}}
+        evidence = [_pe("pe_001", extra_payload=nested)]
+        response = _minimal_response(pricing_evidence=evidence)
+        bundle = GiraffeDBContextMapper().map(response)
+        prompt_payload = bundle.to_prompt_payload()
+        for ev in prompt_payload.get("evidence", []):
+            excerpt = ev.get("payload_excerpt") or {}
+            assert "client_secret" not in excerpt.get("meta", {})

@@ -16,6 +16,6 @@ class GPMContextRetriever(Protocol):
         project_id: str | None = None,
         rfq_id: str | None = None,
         supplier_response_id: str | None = None,
-        include_private_data: bool = False,
+        include_private_data: bool | None = None,
         evidence_ids: list[str] | None = None,
     ) -> GPMContextBundle: ...
