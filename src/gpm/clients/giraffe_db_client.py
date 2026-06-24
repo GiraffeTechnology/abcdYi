@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import httpx
+from urllib.parse import urlparse
 
 
 class GiraffeDBClientError(Exception):
@@ -60,10 +61,16 @@ class GiraffeDBClient:
                 f"giraffe-db returned HTTP {response.status_code}: {body}"
             )
 
+    def _service_root(self) -> str:
+        """Return scheme+host+port only (strip any API path prefix)."""
+        parsed = urlparse(self._base_url)
+        return f"{parsed.scheme}://{parsed.netloc}"
+
     def healthz(self) -> dict:
+        root = self._service_root()
         try:
-            with self._make_client() as client:
-                response = client.get("/healthz")
+            with httpx.Client(timeout=self._timeout) as client:
+                response = client.get(f"{root}/healthz")
                 self._raise_for_status(response)
                 return response.json()
         except httpx.ConnectError:

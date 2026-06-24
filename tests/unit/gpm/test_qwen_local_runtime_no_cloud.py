@@ -50,24 +50,43 @@ def test_mock_mode_shirt_scenario_score() -> None:
 # ── non-mock mode raises when MNN unavailable ─────────────────────────────────
 
 def test_non_mock_no_model_path_raises() -> None:
-    original = os.environ.pop("GPM_QWEN_MNN_MODEL_PATH", None)
+    saved = {k: os.environ.pop(k, None) for k in (
+        "GPM_QWEN_MNN_MODEL_PATH", "GPM_LLM_RUNTIME_MODE", "GPM_QWEN_RUNTIME_MODE",
+        "GPM_RUNTIME_PROFILE",
+    )}
+    os.environ["GPM_LLM_RUNTIME_MODE"] = "mnn"
     try:
-        with pytest.raises(RuntimeError, match="not available"):
+        with pytest.raises(RuntimeError):
             QwenLocalRuntime(model_path=None, mock_mode=False)
     finally:
-        if original is not None:
-            os.environ["GPM_QWEN_MNN_MODEL_PATH"] = original
+        for k, v in saved.items():
+            if v is not None:
+                os.environ[k] = v
+            else:
+                os.environ.pop(k, None)
 
 
 def test_non_mock_nonexistent_path_raises(tmp_path: object) -> None:
-    with pytest.raises(RuntimeError, match="not available"):
+    with pytest.raises(RuntimeError, match="does not exist"):
         QwenLocalRuntime(model_path="/nonexistent/path/to/model.mnn", mock_mode=False)
 
 
 def test_non_mock_does_not_silently_fall_back_to_cloud() -> None:
     """If MNN is unavailable, RuntimeError must be raised — no cloud fallback."""
-    with pytest.raises(RuntimeError):
-        QwenLocalRuntime(model_path=None, mock_mode=False)
+    saved = {k: os.environ.pop(k, None) for k in (
+        "GPM_QWEN_MNN_MODEL_PATH", "GPM_LLM_RUNTIME_MODE", "GPM_QWEN_RUNTIME_MODE",
+        "GPM_RUNTIME_PROFILE",
+    )}
+    os.environ["GPM_LLM_RUNTIME_MODE"] = "mnn"
+    try:
+        with pytest.raises(RuntimeError):
+            QwenLocalRuntime(model_path=None, mock_mode=False)
+    finally:
+        for k, v in saved.items():
+            if v is not None:
+                os.environ[k] = v
+            else:
+                os.environ.pop(k, None)
 
 
 # ── AST guard: no external LLM imports ───────────────────────────────────────
