@@ -36,10 +36,8 @@ def test_qwen_local_runtime_selects_llm_api_only_when_enabled() -> None:
     config = QwenRuntimeConfig(
         runtime_mode="llm_api",
         enable_llm_api=True,
-        qwen_api_key="sk-test-token",
+        llm_api_key="sk-test-token",
     )
-    # Raises not on init of QwenLocalRuntime but on OperatorLLMApiRuntime construction.
-    # With valid config, it should succeed (no network call at init).
     runtime = QwenLocalRuntime(config=config)
     assert runtime.runtime_mode == "llm_api"
 
@@ -48,7 +46,7 @@ def test_qwen_local_runtime_llm_api_raises_when_disabled() -> None:
     config = QwenRuntimeConfig(
         runtime_mode="llm_api",
         enable_llm_api=False,
-        qwen_api_key="sk-test-token",
+        llm_api_key="sk-test-token",
     )
     with pytest.raises(RuntimeError, match="disabled"):
         QwenLocalRuntime(config=config)
@@ -56,9 +54,8 @@ def test_qwen_local_runtime_llm_api_raises_when_disabled() -> None:
 
 def test_qwen_local_runtime_does_not_auto_fallback_to_api(monkeypatch: pytest.MonkeyPatch) -> None:
     """Mock mode must not silently switch to LLM API even if env vars are set."""
-    monkeypatch.setenv("GPM_ENABLE_QWEN_LLM_API", "true")
-    monkeypatch.setenv("QWEN_API_KEY", "sk-something")
-    # Explicit mock config overrides env
+    monkeypatch.setenv("GPM_ENABLE_LLM_API", "true")
+    monkeypatch.setenv("GPM_LLM_API_KEY", "sk-something")
     runtime = QwenLocalRuntime(config=QwenRuntimeConfig(runtime_mode="mock"))
     assert runtime.runtime_mode == "mock"
 

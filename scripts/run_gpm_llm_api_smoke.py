@@ -1,10 +1,10 @@
-"""GPM Session D Qwen LLM API simulation smoke test.
+"""GPM Session D LLM API smoke test.
 
 Requires operator configuration:
-    GPM_ENABLE_QWEN_LLM_API=true
-    GPM_QWEN_RUNTIME_MODE=llm_api
-    QWEN_API_KEY=<operator-provided-token>  (or DASHSCOPE_API_KEY)
-    QWEN_API_MODEL=<model name>
+    GPM_ENABLE_LLM_API=true              (canonical; GPM_ENABLE_QWEN_LLM_API is alias)
+    GPM_LLM_RUNTIME_MODE=llm_api         (canonical; GPM_QWEN_RUNTIME_MODE is alias)
+    GPM_LLM_API_KEY=<operator-token>     (canonical; QWEN_API_KEY / DASHSCOPE_API_KEY are aliases)
+    GPM_LLM_API_MODEL=<model name>       (optional; QWEN_API_MODEL is alias)
 
 The token is never printed or persisted.
 """
@@ -17,15 +17,23 @@ sys.path.insert(0, ".")
 
 
 def main() -> None:
-    enabled = os.environ.get("GPM_ENABLE_QWEN_LLM_API", "").lower() in ("1", "true", "yes")
+    # Canonical env var first; Qwen-specific aliases as fallback.
+    enabled = (
+        os.environ.get("GPM_ENABLE_LLM_API", "").lower() in ("1", "true", "yes")
+        or os.environ.get("GPM_ENABLE_QWEN_LLM_API", "").lower() in ("1", "true", "yes")
+    )
     has_token = bool(
-        os.environ.get("QWEN_API_KEY", "").strip()
+        os.environ.get("GPM_LLM_API_KEY", "").strip()
+        or os.environ.get("QWEN_API_KEY", "").strip()
         or os.environ.get("DASHSCOPE_API_KEY", "").strip()
     )
 
     if not enabled or not has_token:
-        print("GPM SESSION D QWEN API SIMULATION SMOKE: SKIPPED")
-        print("reason: GPM_ENABLE_QWEN_LLM_API=true and QWEN_API_KEY or DASHSCOPE_API_KEY required")
+        print("GPM SESSION D LLM API SMOKE: SKIPPED")
+        if not enabled:
+            print("reason: set GPM_ENABLE_LLM_API=true (or GPM_ENABLE_QWEN_LLM_API=true)")
+        else:
+            print("reason: set GPM_LLM_API_KEY (or QWEN_API_KEY / DASHSCOPE_API_KEY)")
         return
 
     from src.gpm.context.mock_context_retriever import MockContextRetriever
@@ -37,29 +45,27 @@ def main() -> None:
 
     config = QwenRuntimeConfig.from_env()
     if config.runtime_mode != "llm_api":
-        print("GPM SESSION D QWEN API SIMULATION SMOKE: SKIPPED")
-        print("reason: GPM_QWEN_RUNTIME_MODE must be llm_api")
+        print("GPM SESSION D LLM API SMOKE: SKIPPED")
+        print("reason: set GPM_LLM_RUNTIME_MODE=llm_api (or GPM_QWEN_RUNTIME_MODE=llm_api)")
         return
 
     # Never print the token
     redacted = config.redacted()
     provider = redacted.get("llm_provider", "qwen")
-    model = redacted.get("qwen_api_model") or "(default)"
+    model = redacted.get("llm_api_model") or "(default)"
 
     retriever = MockContextRetriever()
 
-    # Validate context bundle
     bundle = retriever.build_gpm_context()
     try:
         ContextBundleValidator().validate(bundle)
         evidence_status = "PASS"
     except ContextBundleValidationError as e:
-        print(f"GPM SESSION D QWEN API SIMULATION SMOKE: FAIL\nreason: context bundle validation: {e}")
+        print(f"GPM SESSION D LLM API SMOKE: FAIL\nreason: context bundle validation: {e}")
         sys.exit(1)
 
     runtime = QwenLocalRuntime(config=config)
 
-    # Validate raw Qwen output
     from src.gpm.prompts.qwen_gpm_normalization_prompt import build_qwen_gpm_normalization_prompt
     prompt = build_qwen_gpm_normalization_prompt(bundle)
     try:
@@ -67,20 +73,18 @@ def main() -> None:
         QwenOutputValidator().validate(raw, bundle)
         model_output_status = "PASS"
     except Exception as e:
-        print(f"GPM SESSION D QWEN API SIMULATION SMOKE: FAIL\nreason: model output validation: {e}")
+        print(f"GPM SESSION D LLM API SMOKE: FAIL\nreason: model output validation: {e}")
         sys.exit(1)
 
-    # Run full service
     service = GPMSemanticQuoteService(retriever=retriever, runtime=runtime)
     try:
         output = service.run()
     except Exception as e:
-        print(f"GPM SESSION D QWEN API SIMULATION SMOKE: FAIL\nreason: service run: {e}")
+        print(f"GPM SESSION D LLM API SMOKE: FAIL\nreason: service run: {e}")
         sys.exit(1)
 
-    print("GPM SESSION D QWEN API SIMULATION SMOKE: PASS")
+    print("GPM SESSION D LLM API SMOKE: PASS")
     print(f"runtime_mode: {output['runtime_mode']}")
-    print(f"llm_api_simulation: enabled")
     print(f"provider: {provider}")
     print(f"model: {model}")
     print(f"context_bundle: built")
