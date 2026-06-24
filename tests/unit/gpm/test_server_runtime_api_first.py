@@ -1,7 +1,11 @@
-"""Tests: server-profile API-first runtime resolution via QwenRuntimeResolver."""
-from __future__ import annotations
+"""Tests: profile-based runtime resolution via QwenRuntimeResolver.
 
-import dataclasses
+Both lightweight and server profiles use local-first resolution:
+  MNN (if path configured) → LLM API (if operator allows) → hard fail.
+LLM API is always operator opt-in; never called without enable_llm_api=True + token.
+Neither profile ever falls back to mock silently.
+"""
+from __future__ import annotations
 
 import pytest
 
@@ -22,6 +26,15 @@ def test_server_profile_from_env_defaults_to_auto(monkeypatch):
     config = QwenRuntimeConfig.from_env()
     assert config.runtime_mode == "auto"
     assert config.runtime_profile == "server"
+
+
+def test_lightweight_profile_from_env_defaults_to_auto(monkeypatch):
+    monkeypatch.setenv("GPM_RUNTIME_PROFILE", "lightweight")
+    monkeypatch.delenv("GPM_LLM_RUNTIME_MODE", raising=False)
+    monkeypatch.delenv("GPM_QWEN_RUNTIME_MODE", raising=False)
+    config = QwenRuntimeConfig.from_env()
+    assert config.runtime_mode == "auto"
+    assert config.runtime_profile == "lightweight"
 
 
 def test_ci_profile_defaults_to_mock(monkeypatch):
@@ -58,11 +71,11 @@ def test_invalid_profile_falls_back_to_local(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Resolver: local/ci + auto -> mock (CI-safe)
+# Resolver: local/ci + auto → mock (CI-safe)
 # ---------------------------------------------------------------------------
 
 
-def test_local_ci_auto_resolves_to_mock():
+def test_local_auto_resolves_to_mock():
     config = QwenRuntimeConfig(runtime_mode="auto", runtime_profile="local")
     runtime = resolve_runtime(config)
     assert runtime.runtime_mode == "mock"
@@ -75,7 +88,75 @@ def test_ci_auto_resolves_to_mock():
 
 
 # ---------------------------------------------------------------------------
-# Resolver: server + auto -> API-first, raises on missing token
+# Resolver: lightweight + auto → local-first, hard fail when no runtime callable
+# ---------------------------------------------------------------------------
+
+
+def test_lightweight_auto_no_runtime_raises_unavailable():
+    """No MNN path, API not enabled → hard fail."""
+    config = QwenRuntimeConfig(
+        runtime_mode="auto",
+        runtime_profile="lightweight",
+        enable_llm_api=False,
+        llm_api_key=None,
+    )
+    with pytest.raises(GPMRuntimeUnavailableError):
+        resolve_runtime(config)
+
+
+def test_lightweight_auto_missing_token_raises_unavailable():
+    config = QwenRuntimeConfig(
+        runtime_mode="auto",
+        runtime_profile="lightweight",
+        enable_llm_api=True,
+        llm_api_key=None,
+    )
+    with pytest.raises(GPMRuntimeUnavailableError) as exc_info:
+        resolve_runtime(config)
+    assert exc_info.value.reason == "missing_token"
+
+
+def test_lightweight_does_not_silently_fall_back_to_mock():
+    """lightweight + auto with no callable runtime must raise, never return mock."""
+    config = QwenRuntimeConfig(
+        runtime_mode="auto",
+        runtime_profile="lightweight",
+        enable_llm_api=False,
+        llm_api_key=None,
+    )
+    with pytest.raises(GPMRuntimeUnavailableError):
+        resolve_runtime(config)
+
+
+def test_lightweight_auto_prefers_mnn_over_api():
+    """MNN path configured and succeeds → returned as preferred local runtime."""
+    from unittest.mock import MagicMock, patch
+
+    mock_mnn = MagicMock()
+    mock_mnn.runtime_mode = "mnn"
+
+    config = QwenRuntimeConfig(
+        runtime_mode="auto",
+        runtime_profile="lightweight",
+        enable_llm_api=True,
+        llm_api_key="sk-valid-token",
+        mnn_model_path="/models/qwen.mnn",
+    )
+
+    with patch(
+        "src.gpm.llm_adapters.qwen_local_runtime.QwenLocalRuntime",
+        return_value=mock_mnn,
+    ) as mock_cls:
+        result = resolve_runtime(config)
+
+    # Only the MNN init fires; API never called
+    assert mock_cls.call_count == 1
+    assert mock_cls.call_args.kwargs["config"].runtime_mode == "mnn"
+    assert result.runtime_mode == "mnn"
+
+
+# ---------------------------------------------------------------------------
+# Resolver: server + auto → local-first, hard fail when no runtime callable
 # ---------------------------------------------------------------------------
 
 
@@ -84,7 +165,7 @@ def test_server_auto_missing_token_raises_unavailable():
         runtime_mode="auto",
         runtime_profile="server",
         enable_llm_api=True,
-        llm_api_key=None,  # no token
+        llm_api_key=None,
     )
     with pytest.raises(GPMRuntimeUnavailableError) as exc_info:
         resolve_runtime(config)
@@ -92,11 +173,10 @@ def test_server_auto_missing_token_raises_unavailable():
     assert err.reason == "missing_token"
     assert "GPM_LLM_API_KEY" in err.safe_message
     assert err.operator_action_required is True
-    # Token must never appear in any message field
-    assert err.llm_api_key if hasattr(err, "llm_api_key") else True
 
 
 def test_server_auto_api_disabled_raises_unavailable():
+    """Token present but enable_llm_api=False → api_disabled, token not in message."""
     config = QwenRuntimeConfig(
         runtime_mode="auto",
         runtime_profile="server",
@@ -112,20 +192,19 @@ def test_server_auto_api_disabled_raises_unavailable():
 
 
 def test_server_auto_does_not_silently_fall_back_to_mock():
-    """Server + auto with no callable runtime must raise, never return mock."""
+    """server + auto with no callable runtime must raise, never return mock."""
     config = QwenRuntimeConfig(
         runtime_mode="auto",
         runtime_profile="server",
         enable_llm_api=False,
         llm_api_key=None,
-        enable_local_model_fallback=False,
     )
     with pytest.raises(GPMRuntimeUnavailableError):
         resolve_runtime(config)
 
 
-def test_server_auto_with_valid_api_returns_llm_api_runtime(monkeypatch):
-    """When OperatorLLMApiRuntime succeeds, resolver returns it."""
+def test_server_auto_with_no_mnn_falls_to_api():
+    """No MNN path → step 1 skipped; resolver falls through to API step."""
     from unittest.mock import MagicMock, patch
 
     mock_runtime = MagicMock()
@@ -139,7 +218,7 @@ def test_server_auto_with_valid_api_returns_llm_api_runtime(monkeypatch):
     )
 
     with patch(
-        "src.gpm.qwen.qwen_runtime_resolver.QwenLocalRuntime",
+        "src.gpm.llm_adapters.qwen_local_runtime.QwenLocalRuntime",
         return_value=mock_runtime,
     ):
         result = resolve_runtime(config)
@@ -147,13 +226,28 @@ def test_server_auto_with_valid_api_returns_llm_api_runtime(monkeypatch):
     assert result.runtime_mode == "llm_api"
 
 
-def test_server_enable_local_model_fallback_default_is_false(monkeypatch):
-    monkeypatch.delenv("GPM_ENABLE_LOCAL_MODEL_FALLBACK", raising=False)
-    config = QwenRuntimeConfig.from_env()
-    assert config.enable_local_model_fallback is False
+def test_server_auto_prefers_mnn_over_api():
+    """MNN path configured and succeeds → API is never called."""
+    from unittest.mock import MagicMock, patch
 
+    mock_mnn = MagicMock()
+    mock_mnn.runtime_mode = "mnn"
 
-def test_server_enable_local_model_fallback_parses_true(monkeypatch):
-    monkeypatch.setenv("GPM_ENABLE_LOCAL_MODEL_FALLBACK", "true")
-    config = QwenRuntimeConfig.from_env()
-    assert config.enable_local_model_fallback is True
+    config = QwenRuntimeConfig(
+        runtime_mode="auto",
+        runtime_profile="server",
+        enable_llm_api=True,
+        llm_api_key="sk-valid-token",
+        mnn_model_path="/models/qwen.mnn",
+    )
+
+    with patch(
+        "src.gpm.llm_adapters.qwen_local_runtime.QwenLocalRuntime",
+        return_value=mock_mnn,
+    ) as mock_cls:
+        result = resolve_runtime(config)
+
+    # Only the MNN init fires; API never called
+    assert mock_cls.call_count == 1
+    assert mock_cls.call_args.kwargs["config"].runtime_mode == "mnn"
+    assert result.runtime_mode == "mnn"

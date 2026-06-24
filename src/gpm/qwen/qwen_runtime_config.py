@@ -9,24 +9,28 @@ from typing import Literal
 class QwenRuntimeConfig:
     """Immutable runtime configuration for all GPM runtime modes.
 
-    Modes: mock (default, CI-safe), mnn (local model, no network),
-    llm_api (operator-selected, disabled by default, requires explicit token),
-    auto (resolved by runtime_profile: server→API-first, others→mock).
+    Modes:
+      mock        CI-safe default; no network, no local model required.
+      mnn         Local MNN model inference; no network required.
+      llm_api     Operator opt-in only; requires GPM_ENABLE_LLM_API=true + token.
+      auto        Resolved by runtime_profile (see below).
 
-    Profiles: local (default), ci, server.
-    Server profile defaults runtime_mode to "auto" and applies API-first resolution.
+    Profiles:
+      local / ci    auto → mock. CI-safe; no network or model required.
+      lightweight   auto → local-first (MNN → API if operator allows → hard fail).
+      server        auto → local-first with private context retrieval via giraffe-db.
+                    LLM API is always opt-in; never called without explicit flag + token.
 
     Canonical env vars take priority over Qwen-specific aliases in from_env().
     """
 
     runtime_mode: Literal["mock", "mnn", "llm_api", "auto"] = "mock"
-    runtime_profile: Literal["local", "ci", "server"] = "local"
+    runtime_profile: Literal["local", "ci", "lightweight", "server"] = "local"
     mnn_model_path: str | None = None
     mnn_tokenizer_path: str | None = None
     mnn_backend: str = "cpu"
     enable_live_mnn_tests: bool = False
     enable_llm_api: bool = False
-    enable_local_model_fallback: bool = False
     llm_api_key: str | None = None       # canonical; Qwen aliases: QWEN_API_KEY, DASHSCOPE_API_KEY
     llm_api_base_url: str | None = None  # canonical; Qwen alias: QWEN_API_BASE_URL
     llm_api_model: str | None = None     # canonical; Qwen alias: QWEN_API_MODEL
@@ -38,17 +42,16 @@ class QwenRuntimeConfig:
         """Build config from environment variables.
 
         Canonical env vars take priority over Qwen-specific aliases:
-          GPM_RUNTIME_PROFILE         (local|ci|server; default local)
+          GPM_RUNTIME_PROFILE         (local|ci|lightweight|server; default local)
           GPM_LLM_RUNTIME_MODE        > GPM_QWEN_RUNTIME_MODE
           GPM_ENABLE_LLM_API          > GPM_ENABLE_QWEN_LLM_API
           GPM_LLM_API_KEY             > QWEN_API_KEY > DASHSCOPE_API_KEY
           GPM_LLM_API_BASE_URL        > QWEN_API_BASE_URL
           GPM_LLM_API_MODEL           > QWEN_API_MODEL
           GPM_LLM_API_TIMEOUT_SECONDS > GPM_QWEN_API_TIMEOUT_SECONDS
-          GPM_ENABLE_LOCAL_MODEL_FALLBACK (false by default)
         """
         profile_raw = os.environ.get("GPM_RUNTIME_PROFILE", "local").lower().strip()
-        if profile_raw not in ("local", "ci", "server"):
+        if profile_raw not in ("local", "ci", "lightweight", "server"):
             profile_raw = "local"
 
         explicit_mode = (
@@ -59,8 +62,11 @@ class QwenRuntimeConfig:
         if explicit_mode not in ("mock", "mnn", "llm_api", "auto"):
             explicit_mode = ""
 
-        # Server profile defaults to "auto" (API-first); others default to "mock".
-        raw_mode = explicit_mode or ("auto" if profile_raw == "server" else "mock")
+        # lightweight/server default to "auto" (resolver applies local-first logic).
+        # local/ci default to "mock" (CI-safe, no network or local model required).
+        raw_mode = explicit_mode or (
+            "auto" if profile_raw in ("lightweight", "server") else "mock"
+        )
 
         # GPM_LLM_API_KEY > QWEN_API_KEY > DASHSCOPE_API_KEY. Never print any of these.
         api_key = (
@@ -75,9 +81,6 @@ class QwenRuntimeConfig:
             or os.environ.get("GPM_ENABLE_QWEN_LLM_API", "").lower().strip()
         )
         enable_llm_api = enable_llm_api_str in ("1", "true", "yes")
-
-        enable_fallback_str = os.environ.get("GPM_ENABLE_LOCAL_MODEL_FALLBACK", "").lower().strip()
-        enable_local_model_fallback = enable_fallback_str in ("1", "true", "yes")
 
         api_base_url = (
             os.environ.get("GPM_LLM_API_BASE_URL", "").strip()
@@ -111,7 +114,6 @@ class QwenRuntimeConfig:
                 "GPM_ENABLE_LIVE_QWEN_MNN_TESTS", ""
             ).lower() in ("1", "true", "yes"),
             enable_llm_api=enable_llm_api,
-            enable_local_model_fallback=enable_local_model_fallback,
             llm_api_key=api_key,
             llm_api_base_url=api_base_url,
             llm_api_model=api_model,
@@ -124,7 +126,6 @@ class QwenRuntimeConfig:
         return {
             "runtime_mode": self.runtime_mode,
             "runtime_profile": self.runtime_profile,
-            "enable_local_model_fallback": self.enable_local_model_fallback,
             "mnn_model_path": self.mnn_model_path,
             "mnn_backend": self.mnn_backend,
             "enable_live_mnn_tests": self.enable_live_mnn_tests,

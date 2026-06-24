@@ -48,12 +48,12 @@ def test_unavailable_error_default_operator_action_required():
 
 
 # ---------------------------------------------------------------------------
-# Resolver: explicit llm_api mode error paths
+# Resolver: explicit llm_api mode error paths (via _try_llm_api)
 # ---------------------------------------------------------------------------
 
 
 def test_explicit_llm_api_missing_token_raises_unavailable():
-    """Explicit llm_api mode with no token -> GPMRuntimeUnavailableError, not RuntimeError."""
+    """Explicit llm_api mode + no token → GPMRuntimeUnavailableError, not bare RuntimeError."""
     config = QwenRuntimeConfig(
         runtime_mode="llm_api",
         runtime_profile="local",
@@ -68,7 +68,7 @@ def test_explicit_llm_api_missing_token_raises_unavailable():
 
 
 def test_explicit_llm_api_disabled_raises_unavailable():
-    """Explicit llm_api mode with API disabled -> GPMRuntimeUnavailableError."""
+    """Explicit llm_api mode + API disabled → GPMRuntimeUnavailableError."""
     config = QwenRuntimeConfig(
         runtime_mode="llm_api",
         runtime_profile="local",
@@ -90,7 +90,7 @@ def test_mock_mode_never_raises_unavailable():
 
 
 # ---------------------------------------------------------------------------
-# Resolver: server hard-fail remediation message
+# Resolver: local-first hard-fail remediation message
 # ---------------------------------------------------------------------------
 
 
@@ -101,7 +101,6 @@ def test_server_unavailable_status_has_remediation():
         runtime_profile="server",
         enable_llm_api=False,
         llm_api_key=None,
-        enable_local_model_fallback=False,
     )
     with pytest.raises(GPMRuntimeUnavailableError) as exc_info:
         resolve_runtime(config)
@@ -111,19 +110,20 @@ def test_server_unavailable_status_has_remediation():
 
 
 def test_server_unavailable_does_not_expose_token():
+    """Provider init failure → token never appears in any error field."""
     token = "sk-operator-secret"
     config = QwenRuntimeConfig(
         runtime_mode="auto",
         runtime_profile="server",
         enable_llm_api=True,
         llm_api_key=token,
-        enable_local_model_fallback=False,
     )
 
     from unittest.mock import patch
 
+    # Patch at the class source so the local-import inside _resolve_local_first picks it up
     with patch(
-        "src.gpm.qwen.qwen_runtime_resolver.QwenLocalRuntime",
+        "src.gpm.llm_adapters.qwen_local_runtime.QwenLocalRuntime",
         side_effect=RuntimeError("provider init failed"),
     ):
         with pytest.raises(GPMRuntimeUnavailableError) as exc_info:
@@ -158,12 +158,12 @@ def test_redacted_none_token_shows_none():
 
 
 # ---------------------------------------------------------------------------
-# MNN fallback: unavailable in test env (MNN package not installed)
+# MNN path configured but MNN unavailable (no MNN package in test env)
 # ---------------------------------------------------------------------------
 
 
-def test_server_auto_with_local_fallback_raises_unavailable_when_mnn_missing():
-    """When MNN is not installed, fallback also fails -> GPMRuntimeUnavailableError.
+def test_server_auto_with_mnn_path_but_mnn_unavailable_raises_unavailable():
+    """MNN path set but MNN init fails → resolver hard-fails, never returns mock.
 
     MNN package is not present in the test environment, so QwenMNNRuntime raises
     RuntimeError at init. The resolver must catch it and hard-fail with
@@ -174,7 +174,6 @@ def test_server_auto_with_local_fallback_raises_unavailable_when_mnn_missing():
         runtime_profile="server",
         enable_llm_api=False,
         llm_api_key=None,
-        enable_local_model_fallback=True,
         mnn_model_path="/nonexistent/model.mnn",
     )
     with pytest.raises(GPMRuntimeUnavailableError) as exc_info:
@@ -182,3 +181,19 @@ def test_server_auto_with_local_fallback_raises_unavailable_when_mnn_missing():
     err = exc_info.value
     assert err.operator_action_required is True
     assert "GPM_LLM_API_KEY" in err.safe_message
+
+
+def test_lightweight_auto_with_mnn_path_but_mnn_unavailable_raises_unavailable():
+    """Same as server: MNN fails, no API allowed → hard fail."""
+    config = QwenRuntimeConfig(
+        runtime_mode="auto",
+        runtime_profile="lightweight",
+        enable_llm_api=False,
+        llm_api_key=None,
+        mnn_model_path="/nonexistent/model.mnn",
+    )
+    with pytest.raises(GPMRuntimeUnavailableError) as exc_info:
+        resolve_runtime(config)
+    err = exc_info.value
+    assert err.reason == "local_model_unavailable"
+    assert err.operator_action_required is True
