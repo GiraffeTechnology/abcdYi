@@ -25,9 +25,9 @@ class _QwenProvider:
     provider_name = "qwen"
 
     def __init__(self, config: QwenRuntimeConfig) -> None:
-        self._api_key = config.qwen_api_key
-        self._base_url = (config.qwen_api_base_url or _QWEN_DEFAULT_BASE_URL).rstrip("/")
-        self._model = config.qwen_api_model or _QWEN_DEFAULT_MODEL
+        self._api_key = config.llm_api_key
+        self._base_url = (config.llm_api_base_url or _QWEN_DEFAULT_BASE_URL).rstrip("/")
+        self._model = config.llm_api_model or _QWEN_DEFAULT_MODEL
         self._timeout = config.api_timeout_seconds
 
     def generate_json(self, prompt: str, schema_name: str) -> dict[str, Any]:
@@ -58,9 +58,9 @@ class _OpenAICompatibleProvider:
     provider_name = "openai_compatible"
 
     def __init__(self, config: QwenRuntimeConfig) -> None:
-        self._api_key = config.qwen_api_key
-        self._base_url = (config.qwen_api_base_url or _OPENAI_DEFAULT_BASE_URL).rstrip("/")
-        self._model = config.qwen_api_model or "gpt-3.5-turbo"
+        self._api_key = config.llm_api_key
+        self._base_url = (config.llm_api_base_url or _OPENAI_DEFAULT_BASE_URL).rstrip("/")
+        self._model = config.llm_api_model or "gpt-3.5-turbo"
         self._timeout = config.api_timeout_seconds
 
     def generate_json(self, prompt: str, schema_name: str) -> dict[str, Any]:
@@ -91,13 +91,13 @@ class _CustomHttpProvider:
     provider_name = "custom_http"
 
     def __init__(self, config: QwenRuntimeConfig) -> None:
-        if not config.qwen_api_base_url:
+        if not config.llm_api_base_url:
             raise RuntimeError(
-                "custom_http provider requires QWEN_API_BASE_URL to be set."
+                "custom_http provider requires GPM_LLM_API_BASE_URL (or QWEN_API_BASE_URL) to be set."
             )
-        self._api_key = config.qwen_api_key
-        self._base_url = config.qwen_api_base_url.rstrip("/")
-        self._model = config.qwen_api_model or ""
+        self._api_key = config.llm_api_key
+        self._base_url = config.llm_api_base_url.rstrip("/")
+        self._model = config.llm_api_model or ""
         self._timeout = config.api_timeout_seconds
 
     def generate_json(self, prompt: str, schema_name: str) -> dict[str, Any]:
@@ -127,9 +127,9 @@ class OperatorLLMApiRuntime:
     """Operator-selected LLM API runtime. Default off; never selected automatically.
 
     Requires explicit operator configuration:
-      GPM_ENABLE_QWEN_LLM_API=true
-      GPM_QWEN_RUNTIME_MODE=llm_api
-      QWEN_API_KEY or DASHSCOPE_API_KEY
+      GPM_ENABLE_LLM_API=true       (canonical; GPM_ENABLE_QWEN_LLM_API is alias)
+      GPM_LLM_RUNTIME_MODE=llm_api  (canonical; GPM_QWEN_RUNTIME_MODE is alias)
+      GPM_LLM_API_KEY=<token>       (canonical; QWEN_API_KEY / DASHSCOPE_API_KEY are aliases)
 
     Token is never printed or persisted.
     """
@@ -139,12 +139,14 @@ class OperatorLLMApiRuntime:
     def __init__(self, config: QwenRuntimeConfig) -> None:
         if not config.enable_llm_api:
             raise RuntimeError(
-                "Qwen LLM API mode is disabled. "
-                "Set GPM_ENABLE_QWEN_LLM_API=true to enable operator-selected LLM API mode."
+                "LLM API mode is disabled. "
+                "Set GPM_ENABLE_LLM_API=true (or GPM_ENABLE_QWEN_LLM_API=true) "
+                "to enable operator-selected LLM API mode."
             )
-        if not config.qwen_api_key:
+        if not config.llm_api_key:
             raise RuntimeError(
-                "Qwen LLM API mode requires QWEN_API_KEY or DASHSCOPE_API_KEY to be set. "
+                "LLM API mode requires GPM_LLM_API_KEY "
+                "(or Qwen aliases QWEN_API_KEY / DASHSCOPE_API_KEY) to be set. "
                 "Provide an operator token to use this runtime."
             )
 
