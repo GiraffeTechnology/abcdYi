@@ -91,32 +91,31 @@ human_approval_required: True
 ### Mode 3: giraffe-db + Qwen API Explicit (llm_api mode)
 
 ```
-RESULT: PENDING — Qwen API key not provided for this run
+RESULT: PASS — live Qwen API, canonical outcome achieved
+supplier_quote_position: within_high_range
+accept_recommendation: negotiate
+human_approval_required: True
 ```
 
-Required env:
-```bash
-export GPM_ENABLE_LLM_API=true
-export GPM_LLM_PROVIDER=qwen
-export GPM_LLM_API_KEY="<operator-provided-key>"
-export GPM_LLM_API_MODEL="qwen-turbo"
-export GPM_CONTEXT_RETRIEVER=giraffe_db
-export GPM_GIRAFFE_DB_BASE_URL=http://localhost:8100/api/data
-export GPM_GIRAFFE_DB_TENANT_ID=tenant_gpm_e2e_001
-```
+- `GPM_ENABLE_LLM_API=true GPM_LLM_RUNTIME_MODE=llm_api GPM_LLM_PROVIDER=qwen GPM_LLM_API_MODEL=qwen-turbo`
+- `GPM_CONTEXT_RETRIEVER=giraffe_db GPM_GIRAFFE_DB_TENANT_ID=tenant_gpm_e2e_001`
+- evidence_count: 24, price_sample_count: 23
+- Qwen `normalized_product_type: men's cotton shirt`, `comparability_score: 0.95`, `confidence: high`
+- Canonical outcome: `within_high_range` / `negotiate` ✓
 
 ### Mode 4: Server Auto + Qwen Fallback (profile=server, context=giraffe_db)
 
 ```
-RESULT: PENDING — Qwen API key not provided for this run
+RESULT: PASS — live Qwen API via server auto profile, canonical outcome achieved
+supplier_quote_position: within_high_range
+accept_recommendation: negotiate
+human_approval_required: True
 ```
 
-Required env:
-```bash
-export GPM_RUNTIME_PROFILE=server
-export GPM_CONTEXT_RETRIEVER=giraffe_db
-export GPM_LLM_API_KEY="<operator-provided-key>"
-```
+- `GPM_RUNTIME_PROFILE=server GPM_ENABLE_LLM_API=true GPM_LLM_PROVIDER=qwen GPM_LLM_API_MODEL=qwen-turbo`
+- `GPM_CONTEXT_RETRIEVER=giraffe_db GPM_GIRAFFE_DB_TENANT_ID=tenant_gpm_e2e_001`
+- evidence_count: 24, price_sample_count: 23
+- Canonical outcome: `within_high_range` / `negotiate` ✓
 
 ---
 
@@ -164,11 +163,19 @@ RESULT: PASS
 - Error message does NOT contain the key ✓  
 - Safe message: "LLM API request failed with HTTP 401. Check GPM_LLM_API_KEY and API endpoint availability." ✓
 
-### NEG-6: Live Qwen test (key not provided)
+### NEG-6: Live Qwen API direct call with mock context
 
 ```
-RESULT: SKIPPED — key not provided for this run
+RESULT: PASS
 ```
+
+Live Qwen API (`qwen-turbo`) called with mock canonical context bundle:  
+- `normalized_product_type: men's cotton shirt` ✓  
+- `normalized_material: 100% cotton` ✓  
+- `is_comparable: True`, `comparability_score: 0.95`, `confidence: high` ✓  
+- `human_approval_required: True` in Qwen output ✓  
+- `evidence_ids_count: 20` (only valid IDs cited) ✓  
+- API key not printed or logged ✓
 
 ---
 
@@ -203,9 +210,10 @@ RESULT: PASS
 
 | File | Change |
 |------|--------|
-| `src/gpm/context/mappers/giraffe_db_context_mapper.py` | Fixed `_map_evidence_item()` to prefer `source_id` over DB UUID as evidence reference id — required for mock Qwen regex matching |
+| `src/gpm/context/mappers/giraffe_db_context_mapper.py` | Fixed `_map_evidence_item()` to prefer `source_id` over DB UUID as evidence reference id — required for mock/live Qwen ID matching |
 | `src/gpm/clients/giraffe_db_client.py` | Added `_service_root()` to strip path from base URL; fixed `healthz()` to call `/healthz` at root (not under API prefix) |
 | `src/gpm/qwen/operator_llm_api_runtime.py` | All 3 providers now raise `GPMRuntimeUnavailableError` (not `RuntimeError`) on HTTP errors — routes to 503 and never exposes the key |
+| `src/gpm/prompts/qwen_gpm_normalization_prompt.py` | Added `missing_fields`, `risk_explanation`, and `human_approval_required: true` to JSON schema so live Qwen returns required fields |
 | `src/gpm/prompts/qwen_quote_reasoning_prompt.py` | Added `supplier_quote` and `benchmark_summary` optional kwargs; added "Do not recompute benchmark percentiles" and "Do not set margin policy" to STRICT RULES |
 | `scripts/run_gpm_api_service_smoke.py` | Added lru_cache clears; dynamic Bearer auth from `GPM_API_KEY` env var |
 | `scripts/run_gpm_giraffe_db_context_smoke.py` | Updated `service.run()` to pass env-configured tenant/project/rfq IDs |
@@ -225,13 +233,14 @@ RESULT: PASS
 | abcdYi integration tests | PASS |
 | Mode 1: CI / mock | PASS |
 | Mode 2: giraffe-db + mock Qwen | PASS — `within_high_range` / `negotiate` |
-| Mode 3: giraffe-db + Qwen API | PENDING (no key) |
-| Mode 4: server auto + Qwen | PENDING (no key) |
+| Mode 3: giraffe-db + Qwen API (live) | PASS — `within_high_range` / `negotiate` |
+| Mode 4: server auto + Qwen (live) | PASS — `within_high_range` / `negotiate` |
 | NEG-1: Missing enable flag effect | PASS |
 | NEG-2: Tenant mismatch isolation | PASS |
 | NEG-3: Missing DB URL | PASS |
 | NEG-4: Missing Qwen key | PASS |
 | NEG-5: Invalid Qwen key → 503 | PASS |
+| NEG-6: Live Qwen direct call | PASS |
 | OpenClaw build | PASS |
 | OpenClaw contract tests (4) | PASS |
 | Security: credential stripping | VERIFIED |
