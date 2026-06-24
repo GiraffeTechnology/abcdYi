@@ -9,13 +9,23 @@ from typing import Literal
 class QwenRuntimeConfig:
     """Immutable runtime configuration for all GPM runtime modes.
 
-    Three controlled modes: mock (default, CI-safe), mnn (local model, no network),
-    llm_api (operator-selected, disabled by default, requires explicit token).
+    Modes:
+      mock        CI-safe default; no network, no local model required.
+      mnn         Local MNN model inference; no network required.
+      llm_api     Operator opt-in only; requires GPM_ENABLE_LLM_API=true + token.
+      auto        Resolved by runtime_profile (see below).
+
+    Profiles:
+      local / ci    auto → mock. CI-safe; no network or model required.
+      lightweight   auto → local-first (MNN → API if operator allows → hard fail).
+      server        auto → local-first with private context retrieval via giraffe-db.
+                    LLM API is always opt-in; never called without explicit flag + token.
 
     Canonical env vars take priority over Qwen-specific aliases in from_env().
     """
 
-    runtime_mode: Literal["mock", "mnn", "llm_api"] = "mock"
+    runtime_mode: Literal["mock", "mnn", "llm_api", "auto"] = "mock"
+    runtime_profile: Literal["local", "ci", "lightweight", "server"] = "local"
     mnn_model_path: str | None = None
     mnn_tokenizer_path: str | None = None
     mnn_backend: str = "cpu"
@@ -29,9 +39,10 @@ class QwenRuntimeConfig:
 
     @classmethod
     def from_env(cls) -> "QwenRuntimeConfig":
-        """Build config from environment variables. Default mode is mock.
+        """Build config from environment variables.
 
         Canonical env vars take priority over Qwen-specific aliases:
+          GPM_RUNTIME_PROFILE         (local|ci|lightweight|server; default local)
           GPM_LLM_RUNTIME_MODE        > GPM_QWEN_RUNTIME_MODE
           GPM_ENABLE_LLM_API          > GPM_ENABLE_QWEN_LLM_API
           GPM_LLM_API_KEY             > QWEN_API_KEY > DASHSCOPE_API_KEY
@@ -39,13 +50,23 @@ class QwenRuntimeConfig:
           GPM_LLM_API_MODEL           > QWEN_API_MODEL
           GPM_LLM_API_TIMEOUT_SECONDS > GPM_QWEN_API_TIMEOUT_SECONDS
         """
-        raw_mode = (
+        profile_raw = os.environ.get("GPM_RUNTIME_PROFILE", "local").lower().strip()
+        if profile_raw not in ("local", "ci", "lightweight", "server"):
+            profile_raw = "local"
+
+        explicit_mode = (
             os.environ.get("GPM_LLM_RUNTIME_MODE", "").lower().strip()
             or os.environ.get("GPM_QWEN_RUNTIME_MODE", "").lower().strip()
-            or "mock"
+            or ""
         )
-        if raw_mode not in ("mock", "mnn", "llm_api"):
-            raw_mode = "mock"
+        if explicit_mode not in ("mock", "mnn", "llm_api", "auto"):
+            explicit_mode = ""
+
+        # lightweight/server default to "auto" (resolver applies local-first logic).
+        # local/ci default to "mock" (CI-safe, no network or local model required).
+        raw_mode = explicit_mode or (
+            "auto" if profile_raw in ("lightweight", "server") else "mock"
+        )
 
         # GPM_LLM_API_KEY > QWEN_API_KEY > DASHSCOPE_API_KEY. Never print any of these.
         api_key = (
@@ -85,6 +106,7 @@ class QwenRuntimeConfig:
 
         return cls(
             runtime_mode=raw_mode,  # type: ignore[arg-type]
+            runtime_profile=profile_raw,  # type: ignore[arg-type]
             mnn_model_path=os.environ.get("GPM_QWEN_MNN_MODEL_PATH", "").strip() or None,
             mnn_tokenizer_path=os.environ.get("GPM_QWEN_MNN_TOKENIZER_PATH", "").strip() or None,
             mnn_backend=os.environ.get("GPM_QWEN_MNN_BACKEND", "cpu").strip() or "cpu",
@@ -103,6 +125,7 @@ class QwenRuntimeConfig:
         """Return a loggable dict — API key replaced with ***REDACTED***."""
         return {
             "runtime_mode": self.runtime_mode,
+            "runtime_profile": self.runtime_profile,
             "mnn_model_path": self.mnn_model_path,
             "mnn_backend": self.mnn_backend,
             "enable_live_mnn_tests": self.enable_live_mnn_tests,
