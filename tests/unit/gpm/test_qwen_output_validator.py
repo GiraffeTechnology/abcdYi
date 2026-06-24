@@ -32,6 +32,7 @@ def _valid_output(evidence_ids: list[str] | None = None) -> dict:
         "evidence_ids": evidence_ids or ["ev_001"],
         "reason": "Good match.",
         "confidence": "high",
+        "human_approval_required": True,
     }
 
 
@@ -58,6 +59,20 @@ def test_missing_required_key(validator: QwenOutputValidator, bundle: GPMContext
     out = _valid_output()
     del out["comparability_score"]
     with pytest.raises(QwenOutputValidationError, match="missing required keys"):
+        validator.validate(out, bundle)
+
+
+def test_missing_human_approval_key(validator: QwenOutputValidator, bundle: GPMContextBundle) -> None:
+    out = _valid_output()
+    del out["human_approval_required"]
+    with pytest.raises(QwenOutputValidationError, match="missing required keys"):
+        validator.validate(out, bundle)
+
+
+def test_human_approval_false_rejected(validator: QwenOutputValidator, bundle: GPMContextBundle) -> None:
+    out = _valid_output()
+    out["human_approval_required"] = False
+    with pytest.raises(QwenOutputValidationError, match="human_approval_required"):
         validator.validate(out, bundle)
 
 
@@ -126,3 +141,17 @@ def test_non_numeric_score_rejected(validator: QwenOutputValidator, bundle: GPMC
 def test_empty_evidence_ids_list_is_valid(validator: QwenOutputValidator, bundle: GPMContextBundle) -> None:
     out = _valid_output(evidence_ids=[])
     validator.validate(out, bundle)
+
+
+def test_forbidden_key_send_quote(validator: QwenOutputValidator, bundle: GPMContextBundle) -> None:
+    out = _valid_output()
+    out["send_quote"] = True
+    with pytest.raises(QwenOutputValidationError, match="forbidden action key"):
+        validator.validate(out, bundle)
+
+
+def test_forbidden_key_place_order(validator: QwenOutputValidator, bundle: GPMContextBundle) -> None:
+    out = _valid_output()
+    out["place_order"] = True
+    with pytest.raises(QwenOutputValidationError, match="forbidden action key"):
+        validator.validate(out, bundle)
