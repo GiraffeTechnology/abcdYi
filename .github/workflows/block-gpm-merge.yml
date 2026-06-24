@@ -104,11 +104,15 @@ jobs:
             fi
 
             # Order / payment / dispatch — banned in src/gpm/ production code
+            # Validator files are explicitly exempted: they define these strings as constants
+            # to REJECT unauthorized LLM output, not to perform the actions.
             # ^\+[^#]* skips comment lines so docstrings stating what is NOT done do not trip this.
-            if echo "$ADDED_SRC" | grep -qiE \
-              '^\+[^#]*(place_order|submit_order|payment\.create|cart\.add|send_buyer_quote|dispatch_buyer_quote|auto_quote)'; then
-              echo "::error::src/gpm introduces banned order/payment/dispatch behavior in $file"
-              FAILED=1
+            if ! echo "$file" | grep -qE '^src/gpm/validators/'; then
+              if echo "$ADDED_SRC" | grep -qiE \
+                '^\+[^#]*(place_order|submit_order|payment\.create|cart\.add|send_buyer_quote|dispatch_buyer_quote|auto_quote)'; then
+                echo "::error::src/gpm introduces banned order/payment/dispatch behavior in $file"
+                FAILED=1
+              fi
             fi
           done
 

@@ -129,9 +129,9 @@ class GPMSemanticQuoteService:
                 mnn_backend=env_config.mnn_backend,
                 enable_live_mnn_tests=env_config.enable_live_mnn_tests,
                 enable_llm_api=env_config.enable_llm_api,
-                qwen_api_key=env_config.qwen_api_key,
-                qwen_api_base_url=env_config.qwen_api_base_url,
-                qwen_api_model=env_config.qwen_api_model,
+                llm_api_key=env_config.llm_api_key,
+                llm_api_base_url=env_config.llm_api_base_url,
+                llm_api_model=env_config.llm_api_model,
                 llm_provider=env_config.llm_provider,
                 api_timeout_seconds=env_config.api_timeout_seconds,
             )
