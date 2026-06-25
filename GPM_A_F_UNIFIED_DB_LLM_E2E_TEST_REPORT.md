@@ -26,7 +26,7 @@ giraffe-db (persisted context)
 ```
 
 **All 15 acceptance criteria met.**
-**467 unit/integration tests pass (0 failed, 0 errors).**
+**477 unit/integration tests pass (0 failed, 0 errors).**
 **Live Qwen API call verified. Token leakage: none detected.**
 
 The live Qwen API E2E test (POST /api/gpm/quote-guidance with
@@ -100,8 +100,13 @@ Seeded via giraffe-db REST API only (no direct DB writes, no migrations).
 
 **Canonical 20-record seed** (new script: `scripts/seed_gpm_e2e_canonical_evidence.py`):
 Seeds 20 comparable pricing evidence records (price range 3.200–3.998 USD),
-supplier_quote at 4.20 USD → `confidence=high`, `supplier_quote_position:
+supplier_quote at 3.76 USD → `confidence=high`, `supplier_quote_position:
 within_high_range`, `recommendation: negotiate`.
+
+Benchmark distribution for this seed: P25≈3.40, P50≈3.60, P75≈3.80 USD.
+`within_high_range` requires quote > (P50+P75)/2 ≈ 3.70 and ≤ P75 ≈ 3.80.
+At 3.76 USD both conditions hold. (Note: 4.20 USD would exceed P75 and land in
+`above_market`, not `within_high_range`.)
 
 ---
 
@@ -314,7 +319,8 @@ before any operator-facing action.
 
 | # | File | Purpose |
 |---|------|---------|
-| 12 | `scripts/seed_gpm_e2e_canonical_evidence.py` | Seeds 20 canonical benchmark records into live giraffe-db |
+| 12 | `scripts/seed_gpm_e2e_canonical_evidence.py` | Seeds 20 canonical benchmark records (3.200–3.998 USD, quote=3.76 USD) into live giraffe-db |
+| 13 | `tests/unit/gpm/test_seed_canonical_benchmark_distribution.py` | Regression: validates seed benchmark distribution and within_high_range quote position |
 
 ---
 
@@ -323,7 +329,7 @@ before any operator-facing action.
 ```
 tests/unit/gpm/ + tests/integration/gpm/
 
-467 passed, 5 skipped (optional live API tests), 0 failed, 0 errors
+477 passed, 5 skipped (optional live API tests), 0 failed, 0 errors
 ```
 
 All previously failing tests are now fixed:
@@ -351,8 +357,9 @@ All previously failing tests are now fixed:
 
 1. **Live giraffe-db + high-confidence path**: The new
    `scripts/seed_gpm_e2e_canonical_evidence.py` provides tooling to seed
-   20 canonical records. Operator must run it against a live giraffe-db instance
-   to verify the `within_high_range / negotiate / confidence=high` full path.
+   20 canonical records (price range 3.200–3.998 USD, supplier_quote=3.76 USD).
+   Operator must run it against a live giraffe-db instance to verify the
+   `within_high_range / negotiate / confidence=high` full path.
 
 2. **Optional live API tests remain skipped in CI**: `test_operator_llm_api_live_optional.py`
    requires an explicit env flag — intentionally skipped, not a regression.
