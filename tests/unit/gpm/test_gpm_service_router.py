@@ -37,7 +37,9 @@ def _mock_svc():
 def client():
     app = FastAPI()
     app.include_router(router, prefix="/api/gpm")
-    app.dependency_overrides[get_quote_guidance_service] = _mock_svc
+    # Create ONE shared service so packet_ids persist across POST→GET→approve/reject
+    shared_svc = _mock_svc()
+    app.dependency_overrides[get_quote_guidance_service] = lambda: shared_svc
     return TestClient(app)
 
 

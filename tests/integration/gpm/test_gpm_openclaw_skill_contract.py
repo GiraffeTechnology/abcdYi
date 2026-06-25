@@ -10,11 +10,12 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture(scope="module", autouse=True)
 def _reset_deps_cache():
-    from src.gpm.api.deps import get_quote_guidance_service, get_runtime_config
-    get_quote_guidance_service.cache_clear()
+    # get_quote_guidance_service is a plain dependency; the lru_cache is on _try_build_service
+    from src.gpm.api.deps import _try_build_service, get_runtime_config
+    _try_build_service.cache_clear()
     get_runtime_config.cache_clear()
     yield
-    get_quote_guidance_service.cache_clear()
+    _try_build_service.cache_clear()
     get_runtime_config.cache_clear()
 
 
