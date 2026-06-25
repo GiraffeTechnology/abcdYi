@@ -10,8 +10,13 @@ Requires a running giraffe-db instance:
 Usage:
     GIRAFFE_DB_BASE_URL=http://127.0.0.1:8001 uv run python scripts/seed_gpm_e2e_canonical_evidence.py
 
-With sufficient evidence (20 samples, supplier_quote.unit_price=4.20 USD above benchmark_high)
-the live giraffe-db + Qwen path returns:
+20-sample price range 3.200–3.998 USD produces:
+    benchmark_low  (P25) ≈ 3.40 USD
+    benchmark_median (P50) ≈ 3.60 USD
+    benchmark_high (P75) ≈ 3.80 USD
+    within_high_range lower bound ≈ 3.70 USD  ((P50 + P75) / 2)
+
+supplier_quote.unit_price=3.76 USD sits between (P50+P75)/2 and P75, so:
     supplier_quote_position: within_high_range
     recommendation: negotiate
     confidence: high
@@ -28,8 +33,8 @@ TENANT_ID = os.environ.get("GPM_GIRAFFE_DB_TENANT_ID", "tenant_gpm_e2e_001")
 PROJECT_EXTERNAL_ID = "project_gpm_e2e_shirts_001"
 RFQ_EXTERNAL_ID = "rfq_gpm_e2e_shirts_001"
 
-# 20 benchmark samples: price_min from 3.20 to 4.00 USD (benchmark_high ~3.85)
-# Supplier quote at 4.20 USD lands above benchmark_high → within_high_range → negotiate
+# 20 benchmark samples: price_min 3.200–3.998 USD (step 0.042)
+# P25≈3.40, P50≈3.60, P75≈3.80; within_high_range lower bound ≈ 3.70
 _CANONICAL_PRICES_USD = [round(3.20 + i * 0.042, 3) for i in range(20)]
 
 
@@ -137,7 +142,7 @@ def main() -> None:
             "tenant_id": TENANT_ID,
             "payload": {
                 "supplier_quote": {
-                    "unit_price": 4.20,
+                    "unit_price": 3.76,
                     "currency": "USD",
                     "moq": 1000,
                 },
@@ -164,7 +169,8 @@ def main() -> None:
     print(f"rfq_id:       {rfq_id}")
     print(f"evidence:     {len(evidence_ids)} canonical benchmark samples")
     print(f"price range:  {_CANONICAL_PRICES_USD[0]:.3f}–{_CANONICAL_PRICES_USD[-1]:.3f} USD")
-    print(f"supplier_quote: 4.20 USD (above benchmark_high → within_high_range → negotiate)")
+    print(f"benchmark:    P25≈3.40, P50≈3.60, P75≈3.80 USD")
+    print(f"supplier_quote: 3.76 USD (between (P50+P75)/2≈3.70 and P75≈3.80 → within_high_range → negotiate)")
     print()
     print("To run the full E2E with giraffe-db retriever:")
     print(f"  GPM_CONTEXT_RETRIEVER=giraffe_db \\")
