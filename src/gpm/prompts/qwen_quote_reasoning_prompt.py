@@ -25,6 +25,7 @@ STRICT RULES:
 - Do not place orders. Do not make payment. Do not dispatch quotes to buyers.
 - Human approval is required before any buyer-facing action.
 - Do not compute benchmark percentiles — the GPM engine handles all math.
+- Do not set or change margin policy — margin policy is operator-controlled only.
 
 CONTEXT:
 {payload_json}

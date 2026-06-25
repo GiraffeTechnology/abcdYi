@@ -31,11 +31,7 @@ def semantic_prompt(bundle: GPMContextBundle) -> str:
 
 @pytest.fixture
 def quote_prompt(bundle: GPMContextBundle) -> str:
-    return build_qwen_quote_reasoning_prompt(
-        bundle,
-        supplier_quote={"unit_price": 38.5, "currency": "CNY"},
-        benchmark_summary={"benchmark_low": 28.0, "benchmark_median": 32.0, "benchmark_high": 36.0},
-    )
+    return build_qwen_quote_reasoning_prompt(bundle)
 
 
 def test_semantic_prompt_requires_json_only(semantic_prompt: str) -> None:
