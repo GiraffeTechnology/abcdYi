@@ -118,3 +118,31 @@ def test_low_confidence_benchmark_returns_insufficient_data() -> None:
     guidance = engine.generate_guidance(_req(), _quote("28"), bench)
     assert guidance.supplier_quote_position == "insufficient_data"
     assert guidance.accept_recommendation == "human_review_required"
+
+
+# Regression: canonical 20-record seed distribution
+# Prices: [round(3.20 + i * 0.042, 3) for i in range(20)] → P25=3.3995, P50=3.599, P75=3.7985
+# seed_gpm_e2e_canonical_evidence.py must use supplier_quote=3.78 (not 4.20).
+_CANONICAL_BENCH = _bench(low="3.3995", median="3.599", high="3.7985", confidence="high")
+
+
+def test_canonical_seed_quote_within_high_range() -> None:
+    # 3.78 sits between P50 (3.599) and P75 (3.7985) → within_high_range / negotiate
+    guidance = engine.generate_guidance(
+        _req(qty=10000),
+        _quote("3.78", moq="1000"),
+        _CANONICAL_BENCH,
+    )
+    assert guidance.supplier_quote_position == "within_high_range"
+    assert guidance.accept_recommendation == "negotiate"
+    assert guidance.human_approval_required is True
+
+
+def test_canonical_seed_wrong_quote_above_market() -> None:
+    # 4.20 exceeds P75 (3.7985) — former seed value was incorrect
+    guidance = engine.generate_guidance(
+        _req(qty=10000),
+        _quote("4.20", moq="1000"),
+        _CANONICAL_BENCH,
+    )
+    assert guidance.supplier_quote_position == "above_market"

@@ -85,20 +85,12 @@ def test_normalization_prompt_no_credentials() -> None:
 # ── quote reasoning prompt ────────────────────────────────────────────────────
 
 def test_quote_reasoning_prompt_json_only(bundle: GPMContextBundle) -> None:
-    prompt = build_qwen_quote_reasoning_prompt(
-        bundle,
-        supplier_quote={"unit_price": 38.5, "currency": "CNY"},
-        benchmark_summary={"benchmark_low": 28.0, "benchmark_median": 32.0},
-    )
+    prompt = build_qwen_quote_reasoning_prompt(bundle)
     assert "JSON only" in prompt
 
 
 def test_quote_reasoning_prompt_human_approval_true(bundle: GPMContextBundle) -> None:
-    prompt = build_qwen_quote_reasoning_prompt(
-        bundle,
-        supplier_quote={"unit_price": 38.5, "currency": "CNY"},
-        benchmark_summary={},
-    )
+    prompt = build_qwen_quote_reasoning_prompt(bundle)
     assert "human_approval_required" in prompt
 
 

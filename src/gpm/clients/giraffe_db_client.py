@@ -74,7 +74,7 @@ class GiraffeDBClient:
     def schema_version(self) -> dict:
         try:
             with self._make_client() as client:
-                response = client.get("/schema-version")
+                response = client.get("/api/data/schema-version")
                 self._raise_for_status(response)
                 return response.json()
         except httpx.ConnectError:
@@ -85,7 +85,7 @@ class GiraffeDBClient:
     def create_gpm_context(self, payload: dict) -> dict:
         try:
             with self._make_client() as client:
-                response = client.post("/gpm/context", json=payload)
+                response = client.post("/api/data/gpm/context", json=payload)
                 self._raise_for_status(response)
                 return response.json()
         except httpx.ConnectError:
@@ -96,7 +96,7 @@ class GiraffeDBClient:
     def get_gpm_context(self, context_id: str) -> dict:
         try:
             with self._make_client() as client:
-                response = client.get(f"/gpm/context/{context_id}")
+                response = client.get(f"/api/data/gpm/context/{context_id}")
                 self._raise_for_status(response)
                 return response.json()
         except httpx.ConnectError:
@@ -107,7 +107,7 @@ class GiraffeDBClient:
     def create_gltg_context(self, payload: dict) -> dict:
         try:
             with self._make_client() as client:
-                response = client.post("/gltg/context", json=payload)
+                response = client.post("/api/data/gltg/context", json=payload)
                 self._raise_for_status(response)
                 return response.json()
         except httpx.ConnectError:
@@ -118,7 +118,7 @@ class GiraffeDBClient:
     def get_gltg_context(self, context_id: str) -> dict:
         try:
             with self._make_client() as client:
-                response = client.get(f"/gltg/context/{context_id}")
+                response = client.get(f"/api/data/gltg/context/{context_id}")
                 self._raise_for_status(response)
                 return response.json()
         except httpx.ConnectError:
@@ -127,22 +127,22 @@ class GiraffeDBClient:
             )
 
     def list_projects(self, **params) -> list[dict]:
-        return self._list("/projects", params)
+        return self._list("/api/data/projects", params)
 
     def list_rfqs(self, **params) -> list[dict]:
-        return self._list("/rfqs", params)
+        return self._list("/api/data/rfqs", params)
 
     def list_supplier_responses(self, **params) -> list[dict]:
-        return self._list("/supplier-responses", params)
+        return self._list("/api/data/supplier-responses", params)
 
     def list_pricing_evidence(self, **params) -> list[dict]:
-        return self._list("/gpm/pricing-evidence", params)
+        return self._list("/api/data/gpm/pricing-evidence", params)
 
     def list_lead_time_evidence(self, **params) -> list[dict]:
-        return self._list("/lead-time-evidence", params)
+        return self._list("/api/data/lead-time-evidence", params)
 
     def list_execution_events(self, **params) -> list[dict]:
-        return self._list("/execution-events", params)
+        return self._list("/api/data/execution-events", params)
 
     def _list(self, path: str, params: dict) -> list[dict]:
         try:
