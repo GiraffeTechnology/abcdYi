@@ -78,11 +78,18 @@ def main() -> None:
         print(f"GPM SESSION E GIRAFFE-DB SMOKE: FAIL — bundle validation failed: {e}")
         sys.exit(1)
 
-    # Run full service
+    # Run full service — pass the same IDs used for retrieval so rfq/project are included
     runtime = QwenLocalRuntime(config=QwenRuntimeConfig(runtime_mode="mock"))
     service = GPMSemanticQuoteService(context_retriever=retriever, qwen_runtime=runtime)
     try:
-        output = service.run()
+        output = service.run(
+            tenant_id=os.environ.get("GPM_GIRAFFE_DB_TENANT_ID") or None,
+            project_id=os.environ.get("GPM_GIRAFFE_DB_PROJECT_ID") or None,
+            rfq_id=os.environ.get("GPM_GIRAFFE_DB_RFQ_ID") or None,
+            include_private_data=os.environ.get(
+                "GPM_GIRAFFE_DB_INCLUDE_PRIVATE_DATA", "false"
+            ).lower() in ("1", "true", "yes"),
+        )
     except Exception as e:
         print(f"GPM SESSION E GIRAFFE-DB SMOKE: FAIL — service run failed: {e}")
         sys.exit(1)

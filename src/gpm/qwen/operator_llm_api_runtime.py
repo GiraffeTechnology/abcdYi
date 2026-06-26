@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any, Protocol, runtime_checkable
 
+from src.gpm.qwen.gpm_runtime_unavailable_error import GPMRuntimeUnavailableError
 from src.gpm.qwen.qwen_runtime_config import QwenRuntimeConfig
 
 _QWEN_DEFAULT_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
@@ -164,4 +165,30 @@ class OperatorLLMApiRuntime:
         return self._provider.provider_name
 
     def generate_json(self, prompt: str, schema_name: str) -> dict[str, Any]:
-        return self._provider.generate_json(prompt, schema_name)
+        import httpx
+        try:
+            return self._provider.generate_json(prompt, schema_name)
+        except httpx.HTTPStatusError as exc:
+            status_code = exc.response.status_code
+            if status_code == 401:
+                msg = "LLM API key rejected (401 Unauthorized). Verify GPM_LLM_API_KEY is valid."
+            elif status_code == 429:
+                msg = "LLM API rate limit exceeded (429). Retry later or reduce request frequency."
+            else:
+                msg = f"LLM API returned HTTP {status_code}. Check provider status."
+            raise GPMRuntimeUnavailableError(
+                reason=msg,
+                attempted_runtime="llm_api",
+                provider=self.provider_name,
+                safe_message=msg,
+                operator_action_required=True,
+            ) from exc
+        except httpx.ConnectError:
+            msg = "LLM API endpoint unreachable. Check network or GPM_LLM_API_BASE_URL."
+            raise GPMRuntimeUnavailableError(
+                reason=msg,
+                attempted_runtime="llm_api",
+                provider=self.provider_name,
+                safe_message=msg,
+                operator_action_required=True,
+            )
