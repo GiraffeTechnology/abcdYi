@@ -100,7 +100,7 @@ Seeded via giraffe-db REST API only (no direct DB writes, no migrations).
 
 **Canonical 20-record seed** (new script: `scripts/seed_gpm_e2e_canonical_evidence.py`):
 Seeds 20 comparable pricing evidence records (price range 3.200–3.998 USD),
-supplier_quote at 4.20 USD → `confidence=high`, `supplier_quote_position:
+supplier_quote at 3.78 USD (P50 < 3.78 ≤ P75) → `confidence=high`, `supplier_quote_position:
 within_high_range`, `recommendation: negotiate`.
 
 ---
