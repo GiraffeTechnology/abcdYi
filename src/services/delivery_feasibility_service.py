@@ -8,7 +8,7 @@ from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from gltg.models import DeliveryFeasibilityPacket as GltgPacket, DeliveryPath
+from src.lead_time.gltg_models import DeliveryFeasibilityPacket as GltgPacket, DeliveryPath
 
 from src.db.models.delivery_feasibility import DeliveryFeasibilityPacketRecord
 from src.db.models.order import Order

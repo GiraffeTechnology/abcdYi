@@ -387,7 +387,22 @@ BASE_URL=http://localhost:8000 uv run python scripts/verify_v1_product_readiness
 
 ## GLTG — Giraffe Lead-Time Graph Engine
 
-abcdYi does not implement lead-time calculation logic directly. All delivery feasibility reasoning is delegated to the **GLTG** (Giraffe Lead-Time Graph) engine, a standalone local package at `libs/GLTG/`.
+> **GLTG is now a standalone service:** https://github.com/GiraffeTechnology/GLTG
+>
+> abcdYi consumes GLTG over HTTP through `src/integrations/gltg_client.py` instead
+> of vendoring an engine. Configure the connection with:
+>
+> ```bash
+> GLTG_API_BASE_URL=http://localhost:8090
+> GLTG_API_TIMEOUT_SECONDS=30
+> ```
+>
+> The client returns a structured `GLTGClientResult(ok, data, error, status_code)`
+> and never falls back to a local calculation. Delivery feasibility maps to
+> `POST /v1/lead-time/estimate`, multi-path sourcing comparison to
+> `POST /v1/paths/enumerate`, and milestone-driven updates to `POST /v1/reforecast`.
+
+abcdYi does not implement lead-time calculation logic directly. All delivery feasibility reasoning is delegated to the **GLTG** (Giraffe Lead-Time Graph) engine.
 
 GLTG takes a supply-chain graph as input — participant nodes with role-specific lead times — and returns a ranked `DeliveryFeasibilityPacket` with:
 
