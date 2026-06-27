@@ -14,7 +14,7 @@ from src.execution_graph.event_types import (
     DECISION_PACKET_GENERATED, QUOTE_APPROVAL_REQUESTED, QUOTE_APPROVED
 )
 
-from gltg.models import ApparelOrderInput, ParticipantNode as GltgNode
+from src.lead_time.gltg_models import ApparelOrderInput, ParticipantNode as GltgNode
 
 
 async def _load_current_form_fields(db: AsyncSession, project_id: uuid.UUID) -> dict:

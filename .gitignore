@@ -79,3 +79,6 @@ ci_test.db
 # GPM probe/test output (directories tracked via .gitkeep)
 data/gpm/raw_api_responses/*.json
 data/gpm/supplier_price_samples/*.json
+
+.venv/
+test_abcdyi.db

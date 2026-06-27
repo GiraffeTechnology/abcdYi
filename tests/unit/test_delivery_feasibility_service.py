@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch, call
 
 import pytest
 
-from gltg.models import (
+from src.lead_time.gltg_models import (
     DeliveryFeasibilityPacket as GltgPacket,
     DeliveryPath,
     ApparelOrderInput,
