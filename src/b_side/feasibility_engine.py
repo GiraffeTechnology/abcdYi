@@ -22,7 +22,7 @@ from src.core_schema.b_side_types import (
 )
 from src.b_side.workspace import get_b_workspace, save_b_workspace
 from src.lead_time.models import LeadTimePath, ProductionCapacity
-from src.lead_time.lead_time_calculator import calculate_lead_time_path
+from src.integrations.gltg_leadtime import estimate_lead_time_path as calculate_lead_time_path
 from src.lead_time.path_ranker import assign_labels
 
 

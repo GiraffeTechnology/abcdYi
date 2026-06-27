@@ -1,15 +1,26 @@
-"""Adapter between abcdYi order data and GLTG engine input/output."""
+"""Adapter between abcdYi order data and the standalone GLTG API.
+
+Builds GLTG API requests from abcdYi's database models and maps GLTG responses
+into abcdYi's feasibility DTOs. No lead-time / path / feasibility calculation
+happens here -- that is owned by the standalone GLTG service. On GLTG failure
+this raises ``GLTGUnavailableError`` rather than falling back to a local engine.
+"""
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from gltg import ApparelOrderInput, DeliveryFeasibilityPacket, LeadTimeGraphEngine
-from gltg.models import ParticipantNode
+from src.lead_time.gltg_models import (
+    ApparelOrderInput,
+    DeliveryFeasibilityPacket,
+    DeliveryPath,
+    ParticipantNode,
+)
+from src.integrations.gltg_client import GLTGClient
 
 from src.db.models.order import Order
 from src.db.models.dynamic_form import DynamicOrderFormVersion
@@ -17,7 +28,9 @@ from src.db.models.rfq import RFQ, SupplierResponse, SupplierResponsePacket
 from src.db.models.participant import Participant, ParticipantRole, ParticipantProfile
 from src.db.models.production import Milestone
 
-_engine = LeadTimeGraphEngine()
+
+class GLTGUnavailableError(RuntimeError):
+    """Raised when the standalone GLTG service cannot be reached or errors."""
 
 # GLTG role names mapped from abcdYi participant role_name values
 _ROLE_MAP: dict[str, str] = {
@@ -180,8 +193,167 @@ async def build_gltg_input_from_order(
     )
 
 
+def _node_risk_flags(node: ParticipantNode) -> list[str]:
+    """Business-level risk flags derived from abcdYi participant reliability data.
+
+    These are abcdYi's own supplier-reliability signals (not GLTG lead-time math).
+    """
+    flags: list[str] = []
+    if node.capacity_available is False:
+        flags.append("CAPACITY_CONSTRAINT")
+    if node.quality_issue_count and node.quality_issue_count > 0:
+        flags.append("QUALITY_ISSUES")
+    if node.qc_pass_rate is not None and node.qc_pass_rate < 0.8:
+        flags.append("QC_RISK")
+    if node.on_time_delivery_rate is not None and node.on_time_delivery_rate < 0.85:
+        flags.append("DELIVERY_RISK")
+    return flags
+
+
+def _node_missing_evidence(node: ParticipantNode) -> list[str]:
+    missing: list[str] = []
+    for fld in ("fabric_lead_time_days", "production_time_days", "qc_time_days", "logistics_time_days"):
+        if getattr(node, fld) is None:
+            missing.append(fld)
+    return missing
+
+
+def _node_to_supplier(node: ParticipantNode) -> dict:
+    """Map an abcdYi participant node to a GLTG API supplier payload."""
+    material = (
+        (node.fabric_lead_time_days or 0)
+        + (node.trim_lead_time_days or 0)
+        + (node.packaging_lead_time_days or 0)
+    )
+    production = node.production_time_days or 0
+    qc = node.qc_time_days or 0
+    logistics = node.logistics_time_days or 0
+    if material + production + qc + logistics == 0 and node.supplier_stated_lead_time_days:
+        production = node.supplier_stated_lead_time_days
+    confidence = node.on_time_delivery_rate if node.on_time_delivery_rate is not None else 0.5
+    return {
+        "supplier_id": node.participant_id,
+        "name": node.participant_id,
+        "material_ready_days": material,
+        "production_days": production,
+        "qc_days": qc,
+        "logistics_days": logistics,
+        "confidence": confidence,
+    }
+
+
+def _api_path_to_delivery_path(p: dict, node_by_id: dict[str, ParticipantNode]) -> DeliveryPath:
+    sid = (p.get("supplier_ids") or [None])[0]
+    node = node_by_id.get(sid)
+    total = p.get("estimated_lead_time_days")
+    total_int = int(round(total)) if total is not None else None
+    earliest = p.get("earliest_delivery_date")
+    earliest_d = date.fromisoformat(earliest) if isinstance(earliest, str) else None
+    feasible = bool(p.get("feasible"))
+    node_flags = _node_risk_flags(node) if node else []
+    path_flags = node_flags + [w.get("code") for w in p.get("warnings", [])]
+    return DeliveryPath(
+        path_id=p.get("path_id", f"PATH-{sid}"),
+        participant_ids=[sid] if sid else [],
+        parallel_max_days=None,
+        sequential_days=total_int,
+        total_lead_time_days=total_int,
+        earliest_delivery_date=earliest_d,
+        most_likely_delivery_date=earliest_d,
+        risk_adjusted_delivery_date=earliest_d,
+        committable_delivery_date=earliest_d,
+        critical_path=["material", "production", "qc", "logistics"],
+        critical_path_days=total_int,
+        is_feasible=feasible,
+        feasibility_reason="FEASIBLE" if feasible else "INFEASIBLE",
+        risk_flags=path_flags,
+        missing_evidence=_node_missing_evidence(node) if node else [],
+        unit_price=node.unit_price if node else None,
+        currency=node.currency if node else None,
+        rank_score=float(p.get("score") or 0.0),
+        recommendation_reason=f"rank {p.get('rank')}",
+        confidence="HIGH" if (p.get("confidence") or 0) >= 0.75 else "MEDIUM" if (p.get("confidence") or 0) >= 0.5 else "LOW",
+    )
+
+
 def evaluate_delivery_feasibility(
     gltg_input: ApparelOrderInput,
+    client: GLTGClient | None = None,
 ) -> DeliveryFeasibilityPacket:
-    """Run the GLTG engine synchronously and return the result."""
-    return _engine.evaluate(gltg_input)
+    """Evaluate feasibility via the standalone GLTG API and map to abcdYi DTOs."""
+    client = client or GLTGClient()
+    node_by_id = {n.participant_id: n for n in gltg_input.participant_nodes}
+    suppliers = [_node_to_supplier(n) for n in gltg_input.participant_nodes]
+
+    order: dict = {
+        "product_type": (gltg_input.product_categories or ["apparel"])[0] if gltg_input.product_categories else "apparel",
+        "quantity": gltg_input.quantity or int(gltg_input.form_fields.get("quantity") or 0),
+    }
+    if gltg_input.required_delivery_date:
+        order["target_delivery_date"] = gltg_input.required_delivery_date.isoformat()
+
+    est = client.estimate_lead_time(order=order, suppliers=suppliers, constraints={})
+    if not est.ok or est.data is None:
+        raise GLTGUnavailableError(est.error or "GLTG estimate failed")
+    paths_res = client.enumerate_paths(order=order, suppliers=suppliers, constraints={})
+    if not paths_res.ok or paths_res.data is None:
+        raise GLTGUnavailableError(paths_res.error or "GLTG path enumeration failed")
+
+    data = est.data
+    ranked = [
+        _api_path_to_delivery_path(p, node_by_id)
+        for p in paths_res.data.get("paths", [])
+        if p.get("mode") == "SINGLE_SOURCE"
+    ]
+    # Never present more than 3 options (product rule; never faked).
+    ranked = ranked[:3]
+
+    earliest = data.get("earliest_delivery_date")
+    earliest_d = date.fromisoformat(earliest) if isinstance(earliest, str) else None
+    risk_flags = [w.get("code") for w in data.get("warnings", [])]
+    # Aggregate abcdYi business risk flags + missing-evidence across nodes.
+    missing_evidence: list[str] = []
+    for node in gltg_input.participant_nodes:
+        for f in _node_risk_flags(node):
+            if f not in risk_flags:
+                risk_flags.append(f)
+        for m in _node_missing_evidence(node):
+            if m not in missing_evidence:
+                missing_evidence.append(m)
+    feasible = data.get("feasible")
+    if not suppliers:
+        status = "INCOMPLETE_EVIDENCE"
+        feasibility = "UNKNOWN"
+    else:
+        status = "EVALUATED"
+        feasibility = "FEASIBLE" if feasible else "INFEASIBLE"
+
+    days_vs_deadline = None
+    if gltg_input.required_delivery_date and earliest_d:
+        days_vs_deadline = (earliest_d - gltg_input.required_delivery_date).days
+
+    confidence = "HIGH" if (data.get("risk_level") == "low") else "MEDIUM" if data.get("risk_level") == "medium" else "LOW"
+
+    return DeliveryFeasibilityPacket(
+        order_id=gltg_input.order_id,
+        source="GLTG",
+        status=status,
+        earliest_delivery_date=earliest_d,
+        most_likely_delivery_date=earliest_d,
+        risk_adjusted_delivery_date=earliest_d,
+        committable_delivery_date=earliest_d,
+        required_delivery_date=gltg_input.required_delivery_date,
+        delivery_feasibility=feasibility,
+        days_vs_deadline=days_vs_deadline,
+        critical_path=["material", "production", "qc", "logistics"] if suppliers else [],
+        critical_path_days=int(round(data["estimated_lead_time_days"])) if data.get("estimated_lead_time_days") is not None else None,
+        ranked_options=ranked,
+        option_count=len(ranked),
+        risk_flags=risk_flags,
+        missing_evidence=missing_evidence,
+        explanation=(
+            f"GLTG evaluated {len(ranked)} path(s) via the standalone service; "
+            f"feasibility={feasibility}, risk={data.get('risk_level')}."
+        ),
+        confidence=confidence,
+    )

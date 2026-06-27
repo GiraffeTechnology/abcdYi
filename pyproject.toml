@@ -4,7 +4,6 @@ version = "1.0.0"
 description = "abcdYi — Giraffe Agent Apparel / Textile / Handicraft Industry Edition"
 requires-python = ">=3.11"
 dependencies = [
-    "gltg",
     "fastapi>=0.111.0",
     "uvicorn[standard]>=0.30.0",
     "pydantic[email]>=2.7.0",
@@ -50,7 +49,6 @@ dev = [
 ]
 
 [tool.uv.sources]
-gltg = { path = "libs/GLTG", editable = true }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src", "api"]
