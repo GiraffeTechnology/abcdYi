@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from gltg.models import (
+from src.lead_time.gltg_models import (
     DeliveryFeasibilityPacket as GltgPacket,
     DeliveryPath,
     ApparelOrderInput,
@@ -176,10 +176,9 @@ def test_gltg_fallback_when_participant_not_in_gltg_results():
 
 def test_zero_options_gltg_packet_explanation_non_empty():
     """When GLTG returns 0 options, the explanation field must be non-empty."""
-    from gltg import LeadTimeGraphEngine
+    from src.lead_time.gltg_adapter import evaluate_delivery_feasibility
 
-    engine = LeadTimeGraphEngine()
-    result = engine.evaluate(ApparelOrderInput(order_id="test-order"))
+    result = evaluate_delivery_feasibility(ApparelOrderInput(order_id="test-order"))
 
     assert result.option_count == 0
     assert result.explanation

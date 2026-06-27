@@ -256,7 +256,7 @@ def generate_supplier_response_rollup(
     rollup_id = f"ROLLUP-{uuid.uuid4().hex[:10].upper()}"
 
     # Calculate lead time using the canonical Lead Time Path Model
-    from src.lead_time.lead_time_calculator import calculate_lead_time_path
+    from src.integrations.gltg_leadtime import estimate_lead_time_path as calculate_lead_time_path
     from src.lead_time.models import ProductionCapacity
 
     lt_fabric_days = lead_time_basis.get("fabric", {}).get("days")
