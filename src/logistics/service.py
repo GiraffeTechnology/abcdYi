@@ -106,5 +106,8 @@ async def add_tracking_event(
     return tracking_event
 
 
-async def get_shipment(db: AsyncSession, shipment_id: uuid.UUID) -> Shipment | None:
-    return await db.get(Shipment, shipment_id)
+async def get_shipment(
+    db: AsyncSession, shipment_id: uuid.UUID, tenant_id: uuid.UUID
+) -> Shipment | None:
+    from src.db.tenant_scope import get_order_owned
+    return await get_order_owned(db, Shipment, shipment_id, tenant_id)
