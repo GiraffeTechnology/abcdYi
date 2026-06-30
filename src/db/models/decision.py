@@ -53,5 +53,6 @@ class ApprovalRequest(Base):
     reviewed_by: Mapped[uuid.UUID] = mapped_column(nullable=True)
     reviewed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
     review_notes: Mapped[str] = mapped_column(Text, nullable=True)
+    consumed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
     created_by: Mapped[uuid.UUID] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
