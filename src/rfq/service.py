@@ -112,8 +112,15 @@ async def send_rfq(
     Only callable after ApprovalRequest is APPROVED.
     Transitions RFQ APPROVED_TO_SEND → SENT.
     """
-    # Guard: must be approved
-    await require_approved(db, approval_id)
+    # Guard: must be approved, bound to this RFQ + tenant, and not yet consumed
+    await require_approved(
+        db,
+        approval_id,
+        action_type="RFQ_SEND",
+        resource_type="rfq",
+        resource_id=rfq_id,
+        tenant_id=tenant_id,
+    )
 
     rfq = await db.get(RFQ, rfq_id)
     if not rfq:
@@ -158,5 +165,8 @@ async def send_rfq(
     return rfq
 
 
-async def get_rfq(db: AsyncSession, rfq_id: uuid.UUID) -> RFQ | None:
-    return await db.get(RFQ, rfq_id)
+async def get_rfq(
+    db: AsyncSession, rfq_id: uuid.UUID, tenant_id: uuid.UUID
+) -> RFQ | None:
+    from src.db.tenant_scope import get_project_owned
+    return await get_project_owned(db, RFQ, rfq_id, tenant_id)
