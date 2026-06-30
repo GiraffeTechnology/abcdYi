@@ -68,9 +68,14 @@ async def create_participant(
     return participant
 
 
-async def get_participant(db: AsyncSession, participant_id: uuid.UUID) -> Participant | None:
+async def get_participant(
+    db: AsyncSession, participant_id: uuid.UUID, tenant_id: uuid.UUID
+) -> Participant | None:
     result = await db.execute(
-        select(Participant).where(Participant.id == participant_id)
+        select(Participant).where(
+            Participant.id == participant_id,
+            Participant.tenant_id == tenant_id,
+        )
     )
     return result.scalar_one_or_none()
 

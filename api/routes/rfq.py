@@ -57,7 +57,7 @@ async def get_rfq_route(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    rfq = await get_rfq(db, rfq_id)
+    rfq = await get_rfq(db, rfq_id, current_user.tenant_id)
     if not rfq:
         raise HTTPException(status_code=404, detail="RFQ not found")
     return rfq

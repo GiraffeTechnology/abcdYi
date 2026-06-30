@@ -45,7 +45,7 @@ async def get_order_route(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    order = await get_order(db, order_id)
+    order = await get_order(db, order_id, current_user.tenant_id)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     return order

@@ -64,7 +64,7 @@ async def get_shipment_route(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    shipment = await get_shipment(db, shipment_id)
+    shipment = await get_shipment(db, shipment_id, current_user.tenant_id)
     if not shipment:
         raise HTTPException(status_code=404, detail="Shipment not found")
 
