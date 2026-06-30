@@ -9,6 +9,7 @@ from src.lead_time.calculator import calculate_path_lead_time
 from src.lead_time.gltg_adapter import build_gltg_input_from_order, evaluate_delivery_feasibility
 from src.risk_flags.detector import detect_decision_risk_flags, generate_comparison_summary
 from src.approval_gates.service import create_approval_request, require_approved
+from src.db.tenant_scope import get_project_owned
 from src.execution_graph.writer import emit_event
 from src.execution_graph.event_types import (
     DECISION_PACKET_GENERATED, QUOTE_APPROVAL_REQUESTED, QUOTE_APPROVED
@@ -312,10 +313,17 @@ async def approve_decision_option(
     review_notes: str,
     tenant_id: uuid.UUID,
 ) -> DecisionPacket:
-    # Guard: must be approved
-    await require_approved(db, approval_id)
+    # Guard: must be approved, bound to this packet + tenant, and not yet consumed
+    await require_approved(
+        db,
+        approval_id,
+        action_type="QUOTE_APPROVE",
+        resource_type="decision_packet",
+        resource_id=packet_id,
+        tenant_id=tenant_id,
+    )
 
-    packet = await db.get(DecisionPacket, packet_id)
+    packet = await get_project_owned(db, DecisionPacket, packet_id, tenant_id)
     if not packet:
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="DecisionPacket not found")

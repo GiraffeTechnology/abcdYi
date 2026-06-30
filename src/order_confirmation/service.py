@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.models.order import Order, OrderLine
 from src.db.models.decision import DecisionPacket, DecisionOption
+from src.db.tenant_scope import get_project_owned
 from src.db.models.dynamic_form import DynamicOrderForm, DynamicOrderFormVersion
 from src.db.models.production import Milestone
 from src.orders.state_machine import transition
@@ -39,20 +40,21 @@ async def create_order_from_approved_option(
     user_id: uuid.UUID,
 ) -> Order:
     """
-    Pre-condition: DecisionPacket approved + ApprovalRequest (QUOTE_APPROVE) approved.
-    Creates order, locks form, and generates 12 milestones.
+    Pre-condition: DecisionPacket approved (the QUOTE_APPROVE approval was
+    already validated and consumed by ``approve_decision_option``; an approved
+    packet is therefore proof of prior human approval). The packet and option
+    must belong to the caller's tenant.
     """
-    from src.approval_gates.service import require_approved
-    await require_approved(db, approval_id)
+    from fastapi import HTTPException
 
-    packet = await db.get(DecisionPacket, packet_id)
-    if not packet or packet.human_approval_status != "APPROVED":
-        from fastapi import HTTPException
+    packet = await get_project_owned(db, DecisionPacket, packet_id, tenant_id)
+    if not packet:
+        raise HTTPException(status_code=404, detail="DecisionPacket not found.")
+    if packet.human_approval_status != "APPROVED":
         raise HTTPException(status_code=403, detail="DecisionPacket is not approved.")
 
     option = await db.get(DecisionOption, option_id)
-    if not option:
-        from fastapi import HTTPException
+    if not option or option.packet_id != packet.id:
         raise HTTPException(status_code=404, detail="DecisionOption not found.")
 
     # Find current form version
@@ -185,7 +187,7 @@ async def confirm_order(
     tenant_id: uuid.UUID,
     user_id: uuid.UUID,
 ) -> Order:
-    order = await db.get(Order, order_id)
+    order = await get_project_owned(db, Order, order_id, tenant_id)
     if not order:
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Order not found")
@@ -217,7 +219,7 @@ async def buyer_sign_off(
     tenant_id: uuid.UUID,
     user_id: uuid.UUID,
 ) -> Order:
-    order = await db.get(Order, order_id)
+    order = await get_project_owned(db, Order, order_id, tenant_id)
     if not order:
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Order not found")
