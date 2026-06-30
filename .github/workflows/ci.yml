@@ -128,3 +128,51 @@ jobs:
 
       - name: Run role switching tests
         run: uv run pytest tests/test_mside_role_switching.py -q --tb=short
+
+  route-layer-tests:
+    name: API + Integration (Postgres)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: giraffe
+          POSTGRES_PASSWORD: giraffe
+          POSTGRES_DB: apparel_textile
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U giraffe"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://giraffe:giraffe@localhost:5432/apparel_textile
+      # ASGITransport in tests does not run startup hooks, but set a compliant
+      # key so any future lifespan-aware test does not trip the fail-fast guard.
+      SECRET_KEY: ci-secret-key-please-override-in-production-0123456789
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Add pytest
+        run: uv add --dev pytest
+
+      - name: Run Alembic migrations
+        run: uv run alembic upgrade head
+
+      - name: Run API + integration tests (route-layer security)
+        run: uv run pytest tests/api/ tests/integration/ -q --tb=short
