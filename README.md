@@ -1,519 +1,233 @@
-# abcdYi
-> Giraffe Agent B2M Industry Edition for Apparel, Textiles, and Handicrafts
+# abcdYi — Apparel & Textile B2M Industry Edition
 
-abcdYi is the first complete B2M industry edition of Giraffe Agent, built for multi-party supply-chain coordination in apparel, textiles, and handicraft-based production.
+`B2M` | `Apparel / Textile / Handicraft` | `Giraffe Agent Industry Edition` | `giraffe-language-skill` | `giraffe-db` | `GLTG` | `Human Approval`
 
-It serves independent designers, small fashion brands, and SME-led fashion ecosystems that need structured, multi-party order execution — from buyer inquiry through supplier matching, RFQ, production monitoring, quality control, delivery, pricing benchmark validation, and human approval at every critical decision boundary.
+abcdYi is the first complete B2M industry edition of the Giraffe industrial execution architecture.
 
-The core user is not an end consumer. The core user is a buyer, designer, small brand, trader, merchandiser, or SME coordinating production with manufacturers, workshops, material suppliers, process suppliers, QC participants, logistics partners, and pricing intelligence services.
+It is built for multi-party supply-chain coordination in apparel, textiles, and handicraft-based production. It serves independent designers, small fashion brands, trading companies, merchandisers, and SMEs that need structured order execution from buyer inquiry through supplier matching, RFQ, production monitoring, quality control, delivery, pricing benchmark validation, and human approval.
 
----
-
-## Why B2M
-
-abcdYi is B2M: Buyer-to-Manufacturer.
-
-In this repository, "Buyer" means a commercial or professional buyer, such as:
-- an independent designer;
-- a small fashion brand;
-- a boutique label;
-- a trading company;
-- a merchandiser;
-- an SME placing production orders;
-- a buyer coordinating apparel, textile, or handicraft production.
-
-The buyer is not treated as a retail consumer.
-
-The manufacturer side may include:
-- garment factories;
-- textile mills;
-- CMT workshops;
-- fabric suppliers;
-- trim suppliers;
-- packaging suppliers;
-- embroidery providers;
-- printing providers;
-- handicraft workshops;
-- QC providers;
-- logistics partners.
-
-abcdYi exists to coordinate this B2M production workflow.
-
----
-
-## What abcdYi Is Not
-
-abcdYi is not:
-- a marketplace
-- an e-commerce store
-- a consumer shopping app
-- a generic ERP
-- a generic CRM
-- a simple supplier directory
-- a hardcoded demo
-- a one-order simulation
-- a standalone pricing database
-- a direct replacement for GPM
+The core user is not an end consumer. The core user is a professional buyer, designer, brand, trader, merchandiser, or SME coordinating production with manufacturers, workshops, material suppliers, process suppliers, QC participants, logistics partners, and pricing intelligence services.
 
 ---
 
 ## What abcdYi Is
 
 abcdYi is:
-- Giraffe Agent's first complete B2M industry edition
-- a supply-chain workflow execution product
-- a multi-party coordination system for fashion SMEs
-- a designer and small-brand order execution assistant
-- a small-batch quick-response workflow engine
-- a patent-aligned implementation of multi-party B2M execution logic for apparel, textiles, and handicrafts
-- a workflow layer that can call GPM for price benchmark lookup, quote validation, and missing-process checks
+
+```text
+Giraffe Agent's B2M apparel/textile industry edition
+an order execution workflow product
+a multi-party supply-chain coordination system
+a designer / small-brand production assistant
+a small-batch quick-response workflow engine
+a patent-aligned implementation of multi-party apparel/textile execution logic
+a consumer of giraffe-language-skill, giraffe-db, GPM, GLTG, and giraffe-qc-model
+```
 
 ---
 
-## Who It Is For
+## What abcdYi Is Not
 
-- **Independent designers** placing small-batch custom orders with workshops and factories
-- **Small fashion brands** coordinating multi-tier supply chains (fabric, trims, manufacturing, QC, logistics)
-- **SME apparel and textile businesses** executing B2M orders with multiple participants
-- **Handicraft producers** coordinating fragmented material and process suppliers
-- **Developer teams** building industry-specific supply-chain coordination tools on top of Giraffe Agent
+abcdYi is not:
+
+```text
+a consumer shopping app
+a marketplace
+a generic ERP
+a generic CRM
+a simple supplier directory
+a hardcoded demo
+a standalone pricing database
+a replacement for GPM or GLTG
+a replacement for human commercial approval
+```
+
+---
+
+## B2M Role Model
+
+B2M means Buyer-to-Manufacturer.
+
+In this repository, Buyer means a commercial or professional buyer:
+
+```text
+independent designer
+small fashion brand
+boutique label
+trading company
+merchandiser
+SME placing production orders
+buyer coordinating apparel, textile, or handicraft production
+```
+
+Manufacturer side may include:
+
+```text
+garment factories
+textile mills
+CMT workshops
+fabric suppliers
+trim suppliers
+packaging suppliers
+embroidery providers
+printing providers
+handicraft workshops
+QC providers
+logistics partners
+```
+
+abcdYi coordinates this multi-party production workflow.
+
+---
+
+## System Boundary
+
+```text
+giraffe-language-skill = multilingual canonicalization and localized output
+giraffe-db             = private business facts, supplier memory, lead-time evidence
+GLTG                   = lead-time and delivery-feasibility simulation
+GPM                    = procurement path and supplier-set reasoning
+giraffe-qc-model       = visual QC training and inspection intelligence
+abcdYi                 = apparel/textile B2M application workflow
+human operator         = final commercial/legal approval
+```
+
+abcdYi must not embed its own language alias maps, supplier fact store, GLTG calculator, QC model, or channel credential runtime.
+
+---
+
+## P0 Language Boundary
+
+Standard English is the only internal working language across Giraffe products.
+
+All raw multilingual buyer, supplier, designer, merchandiser, QC, IM, email, or order text must pass through `giraffe-language-skill` before abcdYi extracts business fields, creates RFQs, routes suppliers, calls GLTG, writes graph data, generates QC requirements, or creates outbound drafts.
+
+Allowed path:
+
+```text
+raw multilingual input
+-> giraffe-language-skill
+-> canonical English apparel/textile packet
+-> abcdYi workflow
+-> giraffe-db / GLTG / GPM / QC integrations
+-> localized user-facing output
+```
+
+abcdYi must not add:
+
+```text
+multilingual product alias maps
+city / destination alias maps
+material alias maps
+SKU alias maps
+quality alias maps
+supplier capability maps
+raw non-English extraction shortcuts
+LLM extraction directly from raw non-English business text
+```
+
+If canonicalization fails, abcdYi must ask for clarification instead of guessing.
 
 ---
 
 ## Core Workflow
 
 ```text
-Designer / Buyer Inquiry
-    ↓
-Requirement Extraction
-    ↓
-Dynamic Order Form
-    ↓
-Missing Information Detection
-    ↓
-Participant Classification
-    ↓
-Permission Assignment
-    ↓
-Supplier / Workshop / Process Matching
-    ↓
-RFQ Preparation
-    ↓
-Human Approval
-    ↓
-RFQ Dispatch
-    ↓
-Supplier Response Intake
-    ↓
-Response Normalization
-    ↓
-GPM Price Benchmark / Missing-Process Check
-    ↓
-GLTG Delivery Feasibility Evaluation
-    ↓
-Decision Packet
-    ↓
-Human Approval
-    ↓
-Order Confirmation
-    ↓
-Production Time Setting
-    ↓
-Milestone Monitoring
-    ↓
-Delay Prediction / Acceleration Reminder
-    ↓
-Quality Evidence Review
-    ↓
-Delivery Handover
-    ↓
-Buyer / Designer Sign-Off
-    ↓
-GPM Incoming Order Data Buffer Update
-    ↓
-Supplier Memory Update
-    ↓
-Execution Graph Record
+Buyer / designer requirement
+-> language canonicalization
+-> structured apparel/textile requirement packet
+-> buyer profile and preference lookup
+-> supplier / process / material matching
+-> RFQ package generation
+-> supplier response collection
+-> GPM procurement path reasoning
+-> GLTG lead-time simulation
+-> pricing benchmark / quote validation
+-> QC requirement and detection-point preparation
+-> human approval
+-> production follow-up
+-> QC evidence review
+-> logistics tracking
+-> final sign-off
+-> execution graph and supplier memory update
 ```
 
 ---
 
-## Role-Switching (M-Side / B-Side)
+## GLTG / Lead-Time Boundary
 
-A single actor's role is contextual, not fixed: the same supplier can be the M-side (main supplier) responding to the original buyer on one edge, and the B-side (upstream buyer) sourcing from material/process suppliers on another edge of the same project. Role context is resolved per (project, edge, actor) rather than assigned statically.
+abcdYi must not calculate delivery feasibility locally when GLTG is available.
 
-See [docs/MSIDE_ROLE_SWITCHING_AGENT_SPEC.md](docs/MSIDE_ROLE_SWITCHING_AGENT_SPEC.md) for the full role-switching agent spec.
-
----
-
-## GPM — Giraffe Pricing Model Integration
-
-GPM (Giraffe Pricing Model) is the pricing intelligence and benchmark-validation layer used by abcdYi.
-
-abcdYi does not act as the pricing database itself. It calls GPM through HTTP APIs and never accesses GPM database tables directly.
-
-The integration has two strict paths:
-
-### Read path: GPM → abcdYi decision support
-
-abcdYi can query GPM to support RFQ review and decision packet generation:
-
-- **Benchmark lookup** — retrieve process / SKU benchmark records.
-- **Quote validation** — classify quoted unit prices as `VALID`, `NEEDS_REVIEW`, `EXCLUDED`, or `NO_BENCHMARK`.
-- **Missing-process check** — detect whether an expected process for a SKU is absent from a supplier quote.
-
-When benchmark data is displayed to a user or used in a decision packet, the following fields must be kept visible together:
-
-- `avg_price`
-- `std_dev`
-- `sample_size`
-- `source_type`
-- `currency`
-
-This prevents a single benchmark price from being treated as an unexplained or absolute market price.
-
-### Write path: abcdYi → GPM incoming-order buffer only
-
-After buyer / designer sign-off, abcdYi may submit order-line pricing data to GPM's `incoming_order_data` buffer.
-
-This write path is deliberately limited:
-
-- abcdYi may write only to the GPM incoming-order buffer.
-- abcdYi must not write directly to verified benchmark tables.
-- abcdYi must not write directly to `verified_business_data` or `process_benchmark`.
-- GPM unavailability must not block buyer sign-off or order closure.
-- Any missing or unreliable `process_id` must be treated as incomplete evidence, not silently converted into a fake benchmark process.
-
-### Relationship with GLTG and Decision Packets
-
-GPM and GLTG solve different parts of the decision problem:
-
-- **GPM** evaluates price reasonableness, process benchmark availability, source quality, and missing process signals.
-- **GLTG** evaluates lead time, delivery feasibility, critical path, milestone reforecasting, and delivery risk.
-- **Decision packets** combine supplier responses, GPM pricing signals, GLTG delivery feasibility, risk flags, missing fields, and evidence into human-reviewable options.
-
-abcdYi remains the B2M workflow execution layer. GPM remains the pricing intelligence layer. GLTG remains the lead-time graph engine. Human approval remains mandatory before critical business commitments are made.
-
----
-
-## Expected Modules
-
-- Inquiry intake
-- Requirement extraction
-- Dynamic order form
-- Participant classification
-- Permission assignment
-- Participant matching
-- RFQ workflow
-- Supplier response normalization
-- GPM benchmark lookup
-- GPM quote validation
-- GPM missing-process check
-- GLTG delivery feasibility evaluation
-- Decision packet
-- Human approval gate
-- Production monitoring
-- Delay prediction
-- Acceleration reminder
-- QC evidence
-- Difference detection
-- Logistics handover
-- GPM incoming-order buffer update after buyer sign-off
-- Supplier memory
-- Execution graph
-
----
-
-## Order State Machine
+GLTG owns:
 
 ```text
-DRAFT_FROM_APPROVED_QUOTE
-    → PENDING_BUYER_CONFIRMATION
-    → CONFIRMED
-    → IN_PRODUCTION
-    → QC_PENDING
-    → QC_PASSED / QC_FAILED
-    → READY_TO_SHIP
-    → SHIPPED
-    → DELIVERED
-    → BUYER_SIGNED_OFF
+P50 / P80 / P90 lead-time estimates
+supplier behavior adjustments
+buyer decision delay buffers
+fallback supplier recommendation
+manual review triggers
+lead-time explanation JSON
+source observation traceability
+```
+
+abcdYi may display, explain, and use GLTG results, but it must not replace them with LLM guesses.
+
+---
+
+## QC Boundary
+
+abcdYi may generate or collect apparel/textile QC requirements, but actual visual QC intelligence belongs to `giraffe-qc-model`.
+
+QC requirement text must pass through `giraffe-language-skill` before it becomes:
+
+```text
+inspection requirement
+training pack source
+rule proposal
+detection point
+QC decision packet
+```
+
+Visual pass/fail decisions must be produced by the QC model or human review, not by abcdYi's general workflow logic.
+
+---
+
+## Human Approval Boundary
+
+Human approval is required for:
+
+```text
+supplier inquiry release
+quote submission
+supplier selection
+production commitment
+delivery commitment
+QC exception acceptance
+payment / contract / commercial commitment
+```
+
+abcdYi can assist and recommend; it cannot become the legal counterparty.
+
+---
+
+## Current Product Direction
+
+abcdYi is the apparel/textile vertical product layer for Giraffe's industrial execution system.
+
+Near-term alignment targets:
+
+```text
+consume giraffe-language-skill canonical packets
+consume giraffe-db private/synthetic behavior evidence
+call GLTG v1, then GLTG v2 after contract stabilization
+use GPM for supplier-set and procurement-path reasoning
+integrate giraffe-qc-model for SKU-specific QC workflows
+preserve human approval gates
+write auditable execution graph events
 ```
 
 ---
 
-## Quick Start
+## License
 
-### Prerequisites
-
-- Python 3.11+
-- PostgreSQL 16+
-- `uv` package manager
-
-### Local Development
-
-```bash
-# 1. Install dependencies
-uv sync
-
-# 2. Configure environment
-cp .env.example .env
-# Edit .env: set DATABASE_URL and SECRET_KEY
-# Optional: set GPM_SERVICE_URL and GPM_SERVICE_API_KEY if a GPM service is available
-
-# 3. Run migrations
-uv run alembic upgrade head
-
-# 4. Start the API
-uv run uvicorn api.main:app --reload
-
-# 5. Health check
-curl http://localhost:8000/health
-```
-
-Expected response:
-```json
-{
-  "status": "ok",
-  "product": "abcdYi — Giraffe Agent Apparel / Textile / Handicraft Industry Edition"
-}
-```
-
-### Docker
-
-```bash
-# Start database
-docker compose up -d db
-
-# Run migrations
-docker compose run --rm migrate
-
-# Start API
-docker compose up api
-```
-
----
-
-## Validation
-
-Run a clean-state validation:
-
-```bash
-./scripts/run_clean_db_validation.sh
-```
-
-The validation performs:
-
-1. Docker cleanup (`docker compose down -v`)
-2. Docker image build (`docker compose build`)
-3. Fresh PostgreSQL startup
-4. Alembic migration (`docker compose run --rm migrate`)
-5. API startup
-6. `/health` check
-7. Unit tests — no DB required (`uv run pytest tests/unit/ -v -m "not integration"`)
-8. Integration tests — requires migrated DB (`uv run pytest tests/integration/ -v`)
-
-Run unit tests alone (no Docker needed):
-
-```bash
-uv run pytest tests/unit/ -v -m "not integration"
-```
-
-The repository must pass at least three consecutive clean-state validation runs before being treated as release-ready.
-
-Note: `tests/api/*` and `tests/integration/*` connect to a live PostgreSQL instance
-(`AsyncSessionLocal` defaults to `postgresql+asyncpg://...`) and will fail with
-`ConnectionRefusedError` in any environment without a running Postgres (e.g. no
-`docker compose up -d db`, no Docker daemon at all). This is expected outside the
-Docker-based validation flow above — `pytest -q` run without Postgres available will
-show ~60 such errors confined to those two directories; every other test file
-(`tests/db/*`, `tests/unit/*`, `tests/test_*.py`, etc.) is DB-independent (in-memory
-SQLite or pure-Python) and must pass cleanly on its own.
-
----
-
-## API Overview
-
-All routes except `/health` and `/api/auth/*` require:
-```
-Authorization: Bearer <jwt_token>
-```
-
-Key routes:
-
-| Method | Path | Description |
-|---|---|---|
-| POST | `/api/auth/register` | Register user |
-| POST | `/api/auth/login` | Login |
-| POST | `/api/participants` | Register supplier / workshop |
-| POST | `/api/projects` | Create a project |
-| POST | `/api/projects/{id}/buyer-inquiries` | Submit buyer inquiry |
-| POST | `/api/projects/{id}/dynamic-forms` | Generate order form |
-| POST | `/api/projects/{id}/run-participant-matching` | Match suppliers |
-| POST | `/api/projects/{id}/rfqs` | Create RFQ |
-| POST | `/api/rfqs/{id}/send` | Send RFQ (after approval) |
-| POST | `/api/projects/{id}/decision-packets` | Generate decision packet |
-| GET | `/api/gpm/benchmarks` | Query GPM benchmark records |
-| POST | `/api/gpm/benchmarks/validate` | Validate quoted unit price against GPM benchmarks |
-| POST | `/api/gpm/processes/missing-check` | Check missing process IDs for a SKU |
-| POST | `/api/projects/{id}/orders/from-approved-option` | Create order |
-| POST | `/api/orders/{id}/confirm` | Confirm order |
-| POST | `/api/orders/{id}/run-delay-prediction` | Run delay prediction |
-| POST | `/api/orders/{id}/qc-records` | Submit QC record |
-| POST | `/api/orders/{id}/shipments` | Create shipment |
-| POST | `/api/orders/{id}/buyer-sign-off` | Buyer sign-off and schedule GPM incoming-order buffer update |
-| GET | `/api/execution-graph/orders/{id}` | Audit trail |
-
-See `docs/api_reference.md` for the full API reference.
-
----
-
-## Acceptance Test
-
-```bash
-BASE_URL=http://localhost:8000 uv run python scripts/run_v1_acceptance_apparel_order.py
-```
-
-Expected output:
-```
-GIRAFFE APPAREL & TEXTILE V1 ACCEPTANCE: PASS
-```
-
-5x readiness verification:
-```bash
-BASE_URL=http://localhost:8000 uv run python scripts/verify_v1_product_readiness_5x.py
-```
-
----
-
-## GLTG — Giraffe Lead-Time Graph Engine
-
-> **GLTG is now a standalone service:** https://github.com/GiraffeTechnology/GLTG
->
-> abcdYi consumes GLTG over HTTP through `src/integrations/gltg_client.py` instead
-> of vendoring an engine. Configure the connection with:
->
-> ```bash
-> GLTG_API_BASE_URL=http://localhost:8090
-> GLTG_API_TIMEOUT_SECONDS=30
-> ```
->
-> The client returns a structured `GLTGClientResult(ok, data, error, status_code)`
-> and never falls back to a local calculation. Delivery feasibility maps to
-> `POST /v1/lead-time/estimate`, multi-path sourcing comparison to
-> `POST /v1/paths/enumerate`, and milestone-driven updates to `POST /v1/reforecast`.
-
-abcdYi does not implement lead-time calculation logic directly. All delivery feasibility reasoning is delegated to the **GLTG** (Giraffe Lead-Time Graph) engine.
-
-GLTG takes a supply-chain graph as input — participant nodes with role-specific lead times — and returns a ranked `DeliveryFeasibilityPacket` with:
-
-- Parallel lead time (max of fabric / trim / packaging sourcing stages)
-- Sequential lead time (sum of production / QC / logistics stages)
-- Most-likely, risk-adjusted, and committable delivery dates
-- Up to 3 ranked feasible paths (never faked — fewer paths returned if fewer feasible options exist)
-- Milestone-based reforecasting when a milestone is marked DELAYED
-- Human-readable explanation when 0 feasible paths are found
-
-GLTG integrates at two points in abcdYi:
-
-1. **Decision packet generation** — when supplier responses are received and a decision packet is assembled, GLTG evaluates each supplier as a candidate path and enriches decision options with risk-adjusted delivery dates and confidence levels.
-
-2. **Production monitoring** — each time a delay prediction is run (triggered by milestone updates), abcdYi calls GLTG to reforecast delivery feasibility against the current milestone state.
-
-GLTG results are persisted to the `delivery_feasibility_packets` table and recorded as `DELIVERY_FEASIBILITY_EVALUATED` events in the Industrial Execution Graph.
-
----
-
-## Project Structure
-
-```
-api/           FastAPI routes and app entry point
-src/           Business logic and service modules
-  gpm/         GPM HTTP client and schemas (pricing benchmark integration)
-  lead_time/   GLTG adapter (build_gltg_input_from_order, evaluate_delivery_feasibility)
-  services/    DeliveryFeasibilityService (GLTG single entry point)
-  matching/    12-dimension supplier matching
-  rfq/         RFQ state machine and service
-  decision_packets/  Decision packet generation (GPM + GLTG enriched)
-  orders/      Order state machine
-  milestones/  12-milestone production tracking
-  production_monitoring/  Delay predictor + GLTG reforecast
-  apparel_inspection/  QC evaluation engine
-  logistics/   Shipment and tracking
-  supplier_memory/  Performance tracking
-  execution_graph/  Append-only audit trail
-  approval_gates/  Human approval gate pattern
-libs/GLTG/     GLTG engine (local package — gltg)
-alembic/       Database migrations
-tests/         API and unit test suite
-scripts/       Seed data, acceptance, readiness scripts
-docs/          Product documentation
-```
-
----
-
-## Documentation
-
-| Document | Description |
-|---|---|
-| `docs/user_manual.md` | 13-chapter user guide |
-| `docs/admin_manual.md` | Admin and operations guide |
-| `docs/deployment_guide.md` | Deployment guide |
-| `docs/api_reference.md` | Full API reference |
-| `docs/patent_alignment_matrix.md` | Patent unit mapping |
-| `docs/workflow_overview.md` | Workflow documentation |
-| `docs/product_scope.md` | Product scope and positioning |
-| `docs/sme_designer_ecosystem.md` | SME and designer use cases |
-| `docs/acceptance_criteria_v1.md` | V1 acceptance criteria |
-| `docs/release_notes_v1.md` | Release notes |
-
----
-
-## Patent Notice and License
-
-This repository is released under the **Apache-2.0** software license.
-
-Certain workflows, system logic, role-based participant coordination mechanisms, dynamic order forms, participant matching, production monitoring, quality inspection, participant supervision, supplier memory, pricing benchmark interaction, GPM buffer handoff, and multi-party B2M / order-execution workflows in this project may be covered by patents owned by Giraffe Technology Holding Limited.
-
-abcdYi is the Apparel / Textile / Handicraft B2M industry edition of Giraffe Agent.
-
-The official patent titles may contain the term C2M because that is the registered legal title. abcdYi's product implementation and repository positioning are B2M.
-
-Patent references:
-
-| Jurisdiction | Patent |
-|---|---|
-| China | ZL 2023 1 1645939.9 / CN 117670482 B |
-| Japan | P7644545 / 特許第7644545号 |
-
-Giraffe Technology Holding Limited grants a **Global Free Patent License** to:
-- individuals
-- developers
-- researchers
-- students
-- SMEs for their own procurement, production coordination, sourcing, sampling, small-batch execution, and internal workflow use
-- independent designers and small fashion brands for their own order execution and supplier coordination
-- educational institutions for teaching and non-commercial use
-- research institutions for non-commercial research
-
-**Separate written permission is required for:**
-- enterprise deployment
-- hosted commercial operation
-- high-volume commercial production use
-- third-party system integration
-- white-label, OEM, or resale
-- commercial SaaS operation based on abcdYi workflows
-- managed service operation for third-party buyers, brands, manufacturers, or suppliers
-- use of Giraffe commercial assets, trademarks, supplier/buyer network data, order archives, pricing benchmark datasets, or proprietary industry datasets
-
-Access to this source code does not automatically grant patent rights beyond the free license scope.
-
-The Apache-2.0 software license applies to the source code in this repository. It does not waive or exhaust patent rights outside the expressly granted free patent license scope.
-
-Commercial users should obtain written authorization before using abcdYi workflows in enterprise, hosted, integration, resale, or high-volume production environments.
-
-Authorization contact:
-```
-mich@giraffe.technology
-```
-
-See also: [PATENT_NOTICE.md](PATENT_NOTICE.md) · [LICENSE_NOTICE.md](LICENSE_NOTICE.md) · [LICENSE](LICENSE)
+See `LICENSE`.
