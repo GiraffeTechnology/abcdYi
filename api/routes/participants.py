@@ -43,7 +43,7 @@ async def get_participant(
     current_user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    participant = await service.get_participant(db, participant_id)
+    participant = await service.get_participant(db, participant_id, current_user.tenant_id)
     if not participant:
         raise HTTPException(status_code=404, detail="Participant not found")
     return ParticipantOut.model_validate(participant)
@@ -56,6 +56,11 @@ async def update_participant(
     current_user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    # Tenant ownership check before mutating
+    owned = await service.get_participant(db, participant_id, current_user.tenant_id)
+    if not owned:
+        raise HTTPException(status_code=404, detail="Participant not found")
+
     participant = await service.update_participant(
         db, participant_id, data, current_user.id
     )
@@ -76,6 +81,11 @@ async def assign_role(
         validate_role(data.role_name)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+
+    # Tenant ownership check before mutating
+    owned = await service.get_participant(db, participant_id, current_user.tenant_id)
+    if not owned:
+        raise HTTPException(status_code=404, detail="Participant not found")
 
     role = await service.assign_role(
         db, participant_id, data.role_name, current_user.id

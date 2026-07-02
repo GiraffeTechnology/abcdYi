@@ -36,6 +36,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+async def _enforce_secure_secret_key() -> None:
+    """Refuse to serve with a weak/default JWT signing key."""
+    from api.auth import validate_secret_key
+    from src.db.base import settings
+    validate_secret_key(settings.SECRET_KEY)
+
+
 app.include_router(health_router)
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 app.include_router(participants_router, prefix="/api/participants", tags=["participants"])

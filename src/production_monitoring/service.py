@@ -8,6 +8,7 @@ from src.db.models.dynamic_form import DynamicOrderForm, DynamicOrderFormVersion
 from src.db.models.order import Order
 from src.production_monitoring.delay_predictor import predict_completion_date
 from src.approval_gates.service import create_approval_request, require_approved
+from src.db.tenant_scope import order_belongs_to_tenant
 from src.execution_graph.writer import emit_event
 from src.execution_graph.event_types import (
     PRODUCTION_DELAY_PREDICTED, EXPEDITE_ALERT_CREATED, EXPEDITE_ALERT_APPROVED
@@ -147,10 +148,17 @@ async def send_expedite_alert(
     tenant_id: uuid.UUID,
     user_id: uuid.UUID,
 ) -> ExpediteAlert:
-    await require_approved(db, approval_id)
+    await require_approved(
+        db,
+        approval_id,
+        action_type="EXPEDITE_NOTIFY",
+        resource_type="expedite_alert",
+        resource_id=alert_id,
+        tenant_id=tenant_id,
+    )
 
     alert = await db.get(ExpediteAlert, alert_id)
-    if not alert:
+    if not alert or not await order_belongs_to_tenant(db, alert.order_id, tenant_id):
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="ExpediteAlert not found")
 

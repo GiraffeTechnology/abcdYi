@@ -8,6 +8,7 @@ from api.deps import get_db, get_current_user
 from src.approval_gates.schemas import ApprovalRequestOut, ReviewRequest
 from src.approval_gates.service import approve_request, reject_request
 from src.db.models.decision import ApprovalRequest
+from src.db.tenant_scope import get_tenant_owned
 
 router = APIRouter()
 
@@ -18,7 +19,9 @@ async def list_approval_requests(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    query = select(ApprovalRequest)
+    query = select(ApprovalRequest).where(
+        ApprovalRequest.tenant_id == current_user.tenant_id
+    )
     if status and status.upper() != "ALL":
         query = query.where(ApprovalRequest.status == status.upper())
     result = await db.execute(query.order_by(ApprovalRequest.created_at.desc()))
@@ -31,7 +34,7 @@ async def get_approval_request(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    req = await db.get(ApprovalRequest, approval_id)
+    req = await get_tenant_owned(db, ApprovalRequest, approval_id, current_user.tenant_id)
     if not req:
         raise HTTPException(status_code=404, detail="ApprovalRequest not found")
     return req
@@ -44,6 +47,9 @@ async def approve_approval_request(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    owned = await get_tenant_owned(db, ApprovalRequest, approval_id, current_user.tenant_id)
+    if not owned:
+        raise HTTPException(status_code=404, detail="ApprovalRequest not found")
     req = await approve_request(db, approval_id, current_user.id, body.review_notes)
     await db.commit()
     await db.refresh(req)
@@ -57,6 +63,9 @@ async def reject_approval_request(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    owned = await get_tenant_owned(db, ApprovalRequest, approval_id, current_user.tenant_id)
+    if not owned:
+        raise HTTPException(status_code=404, detail="ApprovalRequest not found")
     req = await reject_request(db, approval_id, current_user.id, body.review_notes)
     await db.commit()
     await db.refresh(req)
