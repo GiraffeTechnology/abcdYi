@@ -14,7 +14,7 @@ async def get_project_events(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    events = await service.get_events_for_project(db, project_id)
+    events = await service.get_events_for_project(db, project_id, current_user.tenant_id)
     return events
 
 
@@ -24,7 +24,7 @@ async def get_order_events(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    events = await service.get_events_for_order(db, order_id)
+    events = await service.get_events_for_order(db, order_id, current_user.tenant_id)
     return events
 
 
@@ -34,7 +34,7 @@ async def get_participant_events(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    events = await service.get_events_for_participant(db, participant_id)
+    events = await service.get_events_for_participant(db, participant_id, current_user.tenant_id)
     return events
 
 
@@ -44,7 +44,7 @@ async def get_single_event(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    event = await service.get_event_by_id(db, event_id)
+    event = await service.get_event_by_id(db, event_id, current_user.tenant_id)
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
     return event

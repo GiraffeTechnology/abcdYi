@@ -36,8 +36,15 @@ async def create_project(
     return project
 
 
-async def get_project(db: AsyncSession, project_id: uuid.UUID) -> Project | None:
-    result = await db.execute(select(Project).where(Project.id == project_id))
+async def get_project(
+    db: AsyncSession, project_id: uuid.UUID, tenant_id: uuid.UUID
+) -> Project | None:
+    result = await db.execute(
+        select(Project).where(
+            Project.id == project_id,
+            Project.tenant_id == tenant_id,
+        )
+    )
     return result.scalar_one_or_none()
 
 
@@ -97,11 +104,14 @@ async def import_buyer_inquiry(
 
 
 async def get_project_timeline(
-    db: AsyncSession, project_id: uuid.UUID
+    db: AsyncSession, project_id: uuid.UUID, tenant_id: uuid.UUID
 ) -> list[ExecutionEvent]:
     result = await db.execute(
         select(ExecutionEvent)
-        .where(ExecutionEvent.project_id == project_id)
+        .where(
+            ExecutionEvent.project_id == project_id,
+            ExecutionEvent.tenant_id == tenant_id,
+        )
         .order_by(ExecutionEvent.occurred_at.asc())
     )
     return list(result.scalars().all())

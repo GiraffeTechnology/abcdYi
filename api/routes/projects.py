@@ -40,7 +40,7 @@ async def get_project(
     current_user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    project = await service.get_project(db, project_id)
+    project = await service.get_project(db, project_id, current_user.tenant_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     return ProjectOut.model_validate(project)
@@ -57,7 +57,7 @@ async def import_buyer_inquiry(
     current_user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    project = await service.get_project(db, project_id)
+    project = await service.get_project(db, project_id, current_user.tenant_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
@@ -74,7 +74,7 @@ async def get_project_timeline(
     current_user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    events = await service.get_project_timeline(db, project_id)
+    events = await service.get_project_timeline(db, project_id, current_user.tenant_id)
     return [
         {
             "id": str(e.id),

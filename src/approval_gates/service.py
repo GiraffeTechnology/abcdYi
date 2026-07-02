@@ -88,8 +88,51 @@ async def reject_request(db, approval_id, reviewed_by, review_notes: str = "") -
     return req
 
 
-async def require_approved(db, approval_id) -> ApprovalRequest:
+async def require_approved(
+    db,
+    approval_id,
+    *,
+    action_type: str,
+    resource_type: str,
+    resource_id,
+    tenant_id,
+) -> ApprovalRequest:
+    """Guard an external action with a human approval.
+
+    The approval is only honoured when it is APPROVED, has not already been
+    consumed, and is bound to *exactly* this action: its ``action_type``,
+    ``resource_type``, ``resource_id`` and ``tenant_id`` must all match the
+    operation being authorised. This prevents an approval granted for one
+    resource/action/tenant from being replayed to authorise another.
+
+    On success the approval is marked consumed (one-time use) so the same
+    approval can never authorise a second action.
+
+    All failure modes return an identical 403 so a caller cannot probe which
+    check failed (or whether a foreign approval exists).
+    """
+    denied = HTTPException(
+        status_code=403,
+        detail="Action requires a valid, matching, unconsumed human approval.",
+    )
+
     req = await db.get(ApprovalRequest, approval_id)
-    if not req or req.status != "APPROVED":
-        raise HTTPException(status_code=403, detail="Action requires prior human approval.")
+    if req is None:
+        raise denied
+    if req.status != "APPROVED":
+        raise denied
+    if req.consumed_at is not None:
+        raise denied
+    if req.tenant_id != tenant_id:
+        raise denied
+    if req.action_type != action_type:
+        raise denied
+    if req.resource_type != resource_type:
+        raise denied
+    if req.resource_id != resource_id:
+        raise denied
+
+    # One-time consumption (replay protection).
+    req.consumed_at = datetime.now(timezone.utc)
+    await db.flush()
     return req
