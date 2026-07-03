@@ -78,6 +78,8 @@ logistics partners
 
 abcdYi coordinates this multi-party production workflow.
 
+The M-side runtime uses role-switching to move between supplier inquiry, production follow-up, QC, logistics, and exception-handling responsibilities while preserving the same project context and human approval boundary.
+
 ---
 
 ## System Boundary
