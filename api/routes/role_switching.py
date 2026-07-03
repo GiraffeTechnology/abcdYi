@@ -11,6 +11,7 @@ submit_rollup_to_b_side.
 This is an internal MVP endpoint: it operates entirely on in-memory pydantic
 models (no DB persistence) and is not tenant/user scoped.
 """
+from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 

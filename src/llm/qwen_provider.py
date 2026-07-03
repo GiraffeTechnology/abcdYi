@@ -4,6 +4,7 @@ Qwen / DashScope LLM provider — text, vision, and video-frame QC.
 Supports both text-only and multimodal (image/video-frame) calls via
 the DashScope REST API.
 """
+from __future__ import annotations
 import base64
 import json
 import os

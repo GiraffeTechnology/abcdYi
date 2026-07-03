@@ -1,3 +1,5 @@
+from __future__ import annotations
+from typing import Optional
 import uuid
 from datetime import datetime
 from sqlalchemy import String, DateTime, ForeignKey, Text, Integer, JSON, func
@@ -19,15 +21,15 @@ class Project(Base):
 
     # Actor-based (M-side / GLTG) project identity, used by the role-switching
     # / upstream-sourcing schema in parallel with the UUID `id` PK above.
-    project_id: Mapped[str | None] = mapped_column(String(36), unique=True, nullable=True, default=new_uuid)
-    original_buyer_actor_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("actors.actor_id"), nullable=True)
-    main_supplier_actor_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("actors.actor_id"), nullable=True)
-    category: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    product_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
-    quantity: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    product_tier: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    created_by_channel: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    metadata_json: Mapped[dict | None] = mapped_column(JSON, default=dict, nullable=True)
+    project_id: Mapped[Optional[str]] = mapped_column(String(36), unique=True, nullable=True, default=new_uuid)
+    original_buyer_actor_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("actors.actor_id"), nullable=True)
+    main_supplier_actor_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("actors.actor_id"), nullable=True)
+    category: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    product_summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    quantity: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    product_tier: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    created_by_channel: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    metadata_json: Mapped[Optional[dict]] = mapped_column(JSON, default=dict, nullable=True)
 
 class BuyerInquiry(Base):
     __tablename__ = "buyer_inquiries"

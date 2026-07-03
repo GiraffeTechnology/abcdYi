@@ -1,4 +1,5 @@
 """Unit tests for the GLTG adapter (build_gltg_input_from_order, evaluate_delivery_feasibility)."""
+from __future__ import annotations
 import uuid
 from datetime import date, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
