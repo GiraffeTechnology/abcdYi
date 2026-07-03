@@ -1,4 +1,5 @@
 """Tests for OpenAIProvider — all HTTP calls are mocked, no live API key required."""
+from __future__ import annotations
 import json
 from unittest.mock import patch, MagicMock
 

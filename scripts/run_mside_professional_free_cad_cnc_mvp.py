@@ -18,6 +18,8 @@ Tests the complete Professional Free workflow:
   → IEG records all events
 """
 
+from __future__ import annotations
+
 import json
 import sys
 from pathlib import Path
