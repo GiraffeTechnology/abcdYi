@@ -1,4 +1,5 @@
 """Unit tests for DeliveryFeasibilityService."""
+from __future__ import annotations
 import uuid
 from datetime import date, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch, call

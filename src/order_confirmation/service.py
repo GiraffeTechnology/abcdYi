@@ -1,3 +1,4 @@
+from __future__ import annotations
 import uuid
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import select, func

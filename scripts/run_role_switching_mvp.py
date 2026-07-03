@@ -8,6 +8,8 @@ Tests the complete M-side role-switching workflow:
   Approved upstream options → Rollup → B-side workspace
 """
 
+from __future__ import annotations
+
 import json
 import sys
 from pathlib import Path
