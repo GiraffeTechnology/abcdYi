@@ -1,3 +1,4 @@
+from __future__ import annotations
 def calculate_path_lead_time(supplier_packets: list[dict]) -> dict:
     """
     Compute lead time from a list of SupplierResponsePacket-like dicts.
