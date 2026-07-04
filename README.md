@@ -1,6 +1,6 @@
 # abcdYi — Apparel & Textile B2M Industry Edition
 
-`B2M` | `Apparel / Textile / Handicraft` | `Giraffe Agent Industry Edition` | `giraffe-language-skill` | `giraffe-db` | `GLTG` | `Human Approval`
+`B2M` | `Apparel / Textile / Handicraft` | `Giraffe Agent Industry Edition` | `giraffe-language-skill` | `giraffe-db` | `GLTG` | `giraffe-qc-model API` | `Human Approval`
 
 abcdYi is the first complete B2M industry edition of the Giraffe industrial execution architecture.
 
@@ -39,6 +39,7 @@ a simple supplier directory
 a hardcoded demo
 a standalone pricing database
 a replacement for GPM or GLTG
+a replacement for giraffe-qc-model
 a replacement for human commercial approval
 ```
 
@@ -89,12 +90,12 @@ giraffe-language-skill = multilingual canonicalization and localized output
 giraffe-db             = private business facts, supplier memory, lead-time evidence
 GLTG                   = lead-time and delivery-feasibility simulation
 GPM                    = procurement path and supplier-set reasoning
-giraffe-qc-model       = visual QC training and inspection intelligence
+giraffe-qc-model       = digital QC worker skill authoring, maturity, replication, and visual inspection runtime
 abcdYi                 = apparel/textile B2M application workflow
 human operator         = final commercial/legal approval
 ```
 
-abcdYi must not embed its own language alias maps, supplier fact store, GLTG calculator, QC model, or channel credential runtime.
+abcdYi must not embed its own language alias maps, supplier fact store, GLTG calculator, QC model, digital QC worker skill runtime, or channel credential runtime.
 
 ---
 
@@ -146,6 +147,7 @@ Buyer / designer requirement
 -> GLTG lead-time simulation
 -> pricing benchmark / quote validation
 -> QC requirement and detection-point preparation
+-> giraffe-qc-model API call for QC skill authoring or inspection
 -> human approval
 -> production follow-up
 -> QC evidence review
@@ -178,7 +180,34 @@ abcdYi may display, explain, and use GLTG results, but it must not replace them 
 
 ## QC Boundary
 
-abcdYi may generate or collect apparel/textile QC requirements, but actual visual QC intelligence belongs to `giraffe-qc-model`.
+Visual QC intelligence belongs to `giraffe-qc-model`.
+
+abcdYi may collect apparel/textile QC requirements, standard photos, process-card references, SKU context, production evidence, and QC exception notes. It calls `giraffe-qc-model` through explicit APIs to author, package, invoke, and review SKU-specific digital QC worker skills.
+
+`giraffe-qc-model` owns:
+
+```text
+digital QC worker skill authoring
+standard photo / process-card ingestion for QC standards
+detection point proposals and confirmation workflow
+region / evidence grounding
+mature QC skill package generation
+Pad / workstation QC runtime
+server-side QC verdict recomputation
+probation, qualification, and requalification state
+checkpoint-level evidence discipline
+```
+
+abcdYi owns the apparel/textile order workflow around QC:
+
+```text
+collecting customer / buyer QC intent
+routing QC requirements into the QC skill API
+attaching QC reports to production orders
+routing review_required / reject / false-pass events to human operators
+recording QC events in the execution graph
+coordinating supplier corrective action after human approval
+```
 
 QC requirement text must pass through `giraffe-language-skill` before it becomes:
 
@@ -190,7 +219,9 @@ detection point
 QC decision packet
 ```
 
-Visual pass/fail decisions must be produced by the QC model or human review, not by abcdYi's general workflow logic.
+Visual pass/fail decisions must be produced by `giraffe-qc-model` or human review, not by abcdYi's general workflow logic. abcdYi must not fake QC pass/fail results, silently replace missing QC model responses, or let an LLM override checkpoint-level QC failures.
+
+For the same SKU and confirmed standard, a mature digital QC worker skill can be replicated across many Pad workstations without retraining every human operator or device. abcdYi should treat that mature skill package as an external QC capability exposed by `giraffe-qc-model`, not as internal abcdYi logic.
 
 ---
 
@@ -223,7 +254,7 @@ consume giraffe-language-skill canonical packets
 consume giraffe-db private/synthetic behavior evidence
 call GLTG v1, then GLTG v2 after contract stabilization
 use GPM for supplier-set and procurement-path reasoning
-integrate giraffe-qc-model for SKU-specific QC workflows
+call giraffe-qc-model APIs for SKU-specific QC skill authoring, inspection, and reports
 preserve human approval gates
 write auditable execution graph events
 ```
