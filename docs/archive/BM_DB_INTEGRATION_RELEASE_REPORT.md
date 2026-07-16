@@ -1,3 +1,6 @@
+> **ARCHIVED — NOT CURRENT IMPLEMENTATION**
+> Historical session/validation report retained for provenance only (Stage 1 code governance, 2026-07-16).
+
 # BM DB Integration — Release Report
 
 **Repository:** GiraffeTechnology/giraffe-agent  
