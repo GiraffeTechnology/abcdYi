@@ -46,4 +46,10 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src", "api", "src/aivan"]
+packages = ["src", "api"]
+
+# Ship the AIVAN component additionally as the top-level `aivan` package so
+# the `aivan` console script (aivan.cli.main) works from an installed wheel,
+# mirroring the repo's runtime import paths (pythonpath = ["src", "."]).
+[tool.hatch.build.targets.wheel.force-include]
+"src/aivan" = "aivan"
