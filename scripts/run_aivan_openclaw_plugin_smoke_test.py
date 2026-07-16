@@ -150,7 +150,10 @@ def main(offline: bool) -> None:
             action = data.get("action", "")
             check("action is recognised AIVAN action",
                   action in ("clarification_needed", "inquiry_drafts_created",
-                              "marketplace_search_complete", "error"),
+                              "marketplace_search_complete", "error",
+                              "pending_supplier_selection",
+                              "pending_product_confirmation",
+                              "pending_requirement_confirmation"),
                   f"got '{action}'")
             check("response does not contain raw secrets",
                   "password" not in str(data).lower() and "token" not in str(data).lower())
