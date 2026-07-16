@@ -1,3 +1,6 @@
+> **ARCHIVED — NOT CURRENT IMPLEMENTATION**
+> Historical session/validation report retained for provenance only (Stage 1 code governance, 2026-07-16).
+
 # GPM Session E Implementation Report
 ## giraffe-db HTTP Context Retriever for abcdYi
 

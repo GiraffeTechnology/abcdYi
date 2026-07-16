@@ -1,3 +1,6 @@
+> **ARCHIVED — NOT CURRENT IMPLEMENTATION**
+> Historical session/validation report retained for provenance only (Stage 1 code governance, 2026-07-16).
+
 # BM DB Integration — v1.1 Hardening Report
 
 **Tag candidate:** `BM_DB_INTEGRATION_V1_1_HARDENING`  
