@@ -1,3 +1,6 @@
+> **ARCHIVED — NOT CURRENT IMPLEMENTATION**
+> Historical session/validation report retained for provenance only (Stage 1 code governance, 2026-07-16).
+
 # PR #12 — Qwen QC Intelligence Layer Implementation Report
 
 **Branch:** `claude/qwen-qc-intelligence-layer-pr12`
