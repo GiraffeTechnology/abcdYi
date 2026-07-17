@@ -92,8 +92,11 @@ GLTG                   = lead-time and delivery-feasibility simulation
 GPM                    = procurement path and supplier-set reasoning
 giraffe-qc-model       = digital QC worker skill authoring, maturity, replication, and visual inspection runtime
 abcdYi                 = apparel/textile B2M application workflow
+AIVAN                  = first-party abcdYi frontend and digital-employee interface (natural language / IM / email entry)
 human operator         = final commercial/legal approval
 ```
+
+AIVAN ships as part of abcdYi (`src/aivan`, `uv run aivan serve`) and also supports standalone deployment against the stable abcdYi/AIVAN API boundary.
 
 abcdYi must not embed its own language alias maps, supplier fact store, GLTG calculator, QC model, digital QC worker skill runtime, or channel credential runtime.
 

@@ -1,3 +1,6 @@
+> **ARCHIVED — NOT CURRENT IMPLEMENTATION**
+> Historical session/validation report retained for provenance only (Stage 1 code governance, 2026-07-16).
+
 # OpenClaw B/M Integration — Full Test Results (5× Run)
 
 **Date:** 2026-06-14 07:20 UTC
