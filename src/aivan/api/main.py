@@ -2,7 +2,6 @@ from __future__ import annotations
 from typing import Optional
 import logging
 import os
-import secrets
 import traceback
 import uuid
 from contextlib import asynccontextmanager
@@ -13,6 +12,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
+from aivan.api.secure_compare import secure_compare_str
 from aivan.db.session import get_db, init_db
 from aivan.db.repositories.project_repo import ProjectRepository
 from aivan.db.repositories.draft_repo import DraftRepository
@@ -57,8 +57,8 @@ def _require_api_key(request: Request) -> None:
     if not provided:
         raise HTTPException(status_code=401, detail="Missing X-AIVAN-API-Key header")
     if not (
-        (api_key and secrets.compare_digest(provided, api_key))
-        or (auth_secret and secrets.compare_digest(provided, auth_secret))
+        (api_key and secure_compare_str(provided, api_key))
+        or (auth_secret and secure_compare_str(provided, auth_secret))
     ):
         raise HTTPException(status_code=403, detail="Invalid API key")
 
