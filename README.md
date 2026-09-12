@@ -80,6 +80,17 @@ Component ownership:
 
 ---
 
+## M-side Role Switching
+
+The M-side runtime uses role-switching to move between supplier inquiry, production
+follow-up, QC, logistics, and exception-handling responsibilities while preserving the
+same project context and human approval boundary.
+
+Specification: `docs/MSIDE_ROLE_SWITCHING_AGENT_SPEC.md`.
+Patent position: `PATENT_NOTICE.md`.
+
+---
+
 ## v1.0 Frozen Delivery Scope
 
 Must complete:
