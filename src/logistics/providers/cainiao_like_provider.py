@@ -76,7 +76,9 @@ class CainiaoLikeProvider(LogisticsProviderBase):
             import hashlib
             sig = headers.get("X-Cainiao-Signature", "")
             expected = hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
-            return hmac.compare_digest(sig, expected)
+            from src.secure_compare import secure_compare_str
+
+            return secure_compare_str(sig, expected)
         # Local MVP: skip signature check
         log_m_event(
             event_type="LOGISTICS_WEBHOOK_SIGNATURE_VERIFIED",
