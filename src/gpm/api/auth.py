@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import logging
 import os
-import secrets
 from dataclasses import dataclass
 
 from fastapi import Header, HTTPException, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+from src.secure_compare import secure_compare_str
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ def require_gpm_auth(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail={"error": "Missing API key. Provide Authorization: Bearer <key>."},
             )
-        if not secrets.compare_digest(credentials.credentials, expected_key):
+        if not secure_compare_str(credentials.credentials, expected_key):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail={"error": "Invalid API key."},
