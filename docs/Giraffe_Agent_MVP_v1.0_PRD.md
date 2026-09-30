@@ -1,107 +1,121 @@
-# abcdYi — Giraffe Agent 首个垂直应用 PRD
+# abcdYi — Giraffe Agent Apparel and Textile Application PRD
 
-| 项目 | 定义 |
+| Field | Definition |
 | --- | --- |
-| 文档版本 | v2.1，2026-10-01 |
-| 产品 | abcdYi：Giraffe Agent 的首个垂直应用 |
-| 行业 | 服装与纺织业订单执行 |
-| 适用对象 | 专业买家、品牌、设计师、服装贸易商、服装及纺织生产企业和相关供应链参与者 |
-| 产品边界 | Aivan 负责正式合约生成之前的前端流程；abcdYi 负责该行业的完整订单执行与合约后履约 |
-| 现行范围依据 | [PRD v2.0 产品定位记录](https://github.com/GiraffeTechnology/abcdYi/issues/25)及本文件 |
-| 状态 | 产品要求与验收基准；实现状态必须以代码、测试及联调证据另行证明 |
+| Version | 2.1, 2026-10-01 |
+| Product | abcdYi, the first vertical application of Giraffe Agent |
+| Industry | Apparel and textile order execution |
+| Users | Professional buyers, brands, designers, apparel trading firms, manufacturers, and their supply chain participants |
+| Product boundary | Aivan is the pre-contract front end of abcdYi. abcdYi owns the formal contract handoff and post-contract execution. |
+| Scope baseline | [abcdYi PRD v2.0 product positioning](https://github.com/GiraffeTechnology/abcdYi/issues/25), refined by this complete PRD |
+| Status | Product requirements and acceptance criteria; implementation status requires separate code and integration evidence |
 
-## 1. 产品定位
+## 1. Product definition
 
-abcdYi 是 **Giraffe Agent 在服装与纺织业的首个垂直应用**。它将询盘、需求结构化、供应商协同、报价与交期比较、人工确认、订单生产、质量检查、物流交接及买家签收串成同一项目的执行记录。应用覆盖服装、面料及辅料相关订单，包括小批量、多款式、定制和常规批量生产。
+abcdYi is **Giraffe Agent's first vertical application**, built specifically for apparel and textile orders. It connects buyer inquiry, requirement clarification, supplier coordination, quote and lead-time comparison, human approval, formal contract handoff, production, quality control, logistics, and buyer sign-off within one traceable project.
 
-本 PRD 的业务描述和验收场景均以服装与纺织业为限。通用工业 Agent、机械加工、CAD/CNC 能力匹配及其他行业场景不属于 abcdYi 的产品要求；仓库内已有的跨行业实现若仍存在，应作为代码治理事项独立处理，不能以本 PRD 将其认定为 abcdYi 的交付范围。
+Supported work includes garments, fabric, trims, and other inputs to apparel and textile production. The application supports small batches, multiple styles, custom orders, and regular volume orders. Every requirement and acceptance scenario in this PRD is tied to apparel or textile production.
 
-abcdYi 不替代 ERP、权威业务事实数据库、财务结算系统或人的商业决策。正式报价、外发、合同及影响交期、价格、质量标准的承诺均须经过有权限的人确认。
+abcdYi does not replace ERP, an authoritative business-fact database, financial settlement, or human commercial judgment. An inquiry draft, recommendation, or approved proposal is not itself a formal contract.
 
-## 2. 与 Aivan 的分工及合同边界
+## 2. Product architecture and ownership
 
-**Aivan 是 abcdYi 在生成正式合约之前的前端部分**，承接买家和供应商交互、需求澄清与商业方案形成。它是 abcdYi 用户流程中的前端组成部分；独立代码仓库和 API 服务部署不改变此产品关系。OpenClaw 是接入与运行网关，不作为与微信、LINE、邮件等并列的业务渠道。
+**Aivan is the front-end part of abcdYi before a formal contract is generated.** It manages buyer and supplier interaction, requirement clarification, evidence collection, and preparation of a commercial proposal. A separate Aivan repository or API service does not create a separate user-facing product boundary for this application.
 
-| 阶段 | 主责 | 必须形成的结果 |
+| Phase | Owner | Required output |
 | --- | --- | --- |
-| 买家 RFQ 接收及需求澄清 | Aivan 前端，采用 abcdYi 的服装纺织字段与规则 | 可追溯的结构化需求、缺失项和确认记录 |
-| 供应商询盘、回复与方案准备 | Aivan 前端；调用 GLTG 和 giraffe-db 的 API | 经人工批准的询盘草稿、可比供应商回复、交期与风险依据、执行建议 |
-| 正式商业确认及合约生成 | abcdYi 的合同边界；Aivan 交付已批准的前端事实 | 明确的合同版本、双方及审批记录；未获确认不得视为合同成立 |
-| 合约后的订单执行 | abcdYi 服装纺织业务流程 | 生产节点、异常、QC、物流、买家签收与供应商履约记录 |
-| 事实和预测服务 | giraffe-db 保存权威业务事实及证据；GLTG 通过 API 提供交期测算 | 租户隔离、来源引用、可读回的记录和 P50/P80/P90 及风险解释 |
+| Buyer RFQ intake and clarification | Aivan front end, using abcdYi apparel and textile fields | Versioned structured requirements, open questions, and source references |
+| Supplier inquiry and response | Aivan front end | Approved outbound inquiry, comparable supplier replies, and evidence |
+| Lead-time and option analysis | Aivan orchestration using GLTG and giraffe-db APIs | Quantiles, risk explanation, cost and schedule options, and source references |
+| Human commercial approval | Aivan approval workflow | Approved or rejected versioned proposal, with approver and audit record |
+| Formal contract generation and handoff | abcdYi contract boundary | Contract input packet, contract version and status, parties, approvals, and provenance |
+| Post-contract fulfillment | abcdYi apparel and textile execution workflow | Production, QC, logistics, sign-off, and supplier-performance records |
 
-Aivan 的 Stage 1 七步流程——RFQ 输入 → 需求结构化 → 供应商询盘草稿 → 供应商回复解析 → GLTG 调用 → 执行建议 → 人工审批——是**合约前**的交付切片。完成这七步不等于 abcdYi 全生命周期交付，也不自动生成正式合同或开始生产。合同边界应通过可审计的交接记录连接两侧，至少包含项目与租户标识、需求版本、被选择方案、报价与交期依据、审批人及时间、双方身份、合同版本和来源证据。交接失败时不得把前端草稿标记为已签约订单。
+Aivan's seven-step Stage 1 loop is **pre-contract**: RFQ input → requirement structuring → supplier inquiry draft → supplier reply parsing → GLTG invocation → execution recommendation → human approval. Completion of that loop does not create a contract, start production, or complete abcdYi's full order lifecycle.
 
-## 3. 服装纺织业数据与参与者
+The handoff must preserve tenant and project IDs, confirmed requirement version, selected option, price and lead-time evidence, approval identity and time, contracting parties, contract version, and source references. If the handoff fails, the system must not mark a draft or proposal as a signed contract or confirmed production order.
 
-### 3.1 最小需求数据
+OpenClaw is the gateway and runtime for the agent. WeChat, LINE, email, and other supported messaging services are communication channels; OpenClaw is not a peer channel.
 
-- 品类、款式／SKU、数量、颜色与尺码配比、面料及辅料、工艺、质量标准、包装、目的地和交期窗口。
-- 买家提供的图样、尺码表、面辅料说明、参考图片及修订版本；附件的访问权限与来源必须可追溯。
-- 缺失或矛盾项应留在澄清状态，不能由模型臆造为已确认规格。
-- 面料库存、供应商产能、生产排期及物流截单等信号须区分已核验证据、供应商声明和缺失数据。
+## 3. Apparel and textile domain model
 
-### 3.2 项目角色
+### 3.1 Requirements and evidence
 
-买家／品牌、主生产商、面料供应商、辅料与包装供应商、分包工厂、QC 服务方及物流服务方均以项目和采购边为上下文。生产商对原买家是供应方，对上游面料或辅料供应商可同时是采购方。角色切换不得打断项目、审批、权限与证据链。
+The structured requirement records product category, style or SKU, quantity, color and size ratio, fabric and trims, construction, quality standard, packaging, destination, and requested delivery window. It associates sketches, size charts, material specifications, reference images, and revisions with access controls and source references.
 
-## 4. 功能要求
+Unclear or conflicting details remain open questions. An LLM may suggest a clarification, but it must not convert a guess into an approved specification. Fabric availability, supplier capacity, production schedule, and shipping cutoff must distinguish verified evidence, supplier declarations, estimates, and missing information.
 
-### 4.1 合约前：Aivan 前端
+### 3.2 Participants and contextual roles
 
-1. **RFQ 与澄清：**接收服装纺织业询盘；提取第 3 节字段；对数量、尺码配比、面辅料、质量和交期的不确定性提出澄清，并保存原文与结构化版本的关系。
-2. **供应商协同：**根据项目需求拟定询盘，区分主生产商与上游面辅料等参与者；外发前必须人工审批；供应商回复按同一字段标准归一，保留原始证据与来源。
-3. **交期与报价：**通过 GLTG API 获取交期分位数、路径比较、风险和解释；通过 giraffe-db API 读取或写入对应业务事实。Aivan 不复制 GLTG 的数值计算，也不能把本地草稿写入当作权威 DB 持久化成功。
-4. **方案与人工确认：**比较一次性交付、分批交付及可行的上架／发运窗口；呈现成本、时间、证据缺口与风险。方案和客户报价须由授权人员审批；拒绝后可修订并再次提交。
-5. **合同交接：**只有选定方案、关键规格及商业条件经过授权确认后，才可生成正式合约输入包。合同生成、签署状态和版本属于 abcdYi 的正式商业边界；前端批准草稿不得冒充已签署合同。
+Participants may include the buyer or brand, primary manufacturer, fabric supplier, trim and packaging supplier, subcontractor, QC provider, and logistics provider. A manufacturer can be a supplier to the original buyer and a buyer to an upstream fabric supplier in the same project. Permissions, inquiry threads, approvals, and evidence must follow the relevant project and procurement edge.
 
-### 4.2 合约后：abcdYi 履约
+### 3.3 Core records
 
-1. **订单启动：**依据正式合同版本创建订单与生产计划，记录主生产商接受、面辅料确认和分包依赖；变更须关联原合同及批准记录。
-2. **生产节点：**维护打样、采购、裁剪、缝制、整烫、包装等适用节点的计划与实际日期；差异和异常必须进入项目记录，影响买家承诺的变更由人确认。
-3. **质量确认：**记录检验标准、样品或批次、QC 结果、图片／视频等证据及复检；检验未通过时不得无依据地推进到可发运状态。
-4. **物流与签收：**记录发运交接、承运商、运单、状态及来源；物流显示 delivered 只触发买家确认流程，不能自动等同买家验收。
-5. **履约记忆：**在买家签收及订单关闭后，以实际响应、交期、质量及协同证据更新供应商记录；预测值不得写成已发生事实。
+The application maintains linked versions of requirements, inquiries, supplier responses, delivery scenarios, commercial proposals, approvals, contracts, orders, production milestones, QC records, shipments, buyer sign-offs, and execution events. A revision points back to the earlier version; correcting an event does not silently overwrite its history.
 
-## 5. 依赖与数据所有权
+## 4. Functional requirements
 
-- **giraffe-db：**通过有租户身份和服务鉴权的 API 保存订单、报价、供应商、证据与事件等权威业务事实。写入成功须能读回；失败、部分写入和版本不兼容须如实呈现。
-- **GLTG：**通过 API 提供交期模拟、P50/P80/P90、路径与风险解释。数值以 GLTG 的规范输出为准，语言模型只能辅助定性说明，不能覆盖分位数。
-- **Aivan：**拥有合约前的交互、流程编排、推荐展示和人工审批。浏览器不直接连接 GLTG 或 giraffe-db；服务间协作保持 API 边界。
-- **abcdYi：**拥有服装纺织行业规则、合同交接及合约后的订单执行状态。跨服务记录使用共同的租户、项目、合同／订单及证据引用，防止同一事实被重复且矛盾地维护。
+### 4.1 Pre-contract workflow through Aivan
 
-这些服务可以独立运行，但不能因此分别定义与 abcdYi 产品流程冲突的用户交付边界。
+1. **RFQ intake.** Capture the apparel or textile inquiry, extract the fields in Section 3, and ask for missing quantity, size ratio, fabric, quality, and delivery details. Preserve the relationship between original input and normalized facts.
+2. **Supplier coordination.** Prepare inquiries for the primary manufacturer and necessary upstream participants. An authorized human approves every outbound inquiry. Normalize supplier replies into a comparable structure without discarding original evidence.
+3. **Lead-time and commercial analysis.** Request lead-time simulation, P50/P80/P90, path comparison, and risk explanation through the GLTG API. Read and write relevant business facts through the giraffe-db API. Aivan must not replace GLTG's canonical numeric output with local estimates or treat local draft storage as successful authoritative persistence.
+4. **Execution options.** Present feasible single-delivery and split-delivery alternatives, including launch or shipping windows when relevant. Show price, schedule, evidence gaps, and risk. An unsupported supplier claim must not appear as a verified fact.
+5. **Human approval.** Bind approval to the exact proposal and quotation version. Rejection permits revision and resubmission. No buyer quote or supplier commitment is sent without the required approval.
+6. **Contract input.** Deliver the approved option and its evidence as a versioned handoff packet. Draft approval alone does not mean that a formal contract has been generated or signed.
 
-## 6. 人工审批与安全约束
+### 4.2 Formal contract boundary
 
-- 未经批准不得发送供应商询盘、客户报价、合同或影响价格、交期和质量的承诺。
-- 审批必须绑定草稿／合同的具体版本、审批人、角色和时间；修改关键条件后应重新审批。
-- 各参与者只能访问其项目和角色许可的信息；供应商不能因角色切换读取其他租户或竞争供应商的保密数据。
-- 事件和证据保留来源、时间、版本及更正关系；不得通过覆盖历史记录隐藏拒绝、异常或修订。
-- 真实渠道回执、业务数据库读回和正式签署记录应分别标明，模拟和合成数据必须显式标注。
+abcdYi creates or receives the formal contract version from the approved input packet. It records parties, specifications, quantity and size ratio, price, delivery terms, quality criteria, changes, signatures or confirmation status, and evidence of authorization. Production begins only from a contract or order state that explicitly permits it. Material changes to price, delivery, or quality terms require a new approval tied to the revised version.
 
-## 7. 验收场景
+### 4.3 Post-contract execution through abcdYi
 
-### 7.1 合约前七步
+1. **Order launch.** Create the order and production plan from the formal contract. Record manufacturer acceptance, fabric and trim confirmation, capacity, and subcontractor dependencies.
+2. **Production progress.** Track applicable sampling, procurement, cutting, sewing, finishing, inspection, and packing milestones with planned and actual dates. Record delays and proposed remedies; a change affecting the buyer's commitment requires human confirmation.
+3. **Quality control.** Link inspection criteria and sample or batch IDs to QC results, images, video, and reinspection. A failed inspection cannot advance to ready-to-ship without an authorized resolution.
+4. **Logistics and acceptance.** Record handover, carrier, tracking reference, status, and source. A delivered tracking event requests buyer sign-off; it does not automatically constitute buyer acceptance or close the order.
+5. **Supplier memory.** After buyer sign-off and closure, update performance from observed response, delivery, quality, and cooperation evidence. Forecasts and supplier assertions must not be recorded as completed facts.
 
-以服装订单 RFQ（例如一万件衬衣，五色及尺码配比）运行完整七步：买家提交 → 澄清并锁定规格 → 审批供应商询盘 → 接收并归一回复 → 调用真实 GLTG API → 比较交付方案 → 人工审批。证明 giraffe-db 权威写入、读回及重启后持久化，并记录三服务的确切版本、请求、响应、测试结果和跳过项。只通过 Mock 或单库测试不构成真实集成验收。
+## 5. Service contracts and data ownership
 
-### 7.2 合同边界
+- **giraffe-db** is the authoritative business-fact and evidence service. Aivan and abcdYi use authenticated, tenant-bound APIs for the consumed records. A successful write must support readback; a failed or partial write must not be reported as durable.
+- **GLTG** owns lead-time calculations, P50/P80/P90, scenarios, and risk explanation. Its numeric output is canonical. LLM assistance may explain qualitative factors but must not overwrite canonical quantiles.
+- **Aivan** owns the pre-contract interaction, workflow orchestration, recommendation presentation, and human approval. Its browser does not call GLTG or giraffe-db directly.
+- **abcdYi** owns apparel and textile rules, the formal contract handoff, and post-contract order execution. Records across services share tenant, project, contract or order, and evidence identifiers.
+- **Human operators** own commercial approvals and formal commitments. Service responses or an AI recommendation cannot substitute for their authorization.
 
-批准的方案可生成完整合同输入包；未批准、被拒绝或缺失关键规格的草稿不能变成正式合同或已确认订单。合同签署及版本状态必须可追溯，后续变更不能默默改写原批准条件。
+The services may run independently and retain their engineering tests. Product acceptance for the complete apparel and textile application follows this end-to-end ownership model.
 
-### 7.3 合约后履约
+## 6. Approval, security, and audit requirements
 
-同一服装订单从合同确认，经面辅料与生产节点、QC、物流交接，到买家签收及供应商履约记录，形成贯通的项目事件和证据链。交期异常和 QC 失败均触发相应人工处理；物流 delivered 不自动关闭订单。
+- A supplier inquiry, buyer quote, formal contract, or change to price, lead time, or quality commitment cannot be sent or accepted without its required human approval.
+- Every approval references an immutable draft or contract version, approver identity, role, and time. Changing a material term invalidates the prior approval for the changed version.
+- A participant sees only information permitted by its tenant, project, and role. Role switching cannot expose another tenant's records or a competing supplier's confidential response.
+- Events preserve source, time, version, and correction lineage. Rejection, exceptions, and amendments remain visible in the audit trail.
+- Real channel receipts, database readback, contract signatures, simulations, and synthetic fixtures are distinct evidence classes. Synthetic inputs must be labeled.
 
-### 7.4 交付分层
+## 7. Acceptance criteria
 
-Aivan 七步的 Stage 1 验收与 abcdYi 合约后全生命周期验收分别记录。后续生产部署、容量和运营验收以其各自授权及证据为准，不得用文档声明或未合并 PR 替代运行结果。
+### AC-1: Pre-contract seven-step loop
 
-## 8. 不属于本 PRD 的范围
+Run an apparel RFQ, such as 10,000 shirts across five colors and a size ratio, through intake, clarification, approved supplier inquiry, response parsing, a real GLTG API call, option comparison, and human approval. Record the exact Aivan, GLTG, and giraffe-db revisions, real HTTP requests and responses, executed tests, failures, and skipped steps. Demonstrate authoritative giraffe-db write and readback, including persistence after the relevant service restart or reload. Mock-only or single-repository tests do not satisfy this integration criterion.
 
-通用 Agent 平台、机械加工及 CAD/CNC 匹配、其他行业的订单执行、完整 Digital Twin、金融支付／清算、ERP 替代和无需人工审批的自动商业承诺，均不属于 abcdYi 服装纺织应用的交付范围。此处限定产品范围，不指令删除既有仓库代码或历史审计记录。
+### AC-2: Contract handoff
 
-## 9. 文档关系
+An approved proposal produces a complete, traceable formal-contract input packet. Rejected proposals and drafts with unresolved material requirements cannot become signed contracts or confirmed orders. Contract signature or confirmation status and subsequent amendments are versioned and auditable.
 
-本文件落实 [abcdYi PRD v2.0 产品定位记录](https://github.com/GiraffeTechnology/abcdYi/issues/25)的服装垂直定位，并补充 Aivan 的合约前产品关系与合同边界。此前的《Giraffe Agent MVP v1.0》跨行业内容由本版本替代；旧版所述历史实现、测试与法律记录仍须按各自文件及代码事实核验。与本文件冲突的旧版范围描述不能作为新增开发或验收依据。
+### AC-3: Apparel order fulfillment
+
+Follow the same contracted apparel order through fabric and trim confirmation, production milestones, QC, logistics handover, buyer sign-off, and supplier-performance recording. Preserve the project event and evidence chain. Delays and failed QC require recorded human handling. A carrier's delivered status does not automatically close the order.
+
+### AC-4: Separate delivery claims
+
+Record Aivan Stage 1 acceptance and the full abcdYi post-contract lifecycle acceptance separately. A document claim, an unmerged PR, a skipped integration job, or an earlier revision's test result cannot substitute for evidence from the candidate under review.
+
+## 8. Scope exclusions
+
+This PRD excludes generic agent platforms, non-apparel industrial orders, mechanical machining, CAD/CNC capability matching, a full Digital Twin, payment or settlement, ERP replacement, and autonomous commercial commitments. Existing code outside this product scope is a separate code-governance matter; the presence of that code does not expand abcdYi requirements.
+
+## 9. Document authority
+
+This is a complete revision of the abcdYi application PRD, aligned with the [v2.0 positioning baseline](https://github.com/GiraffeTechnology/abcdYi/issues/25). It supersedes the former cross-industry content of this file as a current product requirement. Historical Git revisions remain available for traceability. Other repository documents that describe handicrafts, unrelated industries, or Aivan as a separate end-to-end product must be reconciled with this PRD before they are used as current abcdYi acceptance criteria.
