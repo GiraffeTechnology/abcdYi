@@ -122,7 +122,7 @@ def get_offer_detail(offer_id) -> dict
 ### Mock1688PricingAdapter
 
 Returns 25 deterministic mock samples (22 valid + 3 invalid) for the canonical
-`纯棉男士衬衫 OEM 定制` scenario.
+custom OEM cotton shirts for men scenario. The original Chinese query is preserved as Unicode escapes: `\u7eaf\u68c9\u7537\u58eb\u886c\u886b OEM \u5b9a\u5236`.
 
 Valid samples vary across: supplier_id, supplier_location, MOQ (100–30000 pieces),
 price_min/max (CNY 19–75), ladder_prices, and SKU attributes.

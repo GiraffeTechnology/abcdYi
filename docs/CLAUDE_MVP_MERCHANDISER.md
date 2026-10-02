@@ -775,19 +775,19 @@ M-side responsibilities:
 Example M-side messages:
 
 ```text
-老板，订单 SHIRT-100 已确认。今天需要确认布料是否到仓。请回复：
-A. 已到仓
-B. 未到仓
-C. 有问题，需要说明
+Order SHIRT-100 has been confirmed. Please confirm today whether the fabric has arrived at the warehouse. Reply:
+A. Arrived at the warehouse
+B. Not yet arrived
+C. There is an issue; details are needed
 ```
 
 ```text
-请上传裁剪阶段照片：正面、背面、细节各一张。拍清楚一点，方便 buyer 确认。
+Please upload clear photos of the cutting stage: one front view, one back view, and one detail view, so the buyer can confirm.
 ```
 
 ```text
-订单已到物流交接阶段。请回复物流公司、运单号，并上传面单照片。
-例如：已发顺丰，单号 SF123456789，今天下午发出。
+The order has reached logistics handover. Please provide the carrier and tracking number, and upload a photo of the shipping label.
+For example: Shipped via SF Express, tracking number SF123456789, dispatched this afternoon.
 ```
 
 ---
@@ -977,7 +977,7 @@ The supplier reported a fabric delay. Two options are available: wait 3 extra da
 M-side message:
 
 ```text
-请确认是否采用备用布料方案，或继续等待原布料。若影响交期，请说明新的预计完成时间。
+Please confirm whether to use the alternative fabric or continue waiting for the original fabric. If this affects delivery, provide the revised expected completion date.
 ```
 
 ---
@@ -1165,16 +1165,16 @@ Create:
 src/logistics/providers/carrier_mapping.py
 ```
 
-Support configurable mapping:
+Support configurable mapping. Chinese carrier aliases below use Python Unicode escapes to preserve the exact original keys; comments give their English names:
 
 ```python
 {
-  "顺丰": "SF",
+  "\u987a\u4e30": "SF",  # SF Express
   "SF Express": "SF",
-  "中通": "ZTO",
-  "圆通": "YTO",
-  "申通": "STO",
-  "韵达": "YD",
+  "\u4e2d\u901a": "ZTO",  # ZTO Express
+  "\u5706\u901a": "YTO",  # YTO Express
+  "\u7533\u901a": "STO",  # STO Express
+  "\u97f5\u8fbe": "YD",  # Yunda Express
   "EMS": "EMS",
   "DHL": "DHL",
   "FedEx": "FEDEX",
@@ -1212,17 +1212,17 @@ LogisticsInfoExtract
 - evidence_text: str
 ```
 
-Examples:
+Example input, preserved as Unicode escapes (English meaning: "Shipped via SF Express, tracking number SF123456789, dispatched this afternoon"):
 
 ```text
-已发顺丰，单号 SF123456789，今天下午发出
+\u5df2\u53d1\u987a\u4e30\uff0c\u5355\u53f7 SF123456789\uff0c\u4eca\u5929\u4e0b\u5348\u53d1\u51fa
 ```
 
 Extract:
 
 ```json
 {
-  "carrier_name": "顺丰",
+  "carrier_name": "\u987a\u4e30",
   "carrier_code": "SF",
   "tracking_number": "SF123456789"
 }
@@ -1396,15 +1396,15 @@ exception
 unknown
 ```
 
-Chinese examples:
+Original Chinese status examples, preserved as Unicode escapes with English meanings:
 
 ```text
-已揽收 → picked_up
-运输中 → in_transit
-清关中 → customs
-派送中 → out_for_delivery
-已签收 → delivered
-异常 → exception
+\u5df2\u63fd\u6536 (picked up) → picked_up
+\u8fd0\u8f93\u4e2d (in transit) → in_transit
+\u6e05\u5173\u4e2d (in customs clearance) → customs
+\u6d3e\u9001\u4e2d (out for delivery) → out_for_delivery
+\u5df2\u7b7e\u6536 (signed for) → delivered
+\u5f02\u5e38 (exception) → exception
 ```
 
 English examples:
@@ -1906,7 +1906,7 @@ Must run:
 
 ```text
 1. Create project and confirmed order.
-2. M-side sends IM message: 已发顺丰，单号 SF123456789，今天下午发出.
+2. M-side sends the original Chinese IM input (Unicode-escaped representation): \u5df2\u53d1\u987a\u4e30\uff0c\u5355\u53f7 SF123456789\uff0c\u4eca\u5929\u4e0b\u5348\u53d1\u51fa. English meaning: "Shipped via SF Express, tracking number SF123456789, dispatched this afternoon."
 3. System extracts carrier and tracking number.
 4. System creates LogisticsShipment.
 5. Provider registry selects CainiaoLikeProvider in mock mode.
