@@ -2,38 +2,38 @@
 
 | Field | Definition |
 | --- | --- |
-| Version | 2.1, 2026-10-01 |
+| Version | 2.2, 2026-10-02 |
 | Product | abcdYi, the first vertical application of Giraffe Agent |
 | Industry | Apparel and textile order execution |
 | Users | Professional buyers, brands, designers, apparel trading firms, manufacturers, and their supply chain participants |
-| Product boundary | Aivan is the pre-contract front end of abcdYi. abcdYi owns the formal contract handoff and post-contract execution. |
-| Scope baseline | [abcdYi PRD v2.0 product positioning](https://github.com/GiraffeTechnology/abcdYi/issues/25), refined by this complete PRD |
+| Product boundary | abcdYi is a Giraffe Agent industry application whose front end calls Aivan. Aivan is the Giraffe Agent front-end application for inquiry, quotation, and order confirmation. myAivan is Aivan's web version; OpenClaw-aivan is its IM and email access dependency. |
+| Product authority | The original AIVAN and abcdYi product descriptions and the product owner's current clarifications; [Issue #25](https://github.com/GiraffeTechnology/abcdYi/issues/25) is a historical positioning reference |
 | Status | Product requirements and acceptance criteria; implementation status requires separate code and integration evidence |
 
 ## 1. Product definition
 
-abcdYi is **Giraffe Agent's first vertical application**, built specifically for apparel and textile orders. It connects buyer inquiry, requirement clarification, supplier coordination, quote and lead-time comparison, human approval, formal contract handoff, production, quality control, logistics, and buyer sign-off within one traceable project.
+abcdYi is **Giraffe Agent's first vertical application**, built specifically for apparel and textile orders. It connects buyer inquiry, requirement clarification, supplier coordination, quote and lead-time comparison, human approval, order confirmation, production, quality control, logistics, and buyer sign-off within one traceable project.
 
 Supported work includes garments, fabric, trims, and other inputs to apparel and textile production. The application supports small batches, multiple styles, custom orders, and regular volume orders. Every requirement and acceptance scenario in this PRD is tied to apparel or textile production.
 
-abcdYi does not replace ERP, an authoritative business-fact database, financial settlement, or human commercial judgment. An inquiry draft, recommendation, or approved proposal is not itself a formal contract.
+abcdYi does not replace ERP, the user's private database, financial settlement, or human commercial judgment. An inquiry draft, recommendation, or approved proposal is not itself a formal contract.
 
 ## 2. Product architecture and ownership
 
-**Aivan is the front-end part of abcdYi before a formal contract is generated.** It manages buyer and supplier interaction, requirement clarification, evidence collection, and preparation of a commercial proposal. A separate Aivan repository or API service does not create a separate user-facing product boundary for this application.
+**Aivan is the Giraffe Agent front-end application for inquiry, quotation, and order confirmation.** abcdYi is a Giraffe Agent industry application, and its front end calls Aivan. **myAivan is the web version of Aivan. OpenClaw-aivan is Aivan's access dependency for IM and email.** These relationships describe product responsibilities, not additional prerequisites for order confirmation or production.
 
 | Phase | Owner | Required output |
 | --- | --- | --- |
 | Buyer RFQ intake and clarification | Aivan front end, using abcdYi apparel and textile fields | Versioned structured requirements, open questions, and source references |
 | Supplier inquiry and response | Aivan front end | Approved outbound inquiry, comparable supplier replies, and evidence |
-| Lead-time and option analysis | Aivan orchestration using GLTG and giraffe-db APIs | Quantiles, risk explanation, cost and schedule options, and source references |
+| Lead-time and option analysis | Aivan calling the GLTG and GPM dependency modules through APIs and using the configured private-data provider | Lead-time and quotation analysis, options, and source references |
 | Human commercial approval | Aivan approval workflow | Approved or rejected versioned proposal, with approver and audit record |
-| Formal contract generation and handoff | abcdYi contract boundary | Contract input packet, contract version and status, parties, approvals, and provenance |
-| Post-contract fulfillment | abcdYi apparel and textile execution workflow | Production, QC, logistics, sign-off, and supplier-performance records |
+| Order confirmation | Aivan front end, called by abcdYi | Confirmed order linked to the approved quotation, parties, requirements, and approval evidence |
+| Order fulfillment | abcdYi apparel and textile execution workflow | Production, QC, logistics, sign-off, and supplier-performance records |
 
-Aivan's seven-step Stage 1 loop is **pre-contract**: RFQ input → requirement structuring → supplier inquiry draft → supplier reply parsing → GLTG invocation → execution recommendation → human approval. Completion of that loop does not create a contract, start production, or complete abcdYi's full order lifecycle.
+Aivan's seven-step Stage 1 loop covers RFQ input → requirement structuring → supplier inquiry draft → supplier reply parsing → GLTG invocation → execution recommendation → human approval. It is a delivery slice within Aivan's inquiry-to-order-confirmation responsibility. Completion of that slice alone does not demonstrate order confirmation or abcdYi's full order lifecycle.
 
-The handoff must preserve tenant and project IDs, confirmed requirement version, selected option, price and lead-time evidence, approval identity and time, contracting parties, contract version, and source references. If the handoff fails, the system must not mark a draft or proposal as a signed contract or confirmed production order.
+The order handoff preserves tenant and project IDs, confirmed requirement version, selected option, price and lead-time evidence, approval identity and time, order parties, and source references. Quote approval and order confirmation remain distinct steps. A formal contract, contract identifier, signature, or contract-confirmation state is not a prerequisite for production.
 
 OpenClaw is the gateway and runtime for the agent. WeChat, LINE, email, and other supported messaging services are communication channels; OpenClaw is not a peer channel.
 
@@ -51,26 +51,30 @@ Participants may include the buyer or brand, primary manufacturer, fabric suppli
 
 ### 3.3 Core records
 
-The application maintains linked versions of requirements, inquiries, supplier responses, delivery scenarios, commercial proposals, approvals, contracts, orders, production milestones, QC records, shipments, buyer sign-offs, and execution events. A revision points back to the earlier version; correcting an event does not silently overwrite its history.
+The configured private database is extensible and dynamic. It records business history and in-progress business-process data, including linked requirements, inquiries, supplier responses, delivery scenarios, commercial proposals, approvals, orders, production milestones, QC records, shipments, buyer sign-offs, and execution events. Giraffe Agent, Aivan, and abcdYi use database records as the source of business truth rather than conversation context. Workflow state is persisted and recovered from those records. A revision points back to the earlier version; correcting an event does not silently overwrite its history.
+
+### 3.4 Product language
+
+Standard English is the product's working and interaction language. Translate non-English input through [`giraffe-language-skill`](https://github.com/GiraffeTechnology/giraffe-language-skill) into standard English before it enters the workflow; support non-English output through the same dynamic translation module. Apply this behavior across the Aivan front end, myAivan web version, OpenClaw-aivan IM/email access, and abcdYi workflows. Except for company and user profile information, the database must not store non-English content: business history, process records, drafts, messages, and events are stored in English. Preserve source references, content hashes, and English-normalized business evidence without storing non-English originals in a separate business-data field or table. Dynamic translation preserves the meaning of requirements, quotations, confirmations, and execution evidence. Static language packs or complete all-language translation coverage are not prerequisites for delivery.
 
 ## 4. Functional requirements
 
-### 4.1 Pre-contract workflow through Aivan
+### 4.1 Inquiry and quotation through Aivan
 
-1. **RFQ intake.** Capture the apparel or textile inquiry, extract the fields in Section 3, and ask for missing quantity, size ratio, fabric, quality, and delivery details. Preserve the relationship between original input and normalized facts.
-2. **Supplier coordination.** Prepare inquiries for the primary manufacturer and necessary upstream participants. An authorized human approves every outbound inquiry. Normalize supplier replies into a comparable structure without discarding original evidence.
-3. **Lead-time and commercial analysis.** Request lead-time simulation, P50/P80/P90, path comparison, and risk explanation through the GLTG API. Read and write relevant business facts through the giraffe-db API. Aivan must not replace GLTG's canonical numeric output with local estimates or treat local draft storage as successful authoritative persistence.
+1. **RFQ intake.** Apply the language policy in Section 3.4, including dynamic translation for non-English input/output. Capture the apparel or textile inquiry, extract the fields in Section 3, and ask for missing quantity, size ratio, fabric, quality, and delivery details. Preserve source references and content hashes linking the input to English-normalized facts; do not persist non-English business input in the database.
+2. **Supplier coordination.** Prepare inquiries for the primary manufacturer and necessary upstream participants. An authorized human approves every outbound inquiry. Normalize supplier replies into a comparable English structure, preserving source references, content hashes, and English evidence in accordance with Section 3.4.
+3. **Lead-time and commercial analysis.** Aivan calls its GLTG and GPM dependency modules through APIs for lead-time and quotation analysis. Preserve the returned numerical results and source references. Read and write private business data through the configured provider interface: giraffe-db can be hot-swapped for the user's own private database. Do not report local drafts, failed writes, or unverified persistence as successful durable storage.
 4. **Execution options.** Present feasible single-delivery and split-delivery alternatives, including launch or shipping windows when relevant. Show price, schedule, evidence gaps, and risk. An unsupported supplier claim must not appear as a verified fact.
 5. **Human approval.** Bind approval to the exact proposal and quotation version. Rejection permits revision and resubmission. No buyer quote or supplier commitment is sent without the required approval.
-6. **Contract input.** Deliver the approved option and its evidence as a versioned handoff packet. Draft approval alone does not mean that a formal contract has been generated or signed.
+6. **Order preparation.** Carry the approved quotation, selected option, and their evidence into order confirmation. Quote approval alone does not mean that the order has been confirmed.
 
-### 4.2 Formal contract boundary
+### 4.2 Order confirmation through Aivan
 
-abcdYi creates or receives the formal contract version from the approved input packet. It records parties, specifications, quantity and size ratio, price, delivery terms, quality criteria, changes, signatures or confirmation status, and evidence of authorization. Production begins only from a contract or order state that explicitly permits it. Material changes to price, delivery, or quality terms require a new approval tied to the revised version.
+The approved quotation proceeds to order confirmation through Aivan. The order records the selected parties, specifications, quantity and size ratio, price, delivery terms, quality criteria, and confirmation evidence. The workflow is approved quotation → order confirmation → production. It does not require formal-contract generation, signing, or confirmation as an extra step. Material changes to price, delivery, or quality terms require a new approval tied to the revised version.
 
-### 4.3 Post-contract execution through abcdYi
+### 4.3 Order execution through abcdYi
 
-1. **Order launch.** Create the order and production plan from the formal contract. Record manufacturer acceptance, fabric and trim confirmation, capacity, and subcontractor dependencies.
+1. **Order launch.** Create the order from the approved quotation and prepare the production plan after order confirmation. Record manufacturer acceptance, fabric and trim confirmation, capacity, and subcontractor dependencies.
 2. **Production progress.** Track applicable sampling, procurement, cutting, sewing, finishing, inspection, and packing milestones with planned and actual dates. Record delays and proposed remedies; a change affecting the buyer's commitment requires human confirmation.
 3. **Quality control.** Link inspection criteria and sample or batch IDs to QC results, images, video, and reinspection. A failed inspection cannot advance to ready-to-ship without an authorized resolution.
 4. **Logistics and acceptance.** Record handover, carrier, tracking reference, status, and source. A delivered tracking event requests buyer sign-off; it does not automatically constitute buyer acceptance or close the order.
@@ -78,13 +82,13 @@ abcdYi creates or receives the formal contract version from the approved input p
 
 ## 5. Service contracts and data ownership
 
-- **giraffe-db** is the authoritative business-fact and evidence service. Aivan and abcdYi use authenticated, tenant-bound APIs for the consumed records. A successful write must support readback; a failed or partial write must not be reported as durable.
-- **GLTG** owns lead-time calculations, P50/P80/P90, scenarios, and risk explanation. Its numeric output is canonical. LLM assistance may explain qualitative factors but must not overwrite canonical quantiles.
-- **Aivan** owns the pre-contract interaction, workflow orchestration, recommendation presentation, and human approval. Its browser does not call GLTG or giraffe-db directly.
-- **abcdYi** owns apparel and textile rules, the formal contract handoff, and post-contract order execution. Records across services share tenant, project, contract or order, and evidence identifiers.
+- **Private-data source of truth.** Giraffe Agent, Aivan, and abcdYi share the same data-dependency design: an extensible, dynamic private database stores business history and business-process records. They read and persist workflow facts there rather than depending on conversation context. **giraffe-db** is a replaceable implementation that can be hot-swapped for the user's own private database through the provider interface. Preserve authentication, tenant isolation, access controls, the English-only business-data rule in Section 3.4, and truthful read/write status across providers. Product completion does not require exclusive use of giraffe-db. Its two simulated databases, generated from real-data sources, are valid product-test and acceptance data sources; replacing them with live customer production data is not an acceptance prerequisite.
+- **GLTG and GPM** are Aivan dependency modules, called through APIs. GLTG supplies lead-time analysis; GPM supplies quotation guidance. Preserve their returned results and evidence rather than substituting invented values. This relationship does not turn them into separate end-user products or impose whole-platform production acceptance on an Aivan front-end delivery.
+- **Aivan** is the Giraffe Agent front-end application for inquiry, quotation, and order confirmation, including interaction, workflow orchestration, recommendation presentation, and human approval. abcdYi's front end calls Aivan. myAivan is Aivan's web version, and OpenClaw-aivan is its IM and email access dependency. Keep dependency and private-data access within their authorized API and provider interfaces.
+- **abcdYi** is the Giraffe Agent industry application for apparel and textile rules and order execution. Records across services share tenant, project, order, and evidence identifiers; a contract identifier is not required to begin production.
 - **Human operators** own commercial approvals and formal commitments. Service responses or an AI recommendation cannot substitute for their authorization.
 
-The services may run independently and retain their engineering tests. Product acceptance for the complete apparel and textile application follows this end-to-end ownership model.
+The modules and applications may retain their own engineering tests. Acceptance identifies the application workflow and dependency interfaces actually exercised; one delivery slice does not imply completion of every module or the whole platform.
 
 ## 6. Approval, security, and audit requirements
 
@@ -96,26 +100,26 @@ The services may run independently and retain their engineering tests. Product a
 
 ## 7. Acceptance criteria
 
-### AC-1: Pre-contract seven-step loop
+### AC-1: Inquiry and quotation delivery slice
 
-Run an apparel RFQ, such as 10,000 shirts across five colors and a size ratio, through intake, clarification, approved supplier inquiry, response parsing, a real GLTG API call, option comparison, and human approval. Record the exact Aivan, GLTG, and giraffe-db revisions, real HTTP requests and responses, executed tests, failures, and skipped steps. Demonstrate authoritative giraffe-db write and readback, including persistence after the relevant service restart or reload. Mock-only or single-repository tests do not satisfy this integration criterion.
+Run an apparel RFQ, such as 10,000 shirts across five colors and a size ratio, through intake, clarification, approved supplier inquiry, response parsing, dependency analysis, option comparison, and human approval. Identify the Aivan revision, the GLTG/GPM APIs actually exercised, and the configured private-data provider. Record executed tests, failures, and skipped steps; distinguish real API and read/write evidence from mocks and local drafts. For non-English inputs, demonstrate translation before workflow processing and English-only business-data persistence, with the exception limited to company and user profiles. Aivan acceptance must not depend on using giraffe-db exclusively or on declaring the entire dependency platform production-ready. The two designated giraffe-db simulated databases are valid acceptance sources through the same provider interface. Their simulated-data status is not grounds to reject acceptance, and live customer production data is not required. Demonstrate that business-process writes can be read back and that the workflow resumes from the configured database after restart or reload without relying on prior conversation context. Apply the same data-dependency requirement to Giraffe Agent, Aivan, and abcdYi. A designated simulated database behind actual executed APIs is valid integration evidence. The application code, API calls, and state transitions under test must actually execute; skipped jobs or fabricated outputs are not passing evidence.
 
-### AC-2: Contract handoff
+### AC-2: Order confirmation
 
-An approved proposal produces a complete, traceable formal-contract input packet. Rejected proposals and drafts with unresolved material requirements cannot become signed contracts or confirmed orders. Contract signature or confirmation status and subsequent amendments are versioned and auditable.
+Demonstrate abcdYi calling Aivan for inquiry, quotation, and order confirmation. An approved quotation produces a traceable order for buyer confirmation. Rejected proposals and drafts with unresolved material requirements cannot become confirmed orders. Confirmed orders can proceed to production without a formal contract, contract identifier, signature, or separate contract-confirmation step. Preserve the approval and confirmation evidence and subsequent amendments.
 
 ### AC-3: Apparel order fulfillment
 
-Follow the same contracted apparel order through fabric and trim confirmation, production milestones, QC, logistics handover, buyer sign-off, and supplier-performance recording. Preserve the project event and evidence chain. Delays and failed QC require recorded human handling. A carrier's delivered status does not automatically close the order.
+Follow the same confirmed apparel order through fabric and trim confirmation, production milestones, QC, logistics handover, buyer sign-off, and supplier-performance recording. Preserve the project event and evidence chain. Delays and failed QC require recorded human handling. A carrier's delivered status does not automatically close the order.
 
 ### AC-4: Separate delivery claims
 
-Record Aivan Stage 1 acceptance and the full abcdYi post-contract lifecycle acceptance separately. A document claim, an unmerged PR, a skipped integration job, or an earlier revision's test result cannot substitute for evidence from the candidate under review.
+Record Aivan Stage 1 acceptance and the full abcdYi order lifecycle acceptance separately. A document claim, an unmerged PR, a skipped integration job, or an earlier revision's test result cannot substitute for evidence from the candidate under review.
 
 ## 8. Scope exclusions
 
-This PRD excludes generic agent platforms, non-apparel industrial orders, mechanical machining, CAD/CNC capability matching, a full Digital Twin, payment or settlement, ERP replacement, and autonomous commercial commitments. Existing code outside this product scope is a separate code-governance matter; the presence of that code does not expand abcdYi requirements.
+This PRD excludes generic agent platforms, non-apparel industrial orders, mechanical machining, CAD/CNC capability matching, a full Digital Twin, payment or settlement, ERP replacement, and autonomous commercial commitments. Inventory existing code outside the approved scope with exact source revisions and paths, then freeze and preserve it without deletion. Its presence does not expand abcdYi delivery requirements. Preserve shared in-scope behavior when a module mixes approved and out-of-scope functionality.
 
 ## 9. Document authority
 
-This is a complete revision of the abcdYi application PRD, aligned with the [v2.0 positioning baseline](https://github.com/GiraffeTechnology/abcdYi/issues/25). It supersedes the former cross-industry content of this file as a current product requirement. Historical Git revisions remain available for traceability. Other repository documents that describe handicrafts, unrelated industries, or Aivan as a separate end-to-end product must be reconciled with this PRD before they are used as current abcdYi acceptance criteria.
+The original AIVAN and abcdYi product descriptions and the product owner's current instructions take precedence over this working PRD and historical repository documents. Resolve inconsistent requirements against those sources rather than treating an existing repository statement as authorization. Historical Git revisions and [Issue #25](https://github.com/GiraffeTechnology/abcdYi/issues/25) remain available for traceability. Acceptance evidence must distinguish the inquiry-and-quotation delivery slice, order confirmation through Aivan, and the complete abcdYi execution workflow.
