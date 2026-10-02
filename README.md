@@ -73,7 +73,10 @@ Component ownership:
 - GLTG / GPM = Aivan dependency modules called through APIs
 - giraffe-db = extensible, dynamic private database, hot-swappable for the user's own private database
 - Giraffe Agent / Aivan / abcdYi data dependency = database-backed business history and business-process records as the source of truth; workflow state does not depend on conversation context
+- giraffe-language-skill = dynamic translation for non-English input and output
 - Human operator = commercial approval
+
+The standard product working and interaction language is English. Non-English input is dynamically translated through [`giraffe-language-skill`](https://github.com/GiraffeTechnology/giraffe-language-skill) into standard English before entering the workflow; non-English output uses the same translation module. Except for company and user profile information, the database stores only English content, including business history, process data, drafts, messages, and events. Preserve source references, content hashes, and English-normalized evidence without persisting non-English business originals. Static language packs or complete all-language translation coverage are not prerequisites for delivery.
 
 The order flow is approved quotation → order confirmation → production. A formal contract, contract identifier, signature, or separate contract confirmation is not a production prerequisite.
 
@@ -114,6 +117,8 @@ During v1.0, do not add:
 - Non-business infrastructure;
 - Unvalidated industry expansion;
 - Full Digital Twin implementation.
+
+Inventory code outside the approved scope, record exact source revisions and paths, and freeze it for preservation without deleting it. Shared in-scope behavior remains intact.
 
 ---
 
