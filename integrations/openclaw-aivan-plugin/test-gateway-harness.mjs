@@ -46,6 +46,15 @@ const mockServer = createServer((req, res) => {
         return;
       }
 
+      if (mockServerMode === "fallback-project" || mockServerMode === "fallback-empty") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          status: "ok",
+          ...(mockServerMode === "fallback-project" ? { project_id: "project-fallback" } : {}),
+        }));
+        return;
+      }
+
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({
@@ -204,6 +213,19 @@ console.log("\n-- Test 6: health() direct call");
 const healthResult = await plugin.health();
 assert("health.healthy is true", healthResult.healthy === true);
 assert("health.version is string", typeof healthResult.version === "string");
+
+// -- Generic English fallbacks preserve successful result envelopes ---------
+for (const [mode, expected] of [
+  ["fallback-project", "Request processed (project: project-fallback)"],
+  ["fallback-empty", "Your request has been received"],
+]) {
+  mockServerMode = mode;
+  const result = await registeredHarness.runAttempt(TEST_PARAMS);
+  assert(`${mode}: English reply`, result.assistantTexts[0] === expected);
+  assert(`${mode}: matching assistant message`, result.lastAssistant?.content?.[0]?.text === expected);
+  assert(`${mode}: session preserved`, result.sessionIdUsed === TEST_PARAMS.sessionId);
+  assert(`${mode}: successful envelope`, result.aborted === false && result.timedOut === false);
+}
 
 // -- Summary -----------------------------------------------------------------
 mockServer.close();
