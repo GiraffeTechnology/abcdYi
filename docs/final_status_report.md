@@ -54,8 +54,10 @@ All 7 iterations of the Giraffe Agent v1.0 Apparel & Textile Industry Edition ha
 
 The platform is aligned with patents held by Giraffe Technology Holding Limited:
 
-- **CN ZL 2023 1 1645939.9 / CN 117670482 B** — 基于多方配合的C2M模式的纺织品及服装定制运营平台系统
-- **JP P7644545 / 特許第7644545号** — 協働型C2Mモデルに基づく繊維及びアパレルカスタマイズ運用プラットフォームシステム
+- **CN ZL 2023 1 1645939.9 / CN 117670482 B** — Textile and Apparel Customization Operations Platform System Based on a Multi-party Collaborative C2M Model
+- **JP P7644545 / Japanese Patent No. 7644545** — Textile and Apparel Customization Operations Platform System Based on a Collaborative C2M Model
+
+The titles above are English renderings; [PATENT_NOTICE.md](../PATENT_NOTICE.md) preserves the original registered wording as Unicode escape sequences.
 
 All 10 patent units are mapped to product modules in `docs/patent_alignment_matrix.md`.
 

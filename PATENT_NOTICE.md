@@ -6,14 +6,22 @@ Certain workflows, business methods, system designs, data structures, role-based
 
 ## Patents
 
-| Jurisdiction | Patent Number | Title |
+| Jurisdiction | Patent Number | Title (English rendering) |
 |---|---|---|
-| China | **ZL 2023 1 1645939.9 / CN 117670482 B** | 基于多方配合的C2M模式的纺织品及服装定制运营平台系统 |
-| Japan | **P7644545 / 特許第7644545号** | 協働型C2Mモデルに基づく繊維及びアパレルカスタマイズ運用プラットフォームシステム |
+| China | **ZL 2023 1 1645939.9 / CN 117670482 B** | Textile and Apparel Customization Operations Platform System Based on a Multi-party Collaborative C2M Model |
+| Japan | **P7644545 / Japanese Patent No. 7644545** | Textile and Apparel Customization Operations Platform System Based on a Collaborative C2M Model |
 
 **Patent Owner:** Giraffe Technology Holding Limited
 
-Note: The official patent titles contain the term C2M as registered legal titles. abcdYi's repository positioning and product implementation are B2M: buyer-to-manufacturer production coordination for apparel, textiles, and handicrafts.
+The titles above are English renderings, not replacements for the registered titles. For exact reference, the original title and Japanese designation strings are preserved below as Unicode escape sequences:
+
+```text
+China registered title: \u57fa\u4e8e\u591a\u65b9\u914d\u5408\u7684C2M\u6a21\u5f0f\u7684\u7eba\u7ec7\u54c1\u53ca\u670d\u88c5\u5b9a\u5236\u8fd0\u8425\u5e73\u53f0\u7cfb\u7edf
+Japan registered title: \u5354\u50cd\u578bC2M\u30e2\u30c7\u30eb\u306b\u57fa\u3065\u304f\u7e4a\u7dad\u53ca\u3073\u30a2\u30d1\u30ec\u30eb\u30ab\u30b9\u30bf\u30de\u30a4\u30ba\u904b\u7528\u30d7\u30e9\u30c3\u30c8\u30d5\u30a9\u30fc\u30e0\u30b7\u30b9\u30c6\u30e0
+Japan registered designation: \u7279\u8a31\u7b2c7644545\u53f7
+```
+
+Note: The official patent titles contain the term C2M as registered legal titles. abcdYi's repository positioning and product implementation are B2M: buyer-to-manufacturer production coordination for apparel and textiles.
 
 ---
 

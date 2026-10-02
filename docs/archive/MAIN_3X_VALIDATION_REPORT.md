@@ -175,9 +175,11 @@ uv run python scripts/run_qwen_qc_smoke_test.py
 # Expected: 26 passed / QWEN REAL CALL SKIPPED: missing API key
 
 # --- OpenClaw WeChat simulated events ---
+# Preserve the original Chinese input through Python Unicode escapes.
+# English meaning: I need to purchase 100 cotton polo shirts.
 uv run python - <<'PY'
 from src.openclaw_skill.openclaw_event_adapter import adapt_openclaw_event
-r = adapt_openclaw_event({"source":"openclaw","channel":"wechat","channel_account_id":"x","conversation_id":"c1","sender_id":"u1","sender_display_name":"Test","message_text":"我需要采购100件纯棉polo衫","message_type":"text","attachments":[],"mode":"b_side"})
+r = adapt_openclaw_event({"source":"openclaw","channel":"wechat","channel_account_id":"x","conversation_id":"c1","sender_id":"u1","sender_display_name":"Test","message_text":"\u6211\u9700\u8981\u91c7\u8d2d100\u4ef6\u7eaf\u68c9polo\u886b","message_type":"text","attachments":[],"mode":"b_side"})
 assert r.get("ok") is not False
 print("OPENCLAW_WECHAT_BUYER: PASS")
 PY

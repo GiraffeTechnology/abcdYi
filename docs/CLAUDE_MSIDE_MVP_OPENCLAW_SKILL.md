@@ -578,8 +578,8 @@ GQ-7421
 A supplier can reply:
 
 ```text
-接受 GQ-7421
 Accept GQ-7421
+Chinese equivalent (Unicode-escaped): \u63a5\u53d7 GQ-7421
 ```
 
 The system should bind that IM session to the matching M-side workspace.
@@ -612,28 +612,28 @@ Input source:
 Supplier dispatch message format:
 
 ```text
-【Giraffe Agent 供应商询盘】
-询盘编号：{rfq_id}
-供应商工作区：{m_workspace_id}
-验证码：{invitation_token}
+[Giraffe Agent Supplier Inquiry]
+Inquiry ID: {rfq_id}
+Supplier workspace: {m_workspace_id}
+Verification code: {invitation_token}
 
-买方需求摘要：
+Buyer requirement summary:
 {buyer_requirement_summary}
 
-请回复以下信息：
-1. 是否可以生产 / 接单
-2. 可用产能与最早开工时间
-3. 物料是否可得
-4. 报价 / MOQ / 模具费 / 打样费
-5. 预计交期
-6. QC / 图片或视频更新能力
-7. 包装与物流安排
-8. 主要风险或限制
+Please provide the following information:
+1. Whether you can manufacture the product / accept the order
+2. Available capacity and earliest production start date
+3. Material availability
+4. Quote / MOQ / tooling fee / sample fee
+5. Estimated lead time
+6. QC / photo or video update capabilities
+7. Packaging and logistics arrangements
+8. Major risks or limitations
 
-你可以直接用自然语言回复。Giraffe Agent 会自动整理为结构化供应商响应。
+You can reply in natural language. Giraffe Agent will organize your reply into a structured supplier response.
 ```
 
-English version should also be supported.
+English-language dispatch should also be supported; the template above is the English rendering of the original example.
 
 ### 8.2 Push supplier response back to B-side
 
@@ -735,10 +735,10 @@ Required fields:
 - What packaging / logistics terms can you support?
 - What are the key risks?
 
-The supplier should be able to answer naturally:
+The supplier should be able to answer naturally. English rendering of the example:
 
 ```text
-可以做，6061材料有现货，最快下周三开工，样品7天，大货25天，单价4.8美元，MOQ 500，阳极氧化要外协，可能多3天。
+We can make it. 6061 material is in stock. The earliest start is next Wednesday. Samples take 7 days; bulk production takes 25 days. The unit price is USD 4.8, with an MOQ of 500. Anodizing must be outsourced and may add 3 days.
 ```
 
 ### 9.3 Response collector and normalizer
@@ -765,7 +765,7 @@ Use deterministic parsing first. Use LLM connector only when available.
 Minimum parsing support:
 
 - numbers with currencies: RMB / CNY / USD / EUR / HKD
-- lead time: days / weeks / 日期
+- lead time: days / weeks / dates (original Chinese term, Unicode-escaped: `\u65e5\u671f`)
 - MOQ
 - can / cannot make
 - material available / unavailable
@@ -815,10 +815,10 @@ def acknowledge_order(order_execution_id: str, supplier_message: str) -> OrderEx
     """Supplier acknowledges selected order path and moves execution status forward."""
 ```
 
-Supplier can reply:
+Supplier can reply with either of these original examples. The first is preserved as Unicode escapes and means "We confirm the order and will proceed according to the quotation, with completion expected by June 15":
 
 ```text
-确认接单，按报价执行，预计6月15日完成。
+\u786e\u8ba4\u63a5\u5355\uff0c\u6309\u62a5\u4ef7\u6267\u884c\uff0c\u9884\u8ba16\u670815\u65e5\u5b8c\u6210\u3002
 Confirm order. We will start on Monday and finish by June 15.
 ```
 
@@ -834,12 +834,15 @@ def update_milestone_from_message(order_execution_id: str, message: str) -> Orde
     """Infer milestone status from supplier message."""
 ```
 
-Support messages:
+Supported message examples, shown as exact Unicode escapes with English meanings:
 
 ```text
-材料已到，明天开机。
-已完成50%，今天上传中期照片。
-生产延误两天，阳极氧化外协排队。
+\u6750\u6599\u5df2\u5230\uff0c\u660e\u5929\u5f00\u673a\u3002
+Meaning: Materials have arrived. Production starts tomorrow.
+\u5df2\u5b8c\u621050%\uff0c\u4eca\u5929\u4e0a\u4f20\u4e2d\u671f\u7167\u7247\u3002
+Meaning: Production is 50% complete. We will upload progress photos today.
+\u751f\u4ea7\u5ef6\u8bef\u4e24\u5929\uff0c\u9633\u6781\u6c27\u5316\u5916\u534f\u6392\u961f\u3002
+Meaning: Production is delayed by two days because of the queue at the outsourced anodizing provider.
 ```
 
 ### 9.8 QC updates
@@ -913,21 +916,21 @@ Routing rules:
 3. If message contains supplier response phrases and active B-side workspace is waiting for manual pasted responses → route to B-side supplier response intake.
 4. Otherwise route to B-side AI Buyer.
 
-Supplier response phrases include:
+Original Chinese supplier response phrases are listed below as exact Unicode escape sequences with English meanings. The notation documents the original parser inputs; it does not replace them with English aliases.
 
 ```text
-可以做
-不能做
-报价
-交期
+\u53ef\u4ee5\u505a — can make
+\u4e0d\u80fd\u505a — cannot make
+\u62a5\u4ef7 — quote
+\u4ea4\u671f — lead time
 MOQ
-材料
-产能
-开工
-样品
-大货
+\u6750\u6599 — material
+\u4ea7\u80fd — capacity
+\u5f00\u5de5 — start production
+\u6837\u54c1 — sample
+\u5927\u8d27 — bulk production
 QC
-物流
+\u7269\u6d41 — logistics
 EXW
 FOB
 DDP
@@ -972,13 +975,15 @@ m_side_report_exception
 
 Example action payload:
 
+This example preserves the original Chinese input as JSON Unicode escapes. It means: "We can make it; 6061 material is in stock; delivery in 25 days; unit price USD 4.8; MOQ 500; outsourced anodizing adds 3 days."
+
 ```json
 {
   "action": "m_side_submit_supplier_response",
   "channel": "openclaw",
   "external_user_id": "supplier_001",
   "m_workspace_id": "mw_123",
-  "message": "可以做，6061材料有现货，25天交货，单价4.8美元，MOQ 500，阳极氧化外协多3天。"
+  "message": "\u53ef\u4ee5\u505a\uff0c6061\u6750\u6599\u6709\u73b0\u8d27\uff0c25\u5929\u4ea4\u8d27\uff0c\u5355\u4ef74.8\u7f8e\u5143\uff0cMOQ 500\uff0c\u9633\u6781\u6c27\u5316\u5916\u534f\u591a3\u5929\u3002"
 }
 ```
 
@@ -997,9 +1002,11 @@ Expected response:
     "currency": "USD",
     "red_flags": ["anodizing outsourced; may add 3 days"]
   },
-  "next_message": "已整理为结构化供应商响应。请确认是否提交给买方：回复“确认提交”。"
+  "next_message": "\u5df2\u6574\u7406\u4e3a\u7ed3\u6784\u5316\u4f9b\u5e94\u5546\u54cd\u5e94\u3002\u8bf7\u786e\u8ba4\u662f\u5426\u63d0\u4ea4\u7ed9\u4e70\u65b9\uff1a\u56de\u590d\u201c\u786e\u8ba4\u63d0\u4ea4\u201d\u3002"
 }
 ```
+
+The escaped `next_message` preserves the original response example. English meaning: "The reply has been structured. To confirm submission to the buyer, reply with the confirmation phrase." The exact original confirmation phrase is `\u786e\u8ba4\u63d0\u4ea4` ("confirm submission").
 
 ---
 
@@ -1292,11 +1299,13 @@ uv run python scripts/run_bm_e2e_mvp.py
 
 Test M-side supplier message manually:
 
+The following request retains the original Chinese input through JSON Unicode escapes; its English meaning is the natural-language example in Section 9.2.
+
 ```bash
 curl -X POST http://localhost:8000/api/m-side/workspaces/{m_workspace_id}/message \
   -H "Content-Type: application/json" \
   -d '{
-    "text": "可以做，6061材料有现货，最快下周三开工，样品7天，大货25天，单价4.8美元，MOQ 500，阳极氧化要外协，可能多3天。"
+    "text": "\u53ef\u4ee5\u505a\uff0c6061\u6750\u6599\u6709\u73b0\u8d27\uff0c\u6700\u5feb\u4e0b\u5468\u4e09\u5f00\u5de5\uff0c\u6837\u54c17\u5929\uff0c\u5927\u8d2725\u5929\uff0c\u5355\u4ef74.8\u7f8e\u5143\uff0cMOQ 500\uff0c\u9633\u6781\u6c27\u5316\u8981\u5916\u534f\uff0c\u53ef\u80fd\u591a3\u5929\u3002"
   }'
 ```
 
