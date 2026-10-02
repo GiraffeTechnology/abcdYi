@@ -71,7 +71,8 @@ Component ownership:
 - myAivan = Aivan web version
 - OpenClaw-aivan = Aivan IM and email access dependency
 - GLTG / GPM = Aivan dependency modules called through APIs
-- giraffe-db = private database, hot-swappable for the user's own private database
+- giraffe-db = extensible, dynamic private database, hot-swappable for the user's own private database
+- Giraffe Agent / Aivan / abcdYi data dependency = database-backed business history and business-process records as the source of truth; workflow state does not depend on conversation context
 - Human operator = commercial approval
 
 The order flow is approved quotation → order confirmation → production. A formal contract, contract identifier, signature, or separate contract confirmation is not a production prerequisite.
@@ -101,7 +102,7 @@ Must complete:
 6. Execution recommendation generation
 7. Human confirmation workflow
 
-This seven-step slice does not by itself demonstrate Aivan's order-confirmation responsibility or the complete abcdYi order lifecycle. Acceptance reports the dependency APIs and private-data provider exercised without requiring exclusive use of giraffe-db or whole-platform production acceptance. The two designated giraffe-db simulated databases, generated from real-data sources, are valid test and acceptance sources. Live customer production data is not a prerequisite; the application/API workflow and state transitions must actually execute, and skipped jobs do not count as passes.
+This seven-step slice does not by itself demonstrate Aivan's order-confirmation responsibility or the complete abcdYi order lifecycle. Acceptance reports the dependency APIs and private-data provider exercised without requiring exclusive use of giraffe-db or whole-platform production acceptance. The two designated giraffe-db simulated databases, generated from real-data sources, are valid test and acceptance sources. Live customer production data is not a prerequisite. Execute the application/API workflow and state transitions, verify process-data writes and readback, and recover workflow state from the configured database after restart or reload without prior conversation context. The same data-dependency design applies to Giraffe Agent, Aivan, and abcdYi. Simulated database content is valid acceptance data; skipped jobs do not count as passes.
 
 ---
 
