@@ -21,9 +21,11 @@ Retrieves authorized pricing samples from 1688 / Alibaba pricing-data APIs for a
 
 #### Input
 
+The keyword is the original Chinese query, preserved as JSON Unicode escapes. Its English meaning is "custom OEM cotton shirts for men"; the escaped form retains the exact query sent to the pricing adapter.
+
 ```json
 {
-  "keyword": "纯棉男士衬衫 OEM 定制",
+  "keyword": "\u7eaf\u68c9\u7537\u58eb\u886c\u886b OEM \u5b9a\u5236",
   "target_quantity": 10000,
   "target_unit": "piece",
   "max_samples": 50,

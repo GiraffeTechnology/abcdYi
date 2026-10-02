@@ -105,4 +105,4 @@ Run `alembic upgrade head` after cloning to initialize the database schema.
 This software may be covered by patents held by Giraffe Technology Holding Limited. See `PATENT_NOTICE.md` for the global free patent license terms.
 
 CN ZL 2023 1 1645939.9 / CN 117670482 B
-JP P7644545 / 特許第7644545号
+JP P7644545 / Japanese Patent No. 7644545

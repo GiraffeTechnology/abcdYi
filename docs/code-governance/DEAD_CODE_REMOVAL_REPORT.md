@@ -40,4 +40,4 @@ plugin, and standalone-process entrypoints are legitimate consumers.
 - Direct dependencies: 19 → 16 (−3), plus the conflicting dev declaration merged.
 - Root markdown files: 20 → 4 (README, CHANGELOG, LICENSE_NOTICE, PATENT_NOTICE).
 - Source files: unchanged — no product code was deleted; code-mass reduction
-  was not a goal of this stage (PRD: 代码量减少不是首要 KPI).
+  was not a goal of this stage (English translation of the PRD statement: reducing code volume is not the primary KPI).

@@ -58,8 +58,8 @@ uv run python scripts/test_openclaw_mside_invoke.py
 | Conversation binding created on first contact | PASS |
 | Conversation binding reused on follow-up | PASS |
 | Human approval gate: draft saved as pending_approval | PASS |
-| Human approval gate: 确认发送 / approve / send it triggers approval | PASS |
-| Human approval gate: 取消 / reject / do not send triggers rejection | PASS |
+| Human approval gate: original Chinese "confirm sending" input (`\u786e\u8ba4\u53d1\u9001`, Unicode-escaped) / approve / send it triggers approval | PASS |
+| Human approval gate: original Chinese "cancel" input (`\u53d6\u6d88`, Unicode-escaped) / reject / do not send triggers rejection | PASS |
 | Approved outbound payload returned to OpenClaw (not sent by Giraffe) | PASS |
 | One-supplier scenario: single_supplier_option_ready | PASS |
 | Two-supplier scenario: available_supplier_options_ready | PASS |
@@ -128,7 +128,7 @@ Customer WeChat / Email
   → missing_fields returned as clarification
   → Follow-up message: fields provided
   → Supplier inquiry draft generated (approval_required=true, outbound_messages=[])
-  → Human approves ("确认发送")
+  → Human approves (original Chinese "confirm sending" input, Unicode-escaped: "\u786e\u8ba4\u53d1\u9001")
   → status=approved_for_dispatch, outbound_messages populated
   → OpenClaw dispatches supplier inquiry (Giraffe does NOT send directly)
 

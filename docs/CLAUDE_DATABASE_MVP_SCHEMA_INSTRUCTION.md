@@ -1317,11 +1317,11 @@ language: str | None
 created_at
 ```
 
-Examples:
+Examples (the Unicode escape sequences document the exact original Chinese aliases; they are not new literal aliases):
 
 ```text
-fabric_gsm aliases: 克重, gsm, g/m², fabric weight
-surface_roughness_ra aliases: Ra, roughness, 表面粗糙度
+fabric_gsm aliases: \u514b\u91cd (Chinese for fabric weight), gsm, g/m², fabric weight
+surface_roughness_ra aliases: Ra, roughness, \u8868\u9762\u7c97\u7cd9\u5ea6 (Chinese for surface roughness)
 ```
 
 ---
@@ -1459,7 +1459,7 @@ Seed patent notice:
 
 ```text
 China patent: ZL 2023 1 1645939.9 / CN 117670482 B.
-Japan patent: P7644545 / 特許第7644545号.
+Japan patent: P7644545 / Japanese Patent No. 7644545.
 Patent owner: Giraffe Technology Holding Limited.
 Free patent license applies globally to individuals, SMEs, educational institutions and research institutions for compliant use.
 Enterprise deployment, platform operation, high-volume commercial production use, third-party system integration, white-label resale, Enterprise CAP, and use of Giraffe commercial assets require separate written permission.
