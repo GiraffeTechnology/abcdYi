@@ -70,15 +70,18 @@
 - **Bugs:** none
 
 ### 4.2 Logistics
+
+Original Chinese inputs and extracted names below are preserved as Unicode escapes. The failing input means "Shipped via SF Express, tracking number SF123456789012, dispatched this afternoon"; the passing input places that tracking number before "shipped via SF Express." Results and the historical diagnosis are retained; no test was rerun for this translation.
+
 - **Script result:** PASS
-- **IM message extraction (Chinese SF):** Carrier name and code extracted (`carrier_name=顺丰`, `carrier_code=SF`) but tracking number was `None` for the Chinese-only message `"已发顺丰，单号SF123456789012，今天下午发出"`. The regex `\bSF\d{12}\b` requires a word boundary before `SF`; the Chinese comma `，` before `SF` does not create one.
-- **Tracking number extracted:** Yes — using `"SF123456789012 已发顺丰快递"` (leading Latin chars create word boundary). Tracking `SF123456789012` extracted correctly.
+- **IM message extraction (Chinese SF):** Carrier name and code extracted (`carrier_name=\u987a\u4e30` (SF Express; Unicode-escaped), `carrier_code=SF`) but tracking number was `None` for the Chinese-only message `"\u5df2\u53d1\u987a\u4e30\uff0c\u5355\u53f7SF123456789012\uff0c\u4eca\u5929\u4e0b\u5348\u53d1\u51fa"`. The regex `\bSF\d{12}\b` requires a word boundary before `SF`; the Chinese comma `\uff0c` (U+FF0C) before `SF` does not create one.
+- **Tracking number extracted:** Yes — using `"SF123456789012 \u5df2\u53d1\u987a\u4e30\u5feb\u9012"` (leading Latin chars create word boundary). Tracking `SF123456789012` extracted correctly.
 - **Provider:** `mock` (env `LOGISTICS_PROVIDER=mock`)
 - **Shipment created:** ok — shipment ID `SHIP-0B084DF037`, tracking `SF123456789012`
 - **Events synced:** 4 events from mock provider
 - **delivered → DELIVERED (not ORDER_CLOSED):** PASS — `map_logistics_status_to_order_state("delivered")` returns `"DELIVERED"`
 - **Bugs:**
-  - Minor: Chinese-format SF tracking number `"单号SF123456789012"` does not extract tracking because `，SF` lacks an ASCII word boundary before `SF`. English and space-prefixed formats work. This is a known regex edge case with CJK punctuation, not a blocker for the overall flow since carrier is still identified.
+  - Minor: Chinese-format SF tracking number `"\u5355\u53f7SF123456789012"` does not extract tracking because `\uff0cSF` lacks an ASCII word boundary before `SF`. English and space-prefixed formats work. This is a known regex edge case with CJK punctuation, not a blocker for the overall flow since carrier is still identified.
   - Spec discrepancy: The original audit spec example `SF123456789` (9 digits) does not match `\bSF\d{12}\b`; this audit used the correct 12-digit form `SF123456789012`.
 
 ---
@@ -167,9 +170,11 @@ Full table list (40 tables):
 
 ## 11. Bugs Found
 
+Historical diagnosis note: the report attributes BUG-001 to punctuation, but the preserved failing input places Chinese letters immediately before `SF`. This translation preserves the recorded failure and diagnosis without claiming to revalidate the cause.
+
 | ID | Severity | Module | Summary | Fixed | Retest |
 |---|---|---|---|---|---|
-| BUG-001 | Low | `logistics_message_parser.py` | Chinese CJK punctuation (，) before tracking number does not create a word boundary for `\bSF\d{12}\b` regex, causing tracking extraction to fail from Chinese-format messages like `"单号SF123456789012"` while carrier name/code is still identified | No (by design / known regex limitation) | Verified: carrier extracted, tracking None for CJK-adjacent format |
+| BUG-001 | Low | `logistics_message_parser.py` | Chinese CJK punctuation (U+FF0C) before tracking number does not create a word boundary for `\bSF\d{12}\b` regex, causing tracking extraction to fail from Chinese-format messages like `"\u5355\u53f7SF123456789012"` while carrier name/code is still identified | No (by design / known regex limitation) | Verified: carrier extracted, tracking None for CJK-adjacent format |
 
 ---
 

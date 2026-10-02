@@ -178,7 +178,7 @@ All tests run without database, API keys, or network access.
 3. Only `comparability_score` from the mock adapter is used for filtering; when using `QwenMNNAdapter`, the threshold can be adjusted in `SampleComparator`
 4. Currency normalization is not implemented — all prices assumed in same currency
 5. Session B uses standalone fixture samples; integration with Session A production models requires import path alignment (see Section 10)
-6. Unit normalization handles per-piece aliases only (`pcs`, `pc`, `pieces`, `件`, `条` → `piece`); cross-unit conversion (e.g., piece → dozen, meter, gram) is not supported — samples with unrecognized or mismatched `price_unit` are excluded from the benchmark
+6. Unit normalization handles per-piece aliases only (`pcs`, `pc`, `pieces`, and the original Chinese unit aliases `\u4ef6` and `\u6761`, shown as Unicode escapes; all map to `piece`); cross-unit conversion (e.g., piece → dozen, meter, gram) is not supported — samples with unrecognized or mismatched `price_unit` are excluded from the benchmark
 
 ---
 

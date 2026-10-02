@@ -3,10 +3,10 @@
 abcdYi is the Apparel / Textile / Handicraft industry edition of Giraffe Agent.
 
 **Patents covered:**
-- CN ZL 2023 1 1645939.9 / CN 117670482 B — 基于多方配合的C2M模式的纺织品及服装定制运营平台系统
-- JP P7644545 / 特許第7644545号 — 協働型C2Mモデルに基づく繊維及びアパレルカスタマイズ運用プラットフォームシステム
+- CN ZL 2023 1 1645939.9 / CN 117670482 B — Textile and Apparel Customization Operations Platform System Based on a Multi-party Collaborative C2M Model
+- JP P7644545 / Japanese Patent No. 7644545 — Textile and Apparel Customization Operations Platform System Based on a Collaborative C2M Model
 
-The patent titles are preserved as legal references. The abcdYi implementation is B2M, because the operational user is a buyer, designer, brand, trader, merchandiser, or SME placing production orders with manufacturers and related supply-chain participants.
+The patent titles above are English renderings for legal reference; [PATENT_NOTICE.md](../PATENT_NOTICE.md) preserves the original registered wording as Unicode escape sequences. The abcdYi implementation is B2M, because the operational user is a buyer, designer, brand, trader, merchandiser, or SME placing production orders with manufacturers and related supply-chain participants.
 
 ---
 

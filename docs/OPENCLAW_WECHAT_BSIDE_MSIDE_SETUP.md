@@ -151,6 +151,8 @@ This test covers:
 
 ### OpenClaw Event Payload
 
+The example preserves the original Chinese request as JSON Unicode escapes. English meaning: "Procurement assistant, help me request a quote for 10,000 white cotton shirts, delivered to Vancouver within 45 days."
+
 ```json
 {
   "source": "openclaw",
@@ -159,7 +161,7 @@ This test covers:
   "conversation_id": "wechat_dm_or_email_thread_id",
   "sender_id": "external_peer_id",
   "sender_display_name": "optional display name",
-  "message_text": "采购助理，帮我询价 10000 件白色纯棉衬衣，45 天内交温哥华。",
+  "message_text": "\u91c7\u8d2d\u52a9\u7406\uff0c\u5e2e\u6211\u8be2\u4ef7 10000 \u4ef6\u767d\u8272\u7eaf\u68c9\u886c\u8863\uff0c45 \u5929\u5185\u4ea4\u6e29\u54e5\u534e\u3002",
   "message_type": "text",
   "attachments": [],
   "timestamp": "2026-06-14T00:00:00Z",
@@ -182,6 +184,8 @@ This test covers:
 
 ### Response Shape
 
+The escaped `reply_text` preserves the original response example; its English meaning is "Procurement project created ..."
+
 ```json
 {
   "ok": true,
@@ -189,7 +193,7 @@ This test covers:
   "b_workspace_id": "bw_xxxx",
   "mode": "b_side",
   "status": "missing_fields",
-  "reply_text": "已创建采购项目 ...",
+  "reply_text": "\u5df2\u521b\u5efa\u91c7\u8d2d\u9879\u76ee ...",
   "missing_fields": ["size_ratio", "fabric_weight"],
   "approval_required": false,
   "message_drafts": [],
@@ -235,11 +239,10 @@ automatically.
 - Returned as `message_drafts` with `approval_required=true`
 - `outbound_messages` is empty before approval
 
-**To approve:** The salesperson sends `确认发送` (or `approve` / `send it` /
-`yes send`) in the same conversation. Giraffe marks the draft as approved
+**To approve:** The salesperson sends `approve`, `send it`, or `yes send`, or the original Chinese confirmation phrase ("confirm sending", Unicode-escaped: `\u786e\u8ba4\u53d1\u9001`) in the same conversation. Giraffe marks the draft as approved
 and returns `outbound_messages` for OpenClaw to dispatch.
 
-**To reject:** The salesperson sends `取消` (or `reject` / `do not send`).
+**To reject:** The salesperson sends `reject` or `do not send`, or the original Chinese rejection phrase ("cancel", Unicode-escaped: `\u53d6\u6d88`).
 Giraffe marks the draft as rejected. No message is sent.
 
 **Customer-facing commercial responses** also require approval when they
