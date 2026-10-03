@@ -25,11 +25,16 @@ QC; that scenario does not add a universal product gate.
 
 The inspected Aivan candidate `ab81668fb1e52460d537baa71ebb93598b3ca583` confirms an
 order through the selected private provider's supplier-quote and purchase-order
-APIs and verifies record/transaction-graph readback. That path does not invoke an
-abcdYi execution import API. This frontend entry and the backend regression do
-not add that cross-application activation. Completing the same-order Aivan-to-
-abcdYi handoff requires a bounded implementation and integration verification,
-not just a deployment URL or a claim that both applications use private data.
+APIs and verifies record/transaction-graph readback. The abcdYi baseline
+`3b24b30dc21b50bc8c80346f68254870b027da70` has no identified consumer or execution
+association for those provider purchase orders: its existing DB-backed creation
+route consumes a local approved decision option, its B/M bridge consumes a local
+selected workspace path, and its provider client exposes context/evidence reads.
+This frontend entry and backend regression do not add that association. A
+tenant-bound, idempotent consumer of confirmed POs from the same selected private
+provider can supply the handoff; a direct Aivan-to-abcdYi execution API call is
+not required. Completing the same-order handoff needs bounded implementation and
+verification, not just a deployment URL or a claim of shared private data.
 The backend acceptance script creates its order through abcdYi's own existing
 approved-option API and must not be presented as proof of this missing handoff.
 
