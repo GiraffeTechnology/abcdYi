@@ -36,3 +36,11 @@ The product's standard working and interaction language is English. Translate no
 Map changes to the active PRD and name the affected acceptance criterion. Verify the smallest meaningful workflow and report exact revisions, commands, results, failures, and skipped integration steps. Do not present an unmerged PR, a mock-only run, or a previous candidate's result as current end-to-end acceptance.
 
 Aivan's seven-step Stage 1 is an inquiry-and-quotation delivery slice. Its completion does not establish Aivan order-confirmation acceptance or the full abcdYi order lifecycle. Keep those evidence claims separate. For integration claims, identify the exact application revision, dependency APIs, and configured private-data provider actually exercised. Distinguish live evidence, mocks, failures, and skipped steps. Do not change production hosts, credentials, or external channels as part of a documentation-only task.
+
+## CTYun TCP port 443 reservation
+
+On CTYun hosts, TCP port 443 is reserved for SSH. Do not configure HTTP, HTTPS, web servers, reverse proxies, or TLS listeners to bind to TCP port 443. Do not stop, rebind, replace, or otherwise disrupt SSH to free that port.
+
+Before selecting a web or bridge port, inspect the existing deployment and operations configuration and reuse an explicitly confirmed allocation. Do not guess a replacement port. If the allocation is unclear, report the missing configuration rather than changing a service binding.
+
+This constraint applies only to CTYun hosts; do not extend it to SIN or other environments without an explicit instruction. Recording this rule does not authorize server access or changes to SSH, firewalls, credentials, network settings, or security settings.
