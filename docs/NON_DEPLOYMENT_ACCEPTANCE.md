@@ -21,6 +21,18 @@ milestones is introduced as a production or QC prerequisite. The synthetic
 acceptance scenario records its applicable production milestones before requesting
 QC; that scenario does not add a universal product gate.
 
+## Remaining source-integration gap
+
+The inspected Aivan candidate `ab81668fb1e52460d537baa71ebb93598b3ca583` confirms an
+order through the selected private provider's supplier-quote and purchase-order
+APIs and verifies record/transaction-graph readback. That path does not invoke an
+abcdYi execution import API. This frontend entry and the backend regression do
+not add that cross-application activation. Completing the same-order Aivan-to-
+abcdYi handoff requires a bounded implementation and integration verification,
+not just a deployment URL or a claim that both applications use private data.
+The backend acceptance script creates its order through abcdYi's own existing
+approved-option API and must not be presented as proof of this missing handoff.
+
 ## Backend regression
 
 `scripts/run_v1_acceptance_apparel_order.py` now uses authenticated HTTP APIs for

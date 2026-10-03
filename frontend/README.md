@@ -33,5 +33,7 @@ its deployment operator must explicitly supply this value using the approved
 deployment configuration. The Compose file and its bindings are unchanged here.
 
 Deployment must confirm the URL, authentication, tenant and private-data mapping,
-Aivan-to-abcdYi confirmed-order handoff, and the complete user workflow. See
-`../docs/NON_DEPLOYMENT_ACCEPTANCE.md` for the verification boundary.
+and the complete user workflow. The inspected Aivan confirmation path persists to
+the private provider but has no abcdYi execution import; this entry does not add
+that missing cross-application handoff. See `../docs/NON_DEPLOYMENT_ACCEPTANCE.md`
+for this remaining implementation gap and the verification boundary.
