@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "allowImportingTsExtensions": false,
+    "outDir": ".test-build",
+    "rootDir": "src"
+  },
+  "include": ["src/App.tsx", "src/lib/myAivan.ts"],
+  "references": []
+}
