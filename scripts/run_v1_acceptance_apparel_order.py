@@ -2,8 +2,10 @@
 """
 run_v1_acceptance_apparel_order.py — Full 22-step V1 acceptance workflow.
 
-Validates the end-to-end C2M apparel order lifecycle from buyer inquiry to
-buyer sign-off. Expected output: "GIRAFFE APPAREL & TEXTILE V1 ACCEPTANCE: PASS"
+Exercises the abcdYi backend API lifecycle with synthetic apparel data, from
+buyer inquiry to buyer sign-off. This does not establish MyAivan, live dependency,
+external channel, or designated private-provider acceptance by itself.
+Expected output: "GIRAFFE APPAREL & TEXTILE V1 ACCEPTANCE: PASS"
 
 Usage:
     BASE_URL=http://localhost:8000 uv run python scripts/run_v1_acceptance_apparel_order.py
@@ -12,7 +14,7 @@ Usage:
 import asyncio
 import os
 import sys
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 import httpx
 
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
@@ -22,15 +24,21 @@ def log(step: int, msg: str):
     print(f"  [{step:02d}] {msg}")
 
 
-async def run_acceptance() -> bool:
-    email = f"acceptance-{datetime.now().strftime('%H%M%S')}@giraffe.technology"
-    password = "AcceptanceTest2024!"
+async def run_acceptance(
+    *,
+    email: str | None = None,
+    password: str | None = None,
+    transport: httpx.AsyncBaseTransport | None = None,
+) -> bool:
+    # Account provisioning is an operator task; the API has no register route.
+    email = email or os.getenv("ACCEPTANCE_EMAIL")
+    password = password or os.getenv("ACCEPTANCE_PASSWORD")
+    if not email or not password:
+        raise ValueError("Set ACCEPTANCE_EMAIL and ACCEPTANCE_PASSWORD for an existing test account")
 
-    async with httpx.AsyncClient(base_url=BASE_URL, timeout=60) as client:
-        # Step 1: Register user
-        r = await client.post("/api/auth/register", json={"email": email, "password": password})
-        assert r.status_code in (200, 201), f"Step 1 FAIL: {r.text}"
-        log(1, f"User registered: {email}")
+    async with httpx.AsyncClient(base_url=BASE_URL, timeout=60, transport=transport) as client:
+        # Step 1: Use an explicitly provisioned synthetic acceptance account.
+        log(1, "Configured test account supplied")
 
         # Step 2: Login
         r = await client.post("/api/auth/login", data={"username": email, "password": password})
@@ -209,6 +217,7 @@ async def run_acceptance() -> bool:
         r = await client.post(f"/api/orders/{order_id}/confirm", headers=H)
         assert r.status_code == 200, f"Step 17 FAIL: {r.text}"
         order_status = r.json()["status"]
+        assert order_status == "IN_PRODUCTION", f"Step 17 FAIL: {r.text}"
         log(17, f"Order confirmed — status: {order_status}")
 
         # Step 18: Run delay prediction
@@ -217,24 +226,44 @@ async def run_acceptance() -> bool:
         prediction = r.json()
         log(18, f"Delay prediction: {prediction.get('delay_risk_level', 'N/A')}")
 
-        # Step 19: Create QC standard + pass QC
+        # Step 19: Record synthetic production evidence, request QC, and pass QC.
+        # All state changes use the same authenticated API as a normal operator.
+        r = await client.get(f"/api/orders/{order_id}/production-monitoring", headers=H)
+        assert r.status_code == 200, f"Step 19 production read FAIL: {r.text}"
+        production_types = {
+            "SAMPLE_CONFIRMATION", "FABRIC_BOOKING", "TRIM_BOOKING",
+            "CUTTING", "SEWING", "WASHING_OR_FINISHING", "INLINE_QC",
+        }
+        milestones = r.json()["milestones"]
+        assert production_types <= {m["milestone_type"] for m in milestones}
+        for milestone in milestones:
+            if milestone["milestone_type"] not in production_types:
+                continue
+            r = await client.patch(
+                f"/api/milestones/{milestone['id']}",
+                json={
+                    "status": "COMPLETED",
+                    "actual_date": datetime.now(timezone.utc).isoformat(),
+                    "notes": "Synthetic acceptance evidence: production milestone completed",
+                },
+                headers=H,
+            )
+            assert r.status_code == 200, f"Step 19 milestone FAIL: {r.text}"
+
         form_version = order.get("locked_form_version_id")
         if form_version:
-            await client.post(
+            r = await client.post(
                 f"/api/orders/{order_id}/qc-standards",
                 json={"form_version_id": form_version},
                 headers=H,
             )
+            assert r.status_code == 201, f"Step 19 QC standard FAIL: {r.text}"
 
-        # Manually set to QC_PENDING via DB
-        from src.db.base import AsyncSessionLocal
-        import uuid as _uuid
-        async with AsyncSessionLocal() as db2:
-            from src.db.models.order import Order as OrderModel
-            o = await db2.get(OrderModel, _uuid.UUID(order_id))
-            if o:
-                o.status = "QC_PENDING"
-                await db2.commit()
+        r = await client.post(f"/api/orders/{order_id}/request-qc", headers=H)
+        assert r.status_code == 200, f"Step 19 QC request FAIL: {r.text}"
+        assert r.json()["status"] == "QC_PENDING", f"Step 19 FAIL: {r.text}"
+        r = await client.get(f"/api/orders/{order_id}", headers=H)
+        assert r.status_code == 200 and r.json()["status"] == "QC_PENDING", r.text
 
         r = await client.post(
             f"/api/orders/{order_id}/qc-records",
@@ -243,6 +272,9 @@ async def run_acceptance() -> bool:
         )
         assert r.status_code == 201, f"Step 19 FAIL: {r.text}"
         qc_result = r.json()["result"]
+        assert qc_result == "QC_PASSED", f"Step 19 FAIL: {r.text}"
+        r = await client.get(f"/api/orders/{order_id}", headers=H)
+        assert r.status_code == 200 and r.json()["status"] == "READY_TO_SHIP", r.text
         log(19, f"QC record submitted — result: {qc_result}")
 
         # Step 20: Create shipment
@@ -274,6 +306,9 @@ async def run_acceptance() -> bool:
             headers=H,
         )
         assert r.status_code == 201, f"Step 21 FAIL: {r.text}"
+        r = await client.get(f"/api/orders/{order_id}", headers=H)
+        assert r.status_code == 200 and r.json()["status"] == "DELIVERED", r.text
+        assert r.json()["buyer_signed_off_at"] is None, "Delivery must not imply buyer acceptance"
         log(21, "Delivery event recorded — order now DELIVERED")
 
         # Step 22: Buyer sign-off
@@ -286,6 +321,12 @@ async def run_acceptance() -> bool:
         r = await client.get(f"/api/execution-graph/orders/{order_id}", headers=H)
         assert r.status_code == 200
         events = r.json()
+        event_types = {event["event_type"] for event in events}
+        assert {
+            "ORDER_CREATED", "ORDER_CONFIRMED", "MILESTONE_UPDATED", "QC_REQUESTED",
+            "QC_RECORD_RECEIVED", "QC_PASSED", "LOGISTICS_HANDOVER_CREATED",
+            "SHIPMENT_UPDATED", "BUYER_SIGNED_OFF",
+        } <= event_types, f"Missing lifecycle evidence: {event_types}"
         log(22, f"Execution graph: {len(events)} events recorded")
 
         assert final_status == "BUYER_SIGNED_OFF", f"Expected BUYER_SIGNED_OFF, got {final_status}"
