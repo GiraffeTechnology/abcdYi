@@ -336,8 +336,6 @@ async def seed_in_production_order(auth_client, seed_confirmed_order, db):
 @pytest.fixture
 async def seed_qc_order(auth_client, seed_confirmed_order):
     """An order in QC_PENDING state with a QC standard."""
-    import uuid
-    from datetime import datetime, timezone
     order_id = seed_confirmed_order["id"]
     form_version_id = seed_confirmed_order.get("locked_form_version_id")
     
@@ -347,16 +345,10 @@ async def seed_qc_order(auth_client, seed_confirmed_order):
             json={"form_version_id": form_version_id},
         )
 
-    # Manually set order to QC_PENDING by patching a milestone
-    from src.db.base import AsyncSessionLocal
-    async with AsyncSessionLocal() as db2:
-        from src.db.models.order import Order
-        order = await db2.get(Order, uuid.UUID(order_id))
-        if order:
-            order.status = "QC_PENDING"
-            await db2.commit()
-
-    return seed_confirmed_order
+    resp = await auth_client.post(f"/api/orders/{order_id}/request-qc")
+    assert resp.status_code == 200, f"Request QC failed: {resp.text}"
+    assert resp.json()["status"] == "QC_PENDING"
+    return resp.json()
 
 
 @pytest.fixture
