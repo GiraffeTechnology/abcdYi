@@ -3,7 +3,9 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from fastapi import HTTPException
 from src.db.models.production import Milestone, ProductionUpdate
+from src.execution_access import require_order, require_order_child, require_participant
 from src.execution_graph.writer import emit_event
 from src.execution_graph.event_types import MILESTONE_UPDATED
 
@@ -21,10 +23,13 @@ async def update_milestone(
     updated_by_user_id=None,
     tenant_id=None,
 ) -> Milestone:
-    ms = await db.get(Milestone, milestone_id)
-    if not ms:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail="Milestone not found")
+    ms = await require_order_child(db, Milestone, milestone_id, tenant_id)
+    order = await require_order(db, ms.order_id, tenant_id, lock=True)
+    await require_participant(db, responsible_participant_id, tenant_id)
+    if status is not None and status not in VALID_MILESTONE_STATUSES:
+        raise HTTPException(status_code=422, detail="Invalid milestone status")
+    previous = {"status": ms.status, "actual_date": ms.actual_date.isoformat() if ms.actual_date else None,
+                "predicted_date": ms.predicted_date.isoformat() if ms.predicted_date else None, "notes": ms.notes}
 
     if status:
         ms.status = status
@@ -33,7 +38,7 @@ async def update_milestone(
     if predicted_date is not None:
         ms.predicted_date = predicted_date
         # Auto-mark as DELAYED if predicted > planned
-        if ms.planned_date and predicted_date > ms.planned_date:
+        if ms.planned_date and predicted_date.replace(tzinfo=None) > ms.planned_date.replace(tzinfo=None):
             ms.status = "DELAYED"
     if notes is not None:
         ms.notes = notes
@@ -59,8 +64,13 @@ async def update_milestone(
                 "milestone_type": ms.milestone_type,
                 "status": ms.status,
                 "order_id": str(ms.order_id),
+                "previous": previous,
+                "actual_date": ms.actual_date.isoformat() if ms.actual_date else None,
+                "predicted_date": ms.predicted_date.isoformat() if ms.predicted_date else None,
+                "notes": ms.notes,
             },
             tenant_id=tenant_id,
+            project_id=order.project_id,
             order_id=ms.order_id,
             triggered_by_user_id=updated_by_user_id,
         )
@@ -75,7 +85,14 @@ async def create_production_update(
     update_text: str,
     submitted_by_participant_id: uuid.UUID | None,
     evidence: dict = None,
+    *, tenant_id: uuid.UUID, user_id: uuid.UUID,
 ) -> ProductionUpdate:
+    order = await require_order(db, order_id, tenant_id)
+    await require_participant(db, submitted_by_participant_id, tenant_id)
+    if milestone_id is not None:
+        milestone = await require_order_child(db, Milestone, milestone_id, tenant_id)
+        if milestone.order_id != order_id:
+            raise HTTPException(status_code=404, detail="Milestone not found for order")
     update = ProductionUpdate(
         order_id=order_id,
         milestone_id=milestone_id,
@@ -85,10 +102,14 @@ async def create_production_update(
     )
     db.add(update)
     await db.flush()
+    await emit_event(db, "PRODUCTION_UPDATE_RECORDED", {"production_update_id": str(update.id),
+        "milestone_id": str(milestone_id) if milestone_id else None, "update_text": update_text, "evidence": evidence or {}},
+        tenant_id=tenant_id, project_id=order.project_id, order_id=order_id, triggered_by_user_id=user_id)
     return update
 
 
-async def get_production_monitoring_view(db: AsyncSession, order_id: uuid.UUID) -> dict:
+async def get_production_monitoring_view(db: AsyncSession, order_id: uuid.UUID, tenant_id: uuid.UUID) -> dict:
+    await require_order(db, order_id, tenant_id)
     result = await db.execute(
         select(Milestone)
         .where(Milestone.order_id == order_id)

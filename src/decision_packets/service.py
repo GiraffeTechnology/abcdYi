@@ -3,6 +3,8 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from fastapi import HTTPException
+from src.order_confirmation.approval_binding import (digest, option_digest, require_project, form_for_project, require_commercial_actor)
 from src.db.models.decision import DecisionPacket, DecisionOption, ApprovalRequest
 from src.db.models.rfq import RFQ, SupplierResponse, SupplierResponsePacket
 from src.db.models.dynamic_form import DynamicOrderForm, DynamicOrderFormVersion
@@ -68,6 +70,14 @@ async def generate_decision_packet(
     Build up to 3 decision options from RFQ supplier responses.
     Returns (DecisionPacket, approval_request_id).
     """
+    await require_project(db, project_id, tenant_id)
+    rfq = await get_project_owned(db, RFQ, rfq_id, tenant_id)
+    if rfq is None or rfq.project_id != project_id:
+        raise HTTPException(status_code=404, detail="RFQ not found for project")
+    form, version = await form_for_project(db, rfq.form_version_id, project_id)
+    if form.current_version != version.version_number:
+        raise HTTPException(status_code=409, detail="Requirements changed; prepare a revised supplier inquiry")
+
     # Load all SupplierResponsePackets for this RFQ
     responses_result = await db.execute(
         select(SupplierResponse).where(SupplierResponse.rfq_id == rfq_id)
@@ -75,7 +85,6 @@ async def generate_decision_packet(
     responses = list(responses_result.scalars().all())
 
     if not responses:
-        from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="Insufficient supplier responses")
 
     # Load packets
@@ -111,10 +120,9 @@ async def generate_decision_packet(
             })
 
     if not packets_data:
-        from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="Insufficient supplier responses")
 
-    form_fields = await _load_current_form_fields(db, project_id)
+    form_fields = version.fields or {}
     quantity = form_fields.get("quantity") or 1
 
     # Run GLTG on a synthetic ApparelOrderInput built from the response packets
@@ -280,7 +288,9 @@ async def generate_decision_packet(
         action_type="QUOTE_APPROVE",
         resource_type="decision_packet",
         resource_id=packet.id,
-        proposed_payload={"packet_id": str(packet.id), "project_id": str(project_id)},
+        proposed_payload={"packet_id": str(packet.id), "project_id": str(project_id),
+            "form_version_id": str(version.id), "requirement_hash": digest(version.fields),
+            "option_hashes": {str(option.id): option_digest(option) for option in created_options}},
         created_by=user_id,
     )
     await db.flush()
@@ -314,21 +324,34 @@ async def approve_decision_option(
     review_notes: str,
     tenant_id: uuid.UUID,
 ) -> DecisionPacket:
-    # Guard: must be approved, bound to this packet + tenant, and not yet consumed
-    await require_approved(
-        db,
-        approval_id,
-        action_type="QUOTE_APPROVE",
-        resource_type="decision_packet",
-        resource_id=packet_id,
-        tenant_id=tenant_id,
-    )
-
     packet = await get_project_owned(db, DecisionPacket, packet_id, tenant_id)
-    if not packet:
-        from fastapi import HTTPException
+    if packet is None:
         raise HTTPException(status_code=404, detail="DecisionPacket not found")
-
+    option = await db.get(DecisionOption, option_id)
+    if option is None or option.packet_id != packet_id:
+        raise HTTPException(status_code=404, detail="Decision option not found for packet")
+    approval = await require_approved(db, approval_id, action_type="QUOTE_APPROVE",
+        resource_type="decision_packet", resource_id=packet_id, tenant_id=tenant_id)
+    payload = approval.proposed_payload or {}
+    if (payload.get("option_hashes", {}).get(str(option_id)) != option_digest(option)
+            or payload.get("project_id") != str(packet.project_id)):
+        raise HTTPException(status_code=409, detail="Quotation changed after the approval request")
+    try:
+        version_id = uuid.UUID(payload["form_version_id"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=409, detail="Approval requires an exact requirement version") from exc
+    form, version = await form_for_project(db, version_id, packet.project_id)
+    if form.current_version != version.version_number or payload.get("requirement_hash") != digest(version.fields):
+        raise HTTPException(status_code=409, detail="Requirements changed after the approval request")
+    actor_role = await require_commercial_actor(db, approval.reviewed_by, tenant_id)
+    selector_role = await require_commercial_actor(db, reviewed_by, tenant_id)
+    if approval.reviewed_at is None:
+        raise HTTPException(status_code=403, detail="Human approval timestamp is missing")
+    binding = {"approval_id": str(approval.id), "actor_id": str(approval.reviewed_by),
+        "actor_role": actor_role, "approved_at": approval.reviewed_at.isoformat(),
+        "form_version_id": str(version.id), "requirement_hash": digest(version.fields),
+        "option_hash": option_digest(option), "selected_by": str(reviewed_by), "selected_by_role": selector_role}
+    option.evidence = {**(option.evidence or {}), "commercial_approval": binding}
     packet.recommended_option_id = option_id
     packet.human_approval_status = "APPROVED"
     await db.flush()
@@ -336,7 +359,7 @@ async def approve_decision_option(
     await emit_event(
         db=db,
         event_type=QUOTE_APPROVED,
-        payload={"packet_id": str(packet_id), "option_id": str(option_id)},
+        payload={"packet_id": str(packet_id), "option_id": str(option_id), "approval": binding},
         tenant_id=tenant_id,
         project_id=packet.project_id,
         triggered_by_user_id=reviewed_by,
@@ -345,8 +368,9 @@ async def approve_decision_option(
 
 
 async def get_latest_decision_packet(
-    db: AsyncSession, project_id: uuid.UUID
+    db: AsyncSession, project_id: uuid.UUID, tenant_id: uuid.UUID
 ) -> DecisionPacket | None:
+    await require_project(db, project_id, tenant_id)
     result = await db.execute(
         select(DecisionPacket)
         .where(DecisionPacket.project_id == project_id)

@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from api.routes.project_access import router as project_access_router
 from api.routes.health import router as health_router
 from api.routes.auth import router as auth_router
 from api.routes.participants import router as participants_router
@@ -55,6 +56,7 @@ app.include_router(matching_router, prefix="/api", tags=["matching"])
 app.include_router(rfq_router, prefix="/api", tags=["rfq"])
 app.include_router(supplier_responses_router, prefix="/api", tags=["supplier_responses"])
 app.include_router(decision_packets_router, prefix="/api", tags=["decision_packets"])
+app.include_router(project_access_router, prefix="/api", tags=["project_access"])
 app.include_router(orders_router, prefix="/api", tags=["orders"])
 app.include_router(provider_orders_router, prefix="/api", tags=["provider_orders"])
 app.include_router(milestones_router, prefix="/api", tags=["milestones"])

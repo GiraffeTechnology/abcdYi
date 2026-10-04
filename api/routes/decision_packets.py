@@ -15,7 +15,9 @@ from src.decision_packets.service import (
 from src.approval_gates.schemas import ApprovalRequestOut
 from src.db.models.decision import ApprovalRequest
 
-router = APIRouter()
+from src.permissions.project_access import bind_request_actor
+
+router = APIRouter(dependencies=[Depends(bind_request_actor)])
 
 
 class GeneratePacketRequest:
@@ -71,7 +73,7 @@ async def get_latest_packet(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    packet = await get_latest_decision_packet(db, project_id)
+    packet = await get_latest_decision_packet(db, project_id, current_user.tenant_id)
     if not packet:
         raise HTTPException(status_code=404, detail="No decision packet found")
     options = await get_options_for_packet(db, packet.id)
@@ -92,16 +94,6 @@ async def approve_option(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    # First approve the ApprovalRequest
-    from src.approval_gates.service import approve_request
-    approval_req = await db.get(ApprovalRequest, body.approval_id)
-    if not approval_req:
-        raise HTTPException(status_code=404, detail="ApprovalRequest not found")
-    if approval_req.status != "APPROVED":
-        # Gate: must be approved externally first
-        from fastapi import HTTPException as FE
-        raise FE(status_code=403, detail="Action requires prior human approval.")
-
     packet = await approve_decision_option(
         db=db,
         packet_id=packet_id,

@@ -7,7 +7,9 @@ from src.projects.schemas import (
     ProjectCreate, ProjectOut, BuyerInquiryCreate, BuyerInquiryOut
 )
 
-router = APIRouter()
+from src.permissions.project_access import bind_request_actor
+
+router = APIRouter(dependencies=[Depends(bind_request_actor)])
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=ProjectOut)

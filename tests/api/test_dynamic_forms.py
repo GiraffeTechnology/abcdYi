@@ -1,4 +1,5 @@
 import pytest
+import uuid
 
 
 @pytest.mark.asyncio
@@ -49,7 +50,7 @@ async def test_dynamic_form_emits_execution_event(auth_client, seed_inquiry, db)
 
     result = await db.execute(
         select(ExecutionEvent).where(
-            ExecutionEvent.project_id == seed_inquiry["project_id"],
+            ExecutionEvent.project_id == uuid.UUID(seed_inquiry["project_id"]),
             ExecutionEvent.event_type == "DYNAMIC_FORM_CREATED",
         )
     )

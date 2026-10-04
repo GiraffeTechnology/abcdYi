@@ -3,6 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.order_confirmation.execution_persistence import commit_execution
+from src.integrations.execution_language import normalize_execution_input, record_input_lineage
 from api.deps import get_db, get_current_user
 from src.milestones.schemas import MilestoneOut, MilestoneUpdate, ProductionUpdateCreate
 from src.milestones.service import (
@@ -11,7 +13,9 @@ from src.milestones.service import (
 from src.production_monitoring.service import run_delay_prediction
 from src.db.models.production import ProductionMonitoringPacket
 
-router = APIRouter()
+from src.permissions.project_access import bind_request_actor
+
+router = APIRouter(dependencies=[Depends(bind_request_actor)])
 
 
 @router.patch("/milestones/{milestone_id}", response_model=MilestoneOut)
@@ -21,6 +25,7 @@ async def patch_milestone(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    body, language_evidence = await normalize_execution_input(body, "milestones")
     ms = await update_milestone(
         db=db,
         milestone_id=milestone_id,
@@ -32,7 +37,8 @@ async def patch_milestone(
         updated_by_user_id=current_user.id,
         tenant_id=current_user.tenant_id,
     )
-    await db.commit()
+    await record_input_lineage(db, language_evidence, tenant_id=current_user.tenant_id, user_id=current_user.id, order_id=ms.order_id)
+    await commit_execution(db, tenant_id=current_user.tenant_id, user_id=current_user.id, order_id=ms.order_id)
     await db.refresh(ms)
     return ms
 
@@ -44,6 +50,7 @@ async def add_production_update(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    body, language_evidence = await normalize_execution_input(body, "production_updates")
     update = await create_production_update(
         db=db,
         order_id=order_id,
@@ -51,8 +58,11 @@ async def add_production_update(
         update_text=body.update_text,
         submitted_by_participant_id=body.submitted_by_participant_id,
         evidence=body.evidence,
+        tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
     )
-    await db.commit()
+    await record_input_lineage(db, language_evidence, tenant_id=current_user.tenant_id, user_id=current_user.id, order_id=update.order_id)
+    await commit_execution(db, tenant_id=current_user.tenant_id, user_id=current_user.id, order_id=update.order_id)
     await db.refresh(update)
     return {
         "id": str(update.id),
@@ -67,7 +77,7 @@ async def get_production_monitoring(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    view = await get_production_monitoring_view(db, order_id)
+    view = await get_production_monitoring_view(db, order_id, current_user.tenant_id)
 
     pkt_result = await db.execute(
         select(ProductionMonitoringPacket)
@@ -101,7 +111,7 @@ async def trigger_delay_prediction(
         tenant_id=current_user.tenant_id,
         user_id=current_user.id,
     )
-    await db.commit()
+    await commit_execution(db, tenant_id=current_user.tenant_id, user_id=current_user.id, order_id=pkt.order_id)
     await db.refresh(pkt)
     return {
         "id": str(pkt.id),

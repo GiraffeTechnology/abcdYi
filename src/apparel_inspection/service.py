@@ -1,3 +1,5 @@
+import math
+
 def evaluate_qc_record(qc_record_data: dict, qc_standard: dict) -> dict:
     """
     Compare QC record data against QC standard.
@@ -9,7 +11,11 @@ def evaluate_qc_record(qc_record_data: dict, qc_standard: dict) -> dict:
     fabric_defects = qc_record_data.get("fabric_defects") or {}
     defect_limits = (qc_standard.get("fabric_defect_limits") or {})
     for defect_type, count in fabric_defects.items():
-        limit = defect_limits.get(defect_type, 0)
+        limit = defect_limits.get(defect_type)
+        _number(count, defect_type)
+        _number(limit, defect_type + " limit")
+        if count < 0 or limit < 0:
+            raise ValueError("QC counts and limits must be nonnegative")
         if count > limit:
             failures.append(f"Fabric defect '{defect_type}': {count} exceeds limit {limit}")
         else:
@@ -33,7 +39,10 @@ def evaluate_qc_record(qc_record_data: dict, qc_standard: dict) -> dict:
     size_dev = qc_record_data.get("size_deviation") or {}
     size_limits = qc_standard.get("size_deviation_limits") or {}
     for dim, deviation in size_dev.items():
-        limit = size_limits.get(dim, 999)
+        limit = size_limits.get(dim)
+        _number(deviation, dim)
+        _number(limit, dim + " limit")
+        if limit < 0: raise ValueError("QC tolerance must be nonnegative")
         if abs(float(deviation)) > limit:
             failures.append(f"Size deviation '{dim}': {deviation} exceeds tolerance {limit}")
         else:
@@ -44,7 +53,10 @@ def evaluate_qc_record(qc_record_data: dict, qc_standard: dict) -> dict:
     color_tolerance = qc_standard.get("color_difference_tolerance") or {}
     for channel, value in color_diff.items():
         tolerance = color_tolerance.get(channel)
-        if tolerance is not None and abs(float(value)) > tolerance:
+        _number(value, channel)
+        _number(tolerance, channel + " tolerance")
+        if tolerance < 0: raise ValueError("QC tolerance must be nonnegative")
+        if abs(float(value)) > tolerance:
             failures.append(f"Color difference '{channel}': {value} exceeds tolerance {tolerance}")
         else:
             passed.append(f"Color '{channel}': within tolerance")
@@ -58,3 +70,8 @@ def evaluate_qc_record(qc_record_data: dict, qc_standard: dict) -> dict:
         "pass_criteria_met": passed,
         "rework_required": rework_required,
     }
+
+
+def _number(value, field):
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+        raise ValueError("QC observation and approved numeric criterion are required: " + field)

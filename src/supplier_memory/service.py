@@ -6,7 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.db.models.logistics import SupplierMemoryRecord, Shipment
 from src.db.models.production import Milestone
 from src.db.models.qc import QCRecord
-from src.db.models.rfq import RFQRecipient
+from src.db.models.rfq import RFQRecipient, RFQ
+from src.execution_access import require_order, require_participant
+from src.execution_graph.writer import emit_event
 from src.db.models.decision import DecisionOption
 from src.db.models.order import Order
 from src.milestones.constants import SHIPMENT as SHIPMENT_MILESTONE
@@ -16,12 +18,13 @@ async def update_supplier_memory_after_signoff(
     db: AsyncSession,
     order_id: uuid.UUID,
     tenant_id: uuid.UUID,
+    *, user_id: uuid.UUID | None = None,
 ) -> list[SupplierMemoryRecord]:
     """
     Called after buyer_sign_off. Creates SupplierMemoryRecord for participants.
     """
-    order = await db.get(Order, order_id)
-    if not order:
+    order = await require_order(db, order_id, tenant_id, lock=True)
+    if order.status != "BUYER_SIGNED_OFF" or order.buyer_signed_off_at is None:
         return []
 
     # Get participant IDs from the approved option
@@ -38,11 +41,18 @@ async def update_supplier_memory_after_signoff(
     records_created: list[SupplierMemoryRecord] = []
 
     for participant_id in participant_ids:
+        await require_participant(db, participant_id, tenant_id)
+        existing = await db.scalar(select(SupplierMemoryRecord).where(
+            SupplierMemoryRecord.order_id == order_id, SupplierMemoryRecord.participant_id == participant_id))
+        if existing is not None:
+            records_created.append(existing)
+            continue
         # On-time delivery: SHIPMENT milestone actual_date <= planned_date
         ms_result = await db.execute(
             select(Milestone).where(
                 Milestone.order_id == order_id,
                 Milestone.milestone_type == SHIPMENT_MILESTONE,
+                Milestone.responsible_participant_id == participant_id,
             )
         )
         shipment_milestone = ms_result.scalar_one_or_none()
@@ -66,15 +76,18 @@ async def update_supplier_memory_after_signoff(
 
         # Response time from RFQRecipient
         recip_result = await db.execute(
-            select(RFQRecipient).where(
+            select(RFQRecipient).join(RFQ, RFQRecipient.rfq_id == RFQ.id).where(
                 RFQRecipient.participant_id == participant_id,
+                RFQ.project_id == order.project_id,
+                RFQRecipient.sent_at.is_not(None), RFQRecipient.responded_at.is_not(None),
             ).order_by(RFQRecipient.responded_at.desc()).limit(1)
         )
         recipient = recip_result.scalar_one_or_none()
         response_time_hours = None
         if recipient and recipient.sent_at and recipient.responded_at:
             delta = recipient.responded_at - recipient.sent_at
-            response_time_hours = delta.total_seconds() / 3600
+            if delta.total_seconds() >= 0:
+                response_time_hours = delta.total_seconds() / 3600
 
         notes = (
             f"Auto-generated from order {order_id}. "
@@ -91,6 +104,15 @@ async def update_supplier_memory_after_signoff(
         )
         db.add(memory)
         records_created.append(memory)
+        await db.flush()
+        await emit_event(db, "SUPPLIER_PERFORMANCE_RECORDED", {
+            "supplier_memory_id": str(memory.id), "participant_id": str(participant_id),
+            "on_time_delivery": on_time, "qc_pass_rate": qc_pass_rate, "response_time_hours": response_time_hours,
+            "source_milestone_id": str(shipment_milestone.id) if shipment_milestone else None,
+            "source_qc_record_ids": [str(record.id) for record in qc_records],
+            "source_rfq_recipient_id": str(recipient.id) if recipient else None,
+            "buyer_signed_off_at": order.buyer_signed_off_at.isoformat(),
+        }, tenant_id=tenant_id, project_id=order.project_id, order_id=order_id, triggered_by_user_id=user_id)
 
     await db.flush()
     return records_created

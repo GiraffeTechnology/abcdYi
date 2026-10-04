@@ -10,7 +10,9 @@ from src.dynamic_forms.schemas import (
     ClarificationQuestionCreate,
 )
 
-router = APIRouter()
+from src.permissions.project_access import bind_request_actor
+
+router = APIRouter(dependencies=[Depends(bind_request_actor)])
 
 
 @router.post(

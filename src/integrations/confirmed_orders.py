@@ -106,3 +106,18 @@ class ConfirmedOrderProvider:
             # A timeout or malformed reply cannot prove that the write failed.
             # Reconcile the same PO; never create another order on uncertainty.
         return self.get_execution(po_id)
+
+    def persist_execution(self, po_id: str, expected_revision: int, state: dict) -> dict:
+        """Commit exactly one revision and reconcile an uncertain reply by readback."""
+        try:
+            self._request("POST", f"/api/data/purchase-orders/{require_id(po_id)}/execution-state", {
+                "expected_revision": expected_revision, "state": state,
+            })
+        except ConfirmedOrderError as exc:
+            if exc.code != "PROVIDER_HTTP_409" and exc.status_code not in {502, 503}:
+                raise
+        readback = self.get_execution(po_id)
+        if (readback.get("state") != state or readback.get("revision") != expected_revision + 1
+                or readback.get("source_snapshot_hash") != state["source_snapshot_hash"]):
+            raise ConfirmedOrderError("PROVIDER_EXECUTION_NOT_VERIFIED", 409)
+        return readback

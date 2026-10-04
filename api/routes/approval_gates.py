@@ -10,7 +10,9 @@ from src.approval_gates.service import approve_request, reject_request
 from src.db.models.decision import ApprovalRequest
 from src.db.tenant_scope import get_tenant_owned
 
-router = APIRouter()
+from src.permissions.project_access import bind_request_actor
+
+router = APIRouter(dependencies=[Depends(bind_request_actor)])
 
 
 @router.get("/approval-requests", response_model=list[ApprovalRequestOut])
@@ -25,7 +27,16 @@ async def list_approval_requests(
     if status and status.upper() != "ALL":
         query = query.where(ApprovalRequest.status == status.upper())
     result = await db.execute(query.order_by(ApprovalRequest.created_at.desc()))
-    return list(result.scalars().all())
+    from src.permissions.project_access import resource_scope, project_access_permitted
+    visible = []
+    for row in result.scalars().all():
+        project_id, _ = await resource_scope(db, 'approval_id', row.id)
+        if project_id is None:
+            if row.created_by == current_user.id or current_user.is_platform_admin:
+                visible.append(row)
+        elif await project_access_permitted(db, project_id):
+            visible.append(row)
+    return visible
 
 
 @router.get("/approval-requests/{approval_id}", response_model=ApprovalRequestOut)

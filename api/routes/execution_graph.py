@@ -5,7 +5,9 @@ from api.deps import get_db, get_current_user
 from src.execution_graph import service
 from src.execution_graph.schemas import ExecutionEventOut
 
-router = APIRouter()
+from src.permissions.project_access import bind_request_actor
+
+router = APIRouter(dependencies=[Depends(bind_request_actor)])
 
 
 @router.get("/execution-graph/projects/{project_id}", response_model=list[ExecutionEventOut])

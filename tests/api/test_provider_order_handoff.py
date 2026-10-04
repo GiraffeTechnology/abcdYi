@@ -17,7 +17,7 @@ from api.deps import get_current_user, get_db
 from api.main import app
 from api.routes.provider_orders import get_confirmed_order_provider
 from src.db.base import Base
-from src.db.models import Tenant, User, Order, Milestone, ExecutionEvent
+from src.db.models import Tenant, User, UserRole, Order, Milestone, ExecutionEvent
 from src.integrations.confirmed_orders import ConfirmedOrderProvider
 
 
@@ -81,6 +81,8 @@ async def handoff(tmp_path, monkeypatch):
         db.add(Tenant(id=tenant_id, name="Synthetic test tenant", slug=str(tenant_id)))
         await db.flush()
         db.add(User(id=user_id, tenant_id=tenant_id, email="synthetic@example.invalid", hashed_password="not-a-login-credential"))
+        await db.flush()
+        db.add(UserRole(user_id=user_id, role_name="PROCUREMENT"))
         await db.commit()
     user = SimpleNamespace(id=user_id, tenant_id=tenant_id)
     fixture = SyntheticProvider(str(tenant_id))
@@ -91,6 +93,7 @@ async def handoff(tmp_path, monkeypatch):
     provider = ConfirmedOrderProvider(local_tenant_id=str(tenant_id), transport=httpx.MockTransport(fixture))
     async def db_override():
         async with sessions() as db:
+            db.info["confirmed_order_provider"] = provider
             yield db
     app.dependency_overrides[get_db] = db_override
     app.dependency_overrides[get_current_user] = lambda: user
@@ -126,7 +129,7 @@ async def test_import_is_durable_idempotent_and_preserves_progress(handoff):
         assert await db.scalar(select(func.count()).select_from(Order)) == 1
         assert await db.scalar(select(func.count()).select_from(Milestone)) == 12
         assert await db.scalar(select(func.count()).select_from(ExecutionEvent).where(ExecutionEvent.event_type == "PROVIDER_CONFIRMED_ORDER_IMPORTED")) == 1
-    assert provider.writes == 1
+    assert provider.writes == 2
 
 
 async def test_import_reconciles_lost_provider_commit_reply(handoff):

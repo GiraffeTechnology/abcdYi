@@ -62,20 +62,33 @@ async def test_qc_pass_transitions_order(auth_client, seed_qc_order):
 
 
 @pytest.mark.asyncio
-async def test_replacement_alert_at_3_incidents(auth_client, seed_qc_order, seed_participant, db):
+async def test_replacement_alert_at_3_incidents(auth_client, seed_qc_order, seed_participant, seed_user, db):
     """Third quality incident should trigger replacement alert."""
     import uuid
     from sqlalchemy import select
     from src.db.models.logistics import QualityIncident, ReplacementAlert
 
-    for _ in range(3):
-        await auth_client.post(
+    from src.db.models.user import UserRole
+    db.add(UserRole(user_id=uuid.UUID(seed_user["user_id"]), role_name="QUALITY_MANAGER"))
+    await db.commit()
+    for index in range(3):
+        response = await auth_client.post(
             f"/api/orders/{seed_qc_order['id']}/qc-records",
             json={
                 "responsible_participant_id": seed_participant["id"],
                 "label_compliance": False,
             },
         )
+
+        assert response.status_code == 201, response.text
+        if index < 2:
+            resolution = await auth_client.post(
+                f"/api/qc-records/{response.json()['id']}/resolve",
+                json={"reason": "Recorded synthetic rework before the next inspection"},
+            )
+            assert resolution.status_code == 200, resolution.text
+            handoff = await auth_client.post(f"/api/orders/{seed_qc_order['id']}/request-qc")
+            assert handoff.status_code == 200, handoff.text
 
     result = await db.execute(
         select(ReplacementAlert).where(
