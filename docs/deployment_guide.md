@@ -28,11 +28,11 @@ cp .env.example .env
 # 4. Run database migrations
 uv run alembic upgrade head
 
-# 5. Start the API server
-uv run uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
+# 5. Start the API server (binds a free port automatically, never 443)
+API_PORT_FILE=data/api.port uv run python -m api.serve
 
 # 6. Verify health
-curl http://localhost:8000/health
+curl "http://localhost:$(cat data/api.port)/health"
 ```
 
 ---
@@ -53,8 +53,8 @@ docker-compose exec api uv run alembic upgrade head
 # 4. Seed reference data
 docker-compose exec api uv run python scripts/seed_reference_data.py
 
-# 5. Verify
-curl http://localhost:8000/health
+# 5. Verify (Docker publishes each service on a free host port)
+curl "http://localhost:$(docker-compose port api 8000 | cut -d: -f2)/health"
 ```
 
 ---
@@ -154,21 +154,33 @@ The platform uses `NullPool` for asyncpg to ensure event loop safety. For high-c
 The default CORS configuration allows all origins (`*`). Restrict this in production:
 
 ```python
-allow_origins=["https://your-frontend-domain.com:<PORT>"]
+allow_origins=[f"https://your-frontend-domain.com:{PUBLIC_PORT}"]
 ```
 
 ### 8.4 Reverse Proxy
 
-Recommended: nginx or Caddy as a reverse proxy with TLS termination. Replace
-`<PORT>` with any port that is not in use (on CTYun, 443 is owned by SSH and
-cannot be used) and include that port in every public URL:
+Recommended: nginx or Caddy as a reverse proxy with TLS termination. No port is
+fixed: pick a free public port automatically (on CTYun, 443 is owned by SSH and
+is never used) and read the API port from the file written by `api.serve`:
+
+```bash
+PUBLIC_PORT=$(python3 -c 'import socket
+while True:
+    s = socket.socket(); s.bind(("", 0)); p = s.getsockname()[1]; s.close()
+    if p != 443: print(p); break')
+API_PORT=$(cat data/api.port)
+export PUBLIC_PORT API_PORT
+envsubst '$PUBLIC_PORT $API_PORT' < api.conf.template > /etc/nginx/conf.d/api.conf
+```
+
+`api.conf.template`:
 
 ```nginx
 server {
-    listen <PORT> ssl;
+    listen ${PUBLIC_PORT} ssl;
     server_name api.yourdomain.com;
     location / {
-        proxy_pass http://localhost:8000;
+        proxy_pass http://127.0.0.1:${API_PORT};
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
@@ -182,7 +194,7 @@ server {
 After deployment, run the V1 acceptance test to verify the full workflow:
 
 ```bash
-BASE_URL=https://api.yourdomain.com:<PORT> uv run python scripts/run_v1_acceptance_apparel_order.py
+BASE_URL=https://api.yourdomain.com:$PUBLIC_PORT uv run python scripts/run_v1_acceptance_apparel_order.py
 ```
 
 Expected: `GIRAFFE APPAREL & TEXTILE V1 ACCEPTANCE: PASS`
@@ -190,7 +202,7 @@ Expected: `GIRAFFE APPAREL & TEXTILE V1 ACCEPTANCE: PASS`
 For 5x readiness verification:
 
 ```bash
-BASE_URL=https://api.yourdomain.com:<PORT> uv run python scripts/verify_v1_product_readiness_5x.py
+BASE_URL=https://api.yourdomain.com:$PUBLIC_PORT uv run python scripts/verify_v1_product_readiness_5x.py
 ```
 
 Expected: `GIRAFFE V1 PRODUCT READINESS: 5/5 PASS`

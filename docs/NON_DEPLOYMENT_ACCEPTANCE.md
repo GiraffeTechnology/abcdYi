@@ -80,13 +80,14 @@ unsafe or credential-bearing URLs, missing configuration, and repeatable renderi
 
 1. Select and record the exact merged abcdYi and Aivan revisions; confirm all CI
    checks for those exact heads before merging. An open/draft PR is not a release.
-2. Confirm the approved, externally reachable MyAivan web entry, normally `/app`,
-   and supply it as `VITE_MYAIVAN_URL` before starting the existing development
-   server or building production static assets. Confirm any existing path-prefix
-   routing and `/static` assets. Do not infer a new web allocation from these docs.
-3. On CTYun, TCP 443 is owned by SSH; HTTP/HTTPS may use any port that is not
-   in use. Do not move SSH or bind web/TLS/reverse-proxy listeners to 443, and
-   state the chosen port explicitly in every URL. No host,
+2. MyAivan picks its own free port at startup and writes it to its port file.
+   Point `MYAIVAN_PORT_FILE` at that file and set `MYAIVAN_PUBLIC_HOST` before
+   starting the development server or building static assets; the entry
+   (normally `/app`) is derived from them. `VITE_MYAIVAN_URL` overrides this when
+   a different externally reachable entry is required.
+3. On CTYun, TCP 443 is owned by SSH. Services choose free ports themselves and
+   never use 443; no port has to be allocated by hand. Do not move SSH or bind
+   web/TLS/reverse-proxy listeners to 443. No host,
    listener, TLS, firewall, credentials, or production data is changed by this work.
 4. Configure MyAivan's existing authentication and tenant mapping and the selected
    replaceable private-data provider through their supported server-side settings.

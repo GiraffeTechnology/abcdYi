@@ -7,7 +7,11 @@ are not the active entry.
 
 ## Configuration
 
-Set `VITE_MYAIVAN_URL` to the operator-approved, complete MyAivan web entry URL.
+MyAivan chooses a free port at startup (never 443) and writes it to its port file.
+Set `MYAIVAN_PORT_FILE` to that file and `MYAIVAN_PUBLIC_HOST` to its host, and the
+build derives the entry `scheme://host:<chosen port>/app`. Set `VITE_MYAIVAN_URL`
+only to override it with a complete MyAivan web entry URL. The dev server also
+picks a free port unless `VITE_DEV_PORT` is set.
 The authoritative Aivan application exposes `/app` (and `/`) and owns its `/static`
 assets. A deployment mounted under another prefix must supply its externally
 reachable entry URL. No host, web port, reverse proxy, or TLS listener is inferred.

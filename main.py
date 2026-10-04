@@ -1,18 +1,17 @@
 """Giraffe Agent helper entry point.
 The FastAPI application entry point is:
     api.main:app
-Run the API server with:
-    uv run uvicorn api.main:app --reload
-Interactive API docs will be available at:
-    http://localhost:8000/docs
+Run the API server on an automatically selected free port (never 443) with:
+    uv run python -m api.serve
+Interactive API docs are served at /docs on the printed port.
 """
 
 
 def main() -> None:
     print("Giraffe Agent")
     print("FastAPI entry point: api.main:app")
-    print("Run: uv run uvicorn api.main:app --reload")
-    print("Docs: http://localhost:8000/docs")
+    print("Run: uv run python -m api.serve")
+    print("Docs: /docs on the port printed at startup")
 
 
 if __name__ == "__main__":

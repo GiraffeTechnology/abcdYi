@@ -7,11 +7,12 @@ Usage:
 
 from __future__ import annotations
 import argparse
+import os
 
-import uvicorn
 from fastapi import FastAPI
 
 from aivan.gpm.router import _init_store, get_db_client, router
+from aivan.utils.ports import serve
 
 
 def create_app() -> FastAPI:
@@ -32,9 +33,16 @@ app = create_app()
 def main() -> None:
     parser = argparse.ArgumentParser(description="AIVAN GPM Server")
     parser.add_argument("--host", default="0.0.0.0")
-    parser.add_argument("--port", type=int, default=8080)
+    # Optional; a free port (never 443) is chosen automatically.
+    parser.add_argument("--port", default=os.environ.get("AIVAN_GPM_PORT"))
     args = parser.parse_args()
-    uvicorn.run("aivan.gpm.server:app", host=args.host, port=args.port, reload=False)
+    serve(
+        "aivan.gpm.server:app",
+        host=args.host,
+        requested=args.port,
+        env_var="AIVAN_GPM_PORT",
+        file_env_var="AIVAN_GPM_PORT_FILE",
+    )
 
 
 if __name__ == "__main__":

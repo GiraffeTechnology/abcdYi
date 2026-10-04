@@ -1,5 +1,7 @@
 version: "3.9"
 
+# Container-internal ports only. Docker publishes each one on a free host port
+# (never a fixed one); find it with `docker compose port <service> <port>`.
 services:
   db:
     image: postgres:16-alpine
@@ -8,7 +10,7 @@ services:
       POSTGRES_PASSWORD: giraffe
       POSTGRES_DB: apparel_textile
     ports:
-      - "5432:5432"
+      - "5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -39,7 +41,7 @@ services:
       ALEMBIC_DATABASE_URL: postgresql+psycopg2://giraffe:giraffe@db:5432/apparel_textile
       SECRET_KEY: change-me-in-production
     ports:
-      - "8000:8000"
+      - "8000"
     depends_on:
       db:
         condition: service_healthy
@@ -49,8 +51,10 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.frontend
+    environment:
+      VITE_DEV_PORT: "5173"
     ports:
-      - "5173:5173"
+      - "5173"
     depends_on:
       - api
 
