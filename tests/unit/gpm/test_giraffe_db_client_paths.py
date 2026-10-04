@@ -28,7 +28,7 @@ class _CapturingTransport(httpx.BaseTransport):
         if request.method == "GET":
             body = json.dumps({"status": "ok", "schema_version": "0.1.0"}).encode()
         else:
-            body = json.dumps({"id": "ctx_001"}).encode()
+            body = json.dumps({"id": "ctx_001", "tenant_id": request.headers.get("X-Service-Tenant-ID")}).encode()
         return httpx.Response(200, content=body, headers={"content-type": "application/json"})
 
 

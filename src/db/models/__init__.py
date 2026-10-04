@@ -90,3 +90,5 @@ __all__ = [
     "SupplierScoreSnapshot", "SupplierProfileUpdate",
     "DependencyNeed", "UpstreamInquiry", "UpstreamResponse", "UpstreamOption",
 ]
+
+from src.db.models.provider_order import ProviderOrderAssociation

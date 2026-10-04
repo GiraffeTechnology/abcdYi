@@ -43,6 +43,8 @@ def build_context_retriever_from_env() -> MockContextRetriever | GiraffeDBContex
             tenant_id=tenant_id,
             operator_id=operator_id,
             api_key=api_key,
+            service_auth_secret=(os.environ.get("GPM_GIRAFFE_DB_SERVICE_AUTH_SECRET")
+                                 or os.environ.get("GIRAFFE_DB_SERVICE_AUTH_SECRET")),
         )
         return GiraffeDBContextRetriever(
             client=client,

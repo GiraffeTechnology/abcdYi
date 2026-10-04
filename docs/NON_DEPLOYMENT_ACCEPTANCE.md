@@ -21,22 +21,40 @@ milestones is introduced as a production or QC prerequisite. The synthetic
 acceptance scenario records its applicable production milestones before requesting
 QC; that scenario does not add a universal product gate.
 
-## Remaining source-integration gap
+## Same-provider confirmed-order handoff
 
-The inspected Aivan candidate `ab81668fb1e52460d537baa71ebb93598b3ca583` confirms an
-order through the selected private provider's supplier-quote and purchase-order
-APIs and verifies record/transaction-graph readback. The abcdYi baseline
-`3b24b30dc21b50bc8c80346f68254870b027da70` has no identified consumer or execution
-association for those provider purchase orders: its existing DB-backed creation
-route consumes a local approved decision option, its B/M bridge consumes a local
-selected workspace path, and its provider client exposes context/evidence reads.
-This frontend entry and backend regression do not add that association. A
-tenant-bound, idempotent consumer of confirmed POs from the same selected private
-provider can supply the handoff; a direct Aivan-to-abcdYi execution API call is
-not required. Completing the same-order handoff needs bounded implementation and
-verification, not just a deployment URL or a claim of shared private data.
-The backend acceptance script creates its order through abcdYi's own existing
-approved-option API and must not be presented as proof of this missing handoff.
+`POST /api/orders/from-provider-confirmed` accepts a `purchase_order_id` under
+abcdYi's normal JWT authentication. It reads the selected provider's confirmed
+PO API, requires the Aivan-confirmed quote and requirement snapshots, verifies
+tenant ownership and human authorization, and creates the existing apparel
+execution records in `IN_PRODUCTION`. It adds no formal-contract prerequisite
+and performs no new buyer approval or outbound supplier communication.
+
+The provider is chosen by server configuration, never by request input. Its
+service identity and tenant namespace must match the provider selected by Aivan.
+The request cannot choose a URL, credential, tenant, project, or provider identity.
+The optional operator-owned tenant mapping is one-to-one. Source PO, quote,
+requirement, selected option, parties, approval evidence, confirmation time, and
+source hash remain associated with the local execution order.
+
+The provider's compare-and-set execution-state API stores a bounded import
+association. A successful HTTP write alone is insufficient: authoritative
+readback must match source hash, identities, tenant, and association. A lost
+response is reconciled by reading the same PO. Deterministic IDs and the local
+unique constraint prevent duplicate execution orders; a replay never resets
+production, QC, shipping, or sign-off progress. The local execution transaction
+persists its records and audit event together. If that transaction fails after
+the remote association commits, retrying the same PO completes the local import.
+
+This closes the bounded source association gap described by the earlier
+`3b24b30d` baseline. It does not establish full AC-2/AC-3 product acceptance.
+The selected provider owns confirmation and the import association; the existing
+execution database owns subsequent local milestones, QC, logistics, and sign-off.
+Restarting the consumer with that execution database preserves progress. Restoring
+a lost execution database from the provider's initial association alone does not
+restore later lifecycle records, and is not claimed here. The frontend link alone
+still does not prove a completed business workflow. See
+[provider handoff contract](PROVIDER_ORDER_HANDOFF.md) for configuration and checks.
 
 ## Backend regression
 
