@@ -156,6 +156,8 @@ jobs:
         run: >-
           uv run pytest
           tests/unit/test_gltg_client.py
+          tests/unit/test_dependency_service_identity.py
+          tests/unit/gpm/test_giraffe_db_client_paths.py
           tests/unit/test_gltg_adapter.py
           tests/unit/test_delivery_feasibility_service.py
           tests/unit/test_decision_packet_uses_gltg.py
