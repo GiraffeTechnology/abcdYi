@@ -154,18 +154,18 @@ The platform uses `NullPool` for asyncpg to ensure event loop safety. For high-c
 The default CORS configuration allows all origins (`*`). Restrict this in production:
 
 ```python
-allow_origins=["https://your-frontend-domain.com:8444"]
+allow_origins=["https://your-frontend-domain.com:<PORT>"]
 ```
 
 ### 8.4 Reverse Proxy
 
-Recommended: nginx or Caddy as a reverse proxy with TLS termination. On CTYun
-hosts TCP 443 is owned by SSH, so listen on any other free port (8444 below) and
-include that port in every public URL:
+Recommended: nginx or Caddy as a reverse proxy with TLS termination. Replace
+`<PORT>` with any port that is not in use (on CTYun, 443 is owned by SSH and
+cannot be used) and include that port in every public URL:
 
 ```nginx
 server {
-    listen 8444 ssl;
+    listen <PORT> ssl;
     server_name api.yourdomain.com;
     location / {
         proxy_pass http://localhost:8000;
@@ -182,7 +182,7 @@ server {
 After deployment, run the V1 acceptance test to verify the full workflow:
 
 ```bash
-BASE_URL=https://api.yourdomain.com:8444 uv run python scripts/run_v1_acceptance_apparel_order.py
+BASE_URL=https://api.yourdomain.com:<PORT> uv run python scripts/run_v1_acceptance_apparel_order.py
 ```
 
 Expected: `GIRAFFE APPAREL & TEXTILE V1 ACCEPTANCE: PASS`
@@ -190,7 +190,7 @@ Expected: `GIRAFFE APPAREL & TEXTILE V1 ACCEPTANCE: PASS`
 For 5x readiness verification:
 
 ```bash
-BASE_URL=https://api.yourdomain.com:8444 uv run python scripts/verify_v1_product_readiness_5x.py
+BASE_URL=https://api.yourdomain.com:<PORT> uv run python scripts/verify_v1_product_readiness_5x.py
 ```
 
 Expected: `GIRAFFE V1 PRODUCT READINESS: 5/5 PASS`

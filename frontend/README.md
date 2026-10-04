@@ -12,7 +12,8 @@ The authoritative Aivan application exposes `/app` (and `/`) and owns its `/stat
 assets. A deployment mounted under another prefix must supply its externally
 reachable entry URL. No host, web port, reverse proxy, or TLS listener is inferred.
 The entry accepts absolute HTTP(S) URLs only, without credentials, query strings,
-or fragments. A missing or invalid value displays a configuration status and no
+or fragments. The URL must state its port explicitly; any port is accepted except
+443, which is owned by SSH on CTYun hosts. A missing or invalid value displays a configuration status and no
 navigation link. Never place credentials, API keys, tenant IDs, or business data
 in a `VITE_*` value: these values are public browser configuration.
 
