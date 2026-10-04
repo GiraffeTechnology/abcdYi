@@ -28,7 +28,7 @@ cp .env.example .env
 # 4. Run database migrations
 uv run alembic upgrade head
 
-# 5. Start the API server (binds a free port automatically, never 443)
+# 5. Start the API server (binds a free port automatically)
 API_PORT_FILE=data/api.port uv run python -m api.serve
 
 # 6. Verify health
@@ -160,14 +160,15 @@ allow_origins=[f"https://your-frontend-domain.com:{PUBLIC_PORT}"]
 ### 8.4 Reverse Proxy
 
 Recommended: nginx or Caddy as a reverse proxy with TLS termination. No port is
-fixed: pick a free public port automatically (on CTYun, 443 is owned by SSH and
-is never used) and read the API port from the file written by `api.serve`:
+fixed: pick a free public port automatically (skipping the host's reserved ports
+in `RESERVED_PORTS`) and read the API port from the file written by `api.serve`:
 
 ```bash
-PUBLIC_PORT=$(python3 -c 'import socket
+PUBLIC_PORT=$(python3 -c 'import os, socket
+reserved = {int(p) for p in os.environ.get("RESERVED_PORTS", "").split(",") if p.strip().isdigit()}
 while True:
     s = socket.socket(); s.bind(("", 0)); p = s.getsockname()[1]; s.close()
-    if p != 443: print(p); break')
+    if p not in reserved: print(p); break')
 API_PORT=$(cat data/api.port)
 export PUBLIC_PORT API_PORT
 envsubst '$PUBLIC_PORT $API_PORT' < api.conf.template > /etc/nginx/conf.d/api.conf

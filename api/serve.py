@@ -3,9 +3,9 @@
 Usage:
     uv run python -m api.serve
 
-API_PORT is optional. When it is empty or busy, a free port is chosen (never
-443, which is owned by SSH on CTYun hosts). The chosen port is printed and,
-if API_PORT_FILE is set, written to that file.
+API_PORT is optional. When it is empty, busy or listed in RESERVED_PORTS, a
+free port is chosen automatically. The chosen port is printed and, if
+API_PORT_FILE is set, written to that file.
 """
 
 from __future__ import annotations

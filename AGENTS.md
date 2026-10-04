@@ -37,17 +37,17 @@ Map changes to the active PRD and name the affected acceptance criterion. Verify
 
 Aivan's seven-step Stage 1 is an inquiry-and-quotation delivery slice. Its completion does not establish Aivan order-confirmation acceptance or the full abcdYi order lifecycle. Keep those evidence claims separate. For integration claims, identify the exact application revision, dependency APIs, and configured private-data provider actually exercised. Distinguish live evidence, mocks, failures, and skipped steps. Do not change production hosts, credentials, or external channels as part of a documentation-only task.
 
-## CTYun TCP port 443 reservation
+## Port selection
 
-On CTYun hosts, TCP port 443 is owned by SSH. Do not stop, rebind, replace, or otherwise disrupt SSH.
+Services configure their own available ports. Do not ask the product owner for a port allocation or allowlist, and do not block work waiting for one.
 
-- Services choose their own ports. Every HTTP/HTTPS server binds a free port automatically (the operating system assigns one) and never uses 443. Do not ask for, wait for, or require a port allocation or allowlist from the product owner.
-- A port may be requested through configuration; if it is busy or is 443, the service falls back to an automatically chosen free port.
+- Every server binds a free port automatically. A requested port is used only if it is free and not reserved; otherwise another free port is chosen.
+- Reserved ports (ports the deployment host keeps for other services) are the only exception. They are environment configuration (`RESERVED_PORTS`), not product rules: do not hard-code a reserved port in product code, templates, tests, or documentation examples.
 - The chosen port is published, not guessed: the service prints it and writes it to its port file, and dependent components (reverse proxies, bridges, frontends, CORS) read it from there.
-- Do not hard-code a default port in code, configuration templates, gates, or documentation.
-- A URL or origin without a port implies 443 for `https://`, so every public URL, origin, and CORS entry must state its port explicitly.
-- Never bind HTTP, HTTPS, web servers, reverse proxies, or TLS listeners to 443, and do not write examples that use port 443.
+- Do not hard-code default ports.
 
-This constraint applies only to CTYun hosts; do not extend it to SIN or other environments without an explicit instruction. Recording this rule does not authorize changes to SSH, firewalls, credentials, network settings, or security settings.
+### CTYun hosts
 
-In this repository `python -m api.serve`, `aivan serve` and the GPM server choose their ports automatically (`API_PORT_FILE`, `AIVAN_PORT_FILE`, `AIVAN_GPM_PORT_FILE` receive the chosen port). Docker Compose publishes services on free host ports, the Vite dev server picks a free port, and the MyAivan entry is derived from MyAivan's port file (`MYAIVAN_PORT_FILE`) unless `VITE_MYAIVAN_URL` overrides it.
+On CTYun hosts, TCP port 443 is reserved for SSH. This applies to CTYun hosts only and is not a product constraint: express it through the reserved-port configuration of CTYun deployments, not in product code. Do not stop, rebind, replace, or otherwise disrupt SSH, and do not bind any web listener to 443 there. Do not extend this to SIN or other environments without an explicit instruction. Recording this rule does not authorize changes to SSH, firewalls, credentials, network settings, or security settings.
+
+In this repository `python -m api.serve`, `aivan serve` and the GPM server choose ports automatically (`API_PORT_FILE`, `AIVAN_PORT_FILE`, `AIVAN_GPM_PORT_FILE` receive the chosen port). Docker Compose publishes services on free host ports, the Vite dev server picks a free port, and the MyAivan entry is derived from MyAivan's port file (`MYAIVAN_PORT_FILE`) unless `VITE_MYAIVAN_URL` overrides it.

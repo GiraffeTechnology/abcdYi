@@ -85,9 +85,10 @@ unsafe or credential-bearing URLs, missing configuration, and repeatable renderi
    starting the development server or building static assets; the entry
    (normally `/app`) is derived from them. `VITE_MYAIVAN_URL` overrides this when
    a different externally reachable entry is required.
-3. On CTYun, TCP 443 is owned by SSH. Services choose free ports themselves and
-   never use 443; no port has to be allocated by hand. Do not move SSH or bind
-   web/TLS/reverse-proxy listeners to 443. No host,
+3. Services choose free ports themselves; no port is allocated by hand. List the
+   target host's reserved ports in `RESERVED_PORTS` / `AIVAN_RESERVED_PORTS` so
+   they are skipped (on CTYun hosts this includes 443, which SSH owns; do not
+   move SSH or bind any web listener there). No host,
    listener, TLS, firewall, credentials, or production data is changed by this work.
 4. Configure MyAivan's existing authentication and tenant mapping and the selected
    replaceable private-data provider through their supported server-side settings.

@@ -2,15 +2,19 @@ import { readFileSync } from 'node:fs'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-const RESERVED_PORT = 443
+// Ports the host reserves for other services (comma-separated); never used.
+const reservedPorts = new Set(
+  (process.env.RESERVED_PORTS ?? '').split(',').map((item) => Number(item.trim())).filter((port) => port > 0),
+)
 
 function usablePort(value: unknown): number | null {
   const port = Number(String(value ?? '').trim())
-  return Number.isInteger(port) && port > 0 && port < 65536 && port !== RESERVED_PORT ? port : null
+  return Number.isInteger(port) && port > 0 && port < 65536 && !reservedPorts.has(port) ? port : null
 }
 
 // No fixed dev port: VITE_DEV_PORT is optional, and 0 lets the OS pick a free
-// port. 443 is owned by SSH on CTYun hosts and is never used.
+// port. The OS only assigns ephemeral ports, which do not collide with
+// reserved service ports.
 const devPort = usablePort(process.env.VITE_DEV_PORT) ?? 0
 
 // MyAivan picks its own port at startup and writes it to AIVAN_PORT_FILE. When
