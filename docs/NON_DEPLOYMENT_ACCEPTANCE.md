@@ -84,8 +84,9 @@ unsafe or credential-bearing URLs, missing configuration, and repeatable renderi
    and supply it as `VITE_MYAIVAN_URL` before starting the existing development
    server or building production static assets. Confirm any existing path-prefix
    routing and `/static` assets. Do not infer a new web allocation from these docs.
-3. Reuse confirmed host/port assignments. On CTYun, TCP 443 remains reserved for
-   SSH. Do not move SSH or bind web/TLS/reverse-proxy listeners there. No host,
+3. On CTYun, TCP 443 is owned by SSH; HTTP/HTTPS may use any other free port.
+   Do not move SSH or bind web/TLS/reverse-proxy listeners to 443, and give
+   every HTTPS URL an explicit non-443 port (for example `:8444`). No host,
    listener, TLS, firewall, credentials, or production data is changed by this work.
 4. Configure MyAivan's existing authentication and tenant mapping and the selected
    replaceable private-data provider through their supported server-side settings.
