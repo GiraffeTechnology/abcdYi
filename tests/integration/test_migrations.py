@@ -15,7 +15,7 @@ EXPECTED_TABLES = [
     "participant_matches",
     "rfqs", "rfq_recipients", "supplier_responses", "supplier_response_packets",
     "decision_packets", "decision_options", "approval_requests",
-    "orders", "order_lines",
+    "orders", "order_lines", "provider_order_associations",
     "milestones", "production_updates", "production_monitoring_packets", "expedite_alerts",
     "qc_standards", "qc_records",
     "quality_incidents", "replacement_alerts", "shipments",
