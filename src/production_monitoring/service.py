@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.execution_access import require_order
 from src.db.models.production import Milestone, ProductionMonitoringPacket, ExpediteAlert
 from src.db.models.dynamic_form import DynamicOrderForm, DynamicOrderFormVersion
 from src.db.models.order import Order
@@ -31,10 +32,7 @@ async def run_delay_prediction(
     tenant_id: uuid.UUID,
     user_id: uuid.UUID,
 ) -> ProductionMonitoringPacket:
-    order = await db.get(Order, order_id)
-    if not order:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail="Order not found")
+    order = await require_order(db, order_id, tenant_id)
 
     form_fields = await _load_form_fields(db, order)
 

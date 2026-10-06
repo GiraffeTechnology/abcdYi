@@ -43,7 +43,9 @@ async def order_tenant_id(db: AsyncSession, order_id) -> Optional[uuid.UUID]:
 
 
 async def project_belongs_to_tenant(db: AsyncSession, project_id, tenant_id) -> bool:
-    return project_id is not None and await project_tenant_id(db, project_id) == tenant_id
+    from src.permissions.project_access import project_access_permitted
+    return (project_id is not None and await project_tenant_id(db, project_id) == tenant_id
+            and await project_access_permitted(db, project_id))
 
 
 async def order_belongs_to_tenant(db: AsyncSession, order_id, tenant_id) -> bool:

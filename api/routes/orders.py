@@ -2,6 +2,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.order_confirmation.execution_persistence import commit_execution
 from api.deps import get_db, get_current_user
 from src.orders.schemas import OrderOut, CreateOrderRequest
 from src.orders.service import get_order, list_orders_for_project, request_qc
@@ -11,7 +12,9 @@ from src.order_confirmation.service import (
     buyer_sign_off,
 )
 
-router = APIRouter()
+from src.permissions.project_access import bind_request_actor
+
+router = APIRouter(dependencies=[Depends(bind_request_actor)])
 
 
 @router.post(
@@ -34,7 +37,7 @@ async def create_order(
         tenant_id=current_user.tenant_id,
         user_id=current_user.id,
     )
-    await db.commit()
+    await commit_execution(db, tenant_id=current_user.tenant_id, user_id=current_user.id, order_id=order.id)
     await db.refresh(order)
     return order
 
@@ -58,7 +61,7 @@ async def confirm_order_route(
     current_user=Depends(get_current_user),
 ):
     order = await confirm_order(db, order_id, current_user.tenant_id, current_user.id)
-    await db.commit()
+    await commit_execution(db, tenant_id=current_user.tenant_id, user_id=current_user.id, order_id=order.id)
     await db.refresh(order)
     return order
 
@@ -70,7 +73,7 @@ async def buyer_sign_off_route(
     current_user=Depends(get_current_user),
 ):
     order = await buyer_sign_off(db, order_id, current_user.tenant_id, current_user.id)
-    await db.commit()
+    await commit_execution(db, tenant_id=current_user.tenant_id, user_id=current_user.id, order_id=order.id)
     await db.refresh(order)
     return order
 
@@ -82,6 +85,6 @@ async def request_qc_route(
     current_user=Depends(get_current_user),
 ):
     order = await request_qc(db, order_id, current_user.tenant_id, current_user.id)
-    await db.commit()
+    await commit_execution(db, tenant_id=current_user.tenant_id, user_id=current_user.id, order_id=order.id)
     await db.refresh(order)
     return order

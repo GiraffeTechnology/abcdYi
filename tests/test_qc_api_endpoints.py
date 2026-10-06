@@ -2,6 +2,17 @@
 import pytest
 from fastapi.testclient import TestClient
 from api.main import app
+from api.routes.qc import require_legacy_qc_project
+from src.permissions.project_access import bind_request_actor
+
+@pytest.fixture(autouse=True)
+def project_access_boundary():
+    """These isolated handler tests stub authorization; real gates have API regressions."""
+    app.dependency_overrides[require_legacy_qc_project] = lambda: None
+    app.dependency_overrides[bind_request_actor] = lambda: None
+    yield
+    app.dependency_overrides.pop(require_legacy_qc_project, None)
+    app.dependency_overrides.pop(bind_request_actor, None)
 
 client = TestClient(app)
 

@@ -40,7 +40,7 @@ async def client():
 
 @pytest.fixture
 async def seed_user(db):
-    from src.db.models.user import User
+    from src.db.models.user import User, UserRole
     from src.db.models.tenant import Tenant
 
     tenant = Tenant(name="Test Tenant", slug=f"test-{uuid.uuid4().hex[:8]}")
@@ -54,6 +54,8 @@ async def seed_user(db):
         hashed_password=hash_password("testpassword"),
     )
     db.add(user)
+    await db.flush()
+    db.add(UserRole(user_id=user.id, role_name="BUYER"))
     await db.commit()
     return {
         "email": user.email,
@@ -150,6 +152,16 @@ async def seed_project_with_form(auth_client):
     )
     assert form_resp.status_code == 201
     form_data = form_resp.json()
+    # Explicit synthetic commercial facts, rather than relying on a model stub.
+    confirmed_fields = {
+        "product_type": "cotton shirt", "quantity": 10000, "fabric_type": "cotton",
+        "color": "white", "size_range": "S-XL", "size_breakdown": {"S": 2500, "M": 2500, "L": 2500, "XL": 2500},
+        "delivery_deadline": "2027-01-15", "trade_term": "FOB", "destination": "Shenzhen", "qc_standard": "AQL 2.5",
+    }
+    confirmed = await auth_client.patch(f"/api/dynamic-forms/{form_data['form_id']}",
+        json={"field_updates": confirmed_fields, "confirmed_fields": list(confirmed_fields)})
+    assert confirmed.status_code == 200, confirmed.text
+    form_data = confirmed.json()
 
     return {
         "id": project["id"],
@@ -227,9 +239,18 @@ async def seed_sent_rfq(auth_client, seed_rfq):
 # ── Iter 5 fixtures ──────────────────────────────────────────────────────────
 
 @pytest.fixture
-async def seed_rfq_with_responses(auth_client, seed_sent_rfq, seed_participants):
-    """A sent RFQ with at least one supplier response recorded."""
-    await auth_client.post(
+async def seed_rfq_with_responses(auth_client, seed_sent_rfq, seed_participants, monkeypatch):
+    """A sent RFQ with explicitly synthetic parser output and known source facts."""
+    async def synthetic_normalization(raw_text, rfq_content):
+        assert "Unit price $8.50 USD" in raw_text
+        return {"unit_price": 8.50, "currency": "USD", "moq": 500,
+            "fabric_lead_time_days": 20, "trim_lead_time_days": 15, "production_time_days": 25,
+            "qc_time_days": 5, "logistics_time_days": 7, "total_lead_time_days": 57,
+            "capacity_available": 15000, "payment_terms": "30% deposit, 70% before shipment",
+            "trade_terms": "FOB Shenzhen", "missing_fields": ["sample_time_days", "packaging_time_days"],
+            "evidence_source": {"source": "synthetic parser fixture; not a live model result"}}
+    monkeypatch.setattr("src.supplier_responses.service.normalize_supplier_response", synthetic_normalization)
+    recorded = await auth_client.post(
         f"/api/rfqs/{seed_sent_rfq['id']}/responses",
         json={
             "participant_id": seed_participants[0]["id"],
@@ -242,6 +263,7 @@ async def seed_rfq_with_responses(auth_client, seed_sent_rfq, seed_participants)
             ),
         },
     )
+    assert recorded.status_code == 201, recorded.text
     return {
         "project_id": seed_sent_rfq.get("project_id", ""),
         "rfq_id": seed_sent_rfq["id"],
@@ -324,7 +346,7 @@ async def seed_in_production_order(auth_client, seed_confirmed_order, db):
     from sqlalchemy import select
     from src.db.models.production import Milestone
     result = await db.execute(
-        select(Milestone).where(Milestone.order_id == seed_confirmed_order["id"])
+        select(Milestone).where(Milestone.order_id == uuid.UUID(seed_confirmed_order["id"]))
     )
     milestones = result.scalars().all()
     return {
@@ -427,3 +449,11 @@ async def seed_expedite_alert(auth_client, seed_delayed_order):
         "order_id": seed_delayed_order["id"],
         "monitoring_packet": resp.json(),
     }
+
+
+@pytest.fixture(autouse=True)
+def isolated_execution_language(monkeypatch):
+    """Existing API regressions use explicit isolated-test input, never production fallback."""
+    if not _os.environ.get("AIVAN_ENV"):
+        monkeypatch.setenv("AIVAN_ENV", "test")
+    monkeypatch.setenv("ABCDYI_EXECUTION_LANGUAGE_TEST_MODE", "1")

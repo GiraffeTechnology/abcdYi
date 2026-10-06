@@ -1,8 +1,8 @@
 """Import a provider-confirmed apparel PO into the existing execution model.
 
-The selected provider remains authoritative for the confirmed source and import
-association. The existing execution database owns subsequent local lifecycle
-records. Import replay never resets or reconstructs progressed lifecycle data.
+The selected provider remains authoritative for the confirmed source and apparel
+lifecycle snapshots. Import replay verifies and recovers the local SQL execution
+view from its provider revision without depending on conversation state.
 """
 from __future__ import annotations
 
@@ -26,6 +26,8 @@ from src.db.models.tenant import Tenant
 from src.execution_graph.writer import emit_event
 from src.integrations.confirmed_orders import ConfirmedOrderError, ConfirmedOrderProvider, require_id
 from src.milestones.constants import ORDERED_MILESTONES
+from src.order_confirmation.execution_persistence import restore_execution
+from src.order_confirmation.approval_binding import unresolved_material_fields
 
 
 def _human_authorization(metadata: dict) -> None:
@@ -81,6 +83,8 @@ def _source(order: dict) -> tuple[dict, dict, datetime]:
         raise ConfirmedOrderError("CONFIRMED_PRICE_REQUIRED", 409)
     if "quantity" in price and (type(price["quantity"]) is not int or price["quantity"] != requirement["quantity"]):
         raise ConfirmedOrderError("CONFIRMED_QUANTITY_MISMATCH", 409)
+    if unresolved_material_fields(requirement.get("missing_fields")):
+        raise ConfirmedOrderError("CONFIRMED_MATERIAL_REQUIREMENTS_UNRESOLVED", 409)
     unit_price = price.get("buyer_unit_price")
     currency = price.get("currency") or option.get("currency")
     if (not isinstance(unit_price, (int, float)) or isinstance(unit_price, bool) or not math.isfinite(unit_price)
@@ -105,11 +109,14 @@ def _identities(provider: ConfirmedOrderProvider, tenant_id: uuid.UUID, po_id: s
 async def import_confirmed_order(db: AsyncSession, *, tenant_id: uuid.UUID, user_id: uuid.UUID,
                                  po_id: str, provider: ConfirmedOrderProvider) -> Order:
     po_id = require_id(po_id)
+    db.info["confirmed_order_provider"] = provider
     # Serialize imports in one local tenant; provider CAS also coordinates
     # independent executors. No commercial action is performed by this import.
     tenant = await db.scalar(select(Tenant).where(Tenant.id == tenant_id).with_for_update())
     if tenant is None:
         raise ConfirmedOrderError("TENANT_NOT_FOUND", 404)
+    from src.order_confirmation.approval_binding import require_commercial_actor
+    await require_commercial_actor(db, user_id, tenant_id)
     source = await run_in_threadpool(provider.get_order, po_id)
     requirement, selected, confirmed_at = _source(source)
     ids = _identities(provider, tenant_id, po_id)
@@ -130,17 +137,20 @@ async def import_confirmed_order(db: AsyncSession, *, tenant_id: uuid.UUID, user
     if (readback.get("source_snapshot_hash") != source["source_snapshot_hash"]
             or readback.get("revision", 0) < 1 or not isinstance(persisted, dict)
             or any(persisted.get(key) != state[key] for key in (
-                "schema_version", "source_po_id", "source_quote_id", "source_snapshot_hash", "local_order_id", "local_project_id", "projection"))):
+                "schema_version", "source_po_id", "source_quote_id", "source_snapshot_hash", "local_order_id", "local_project_id"))
+            or not isinstance(persisted.get("projection"), dict)
+            or any(persisted["projection"].get(key) != value for key, value in state["projection"].items())):
         raise ConfirmedOrderError("PROVIDER_ASSOCIATION_NOT_VERIFIED", 409)
     if existing:
+        from src.permissions.project_access import require_project_access
+        await require_project_access(db, ids["project"])
         order = await db.get(Order, existing.order_id)
         if order is None:
             raise ConfirmedOrderError("EXECUTION_RECORD_MISSING", 409)
-        return order
+        return await restore_execution(db, association=existing, order=order, readback=readback)
     if await db.get(Order, ids["order"]) or await db.get(Project, ids["project"]):
         raise ConfirmedOrderError("EXECUTION_IDENTITY_CONFLICT", 409)
-    # A fresh local database can recover the initial handoff from the provider.
-    # We deliberately do not claim restoration of later execution events.
+    # Reconstruct deterministic source identities before restoring lifecycle facts.
     project = Project(id=ids["project"], tenant_id=tenant_id, title=f"Confirmed apparel order {po_id}",
                       created_by=user_id, category=requirement["category"], quantity=requirement["quantity"],
                       metadata_json={"provider_id": provider.provider_id, "source_po_id": po_id,
@@ -180,14 +190,16 @@ async def import_confirmed_order(db: AsyncSession, *, tenant_id: uuid.UUID, user
     # turn the frozen confirmation evidence into a mutable record.
     snapshot = copy.deepcopy(source)
     snapshot["metadata_json"].pop("abcdyi_execution", None)
-    db.add(ProviderOrderAssociation(order_id=order.id, tenant_id=tenant_id, provider_id=provider.provider_id,
+    association = ProviderOrderAssociation(order_id=order.id, tenant_id=tenant_id, provider_id=provider.provider_id,
                                    provider_tenant_id=provider.tenant_id, source_po_id=po_id,
                                    source_quote_id=source["selected_quote_id"], source_snapshot_hash=source["source_snapshot_hash"],
-                                   source_snapshot=snapshot))
+                                   source_snapshot=snapshot, execution_revision=1)
+    db.add(association)
     await emit_event(db, "PROVIDER_CONFIRMED_ORDER_IMPORTED", {
         "provider_id": provider.provider_id, "provider_tenant_id": provider.tenant_id, "source_po_id": po_id,
         "source_quote_id": source["selected_quote_id"], "source_snapshot_hash": source["source_snapshot_hash"],
         "confirmation": source["metadata_json"]["human_authorization"], "confirmed_at": confirmed_at.isoformat(),
         "provider_readback_verified": True,
     }, tenant_id=tenant_id, project_id=order.project_id, order_id=order.id, triggered_by_user_id=user_id)
-    return order
+    await db.flush()
+    return await restore_execution(db, association=association, order=order, readback=readback)

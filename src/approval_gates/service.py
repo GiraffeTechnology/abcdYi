@@ -47,9 +47,11 @@ async def create_approval_request(
 
 
 async def approve_request(db, approval_id, reviewed_by, review_notes: str = "") -> ApprovalRequest:
-    req = await db.get(ApprovalRequest, approval_id)
+    req = await db.scalar(select(ApprovalRequest).where(ApprovalRequest.id == approval_id).with_for_update())
     if not req:
         raise HTTPException(status_code=404, detail="ApprovalRequest not found")
+    if req.consumed_at is not None:
+        raise HTTPException(status_code=409, detail="Consumed approval evidence is immutable; create a revised approval")
     req.status = "APPROVED"
     req.reviewed_by = reviewed_by
     req.reviewed_at = datetime.now(timezone.utc)
@@ -68,9 +70,11 @@ async def approve_request(db, approval_id, reviewed_by, review_notes: str = "") 
 
 
 async def reject_request(db, approval_id, reviewed_by, review_notes: str = "") -> ApprovalRequest:
-    req = await db.get(ApprovalRequest, approval_id)
+    req = await db.scalar(select(ApprovalRequest).where(ApprovalRequest.id == approval_id).with_for_update())
     if not req:
         raise HTTPException(status_code=404, detail="ApprovalRequest not found")
+    if req.consumed_at is not None:
+        raise HTTPException(status_code=409, detail="Consumed approval evidence is immutable; create a revised approval")
     req.status = "REJECTED"
     req.reviewed_by = reviewed_by
     req.reviewed_at = datetime.now(timezone.utc)
@@ -116,7 +120,7 @@ async def require_approved(
         detail="Action requires a valid, matching, unconsumed human approval.",
     )
 
-    req = await db.get(ApprovalRequest, approval_id)
+    req = await db.scalar(select(ApprovalRequest).where(ApprovalRequest.id == approval_id).with_for_update())
     if req is None:
         raise denied
     if req.status != "APPROVED":

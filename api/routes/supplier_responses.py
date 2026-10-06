@@ -12,7 +12,9 @@ from src.supplier_responses.service import (
 )
 from src.db.models.rfq import SupplierResponsePacket
 
-router = APIRouter()
+from src.permissions.project_access import bind_request_actor
+
+router = APIRouter(dependencies=[Depends(bind_request_actor)])
 
 
 @router.post("/rfqs/{rfq_id}/responses", status_code=status.HTTP_201_CREATED)
