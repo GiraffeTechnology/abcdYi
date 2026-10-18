@@ -55,9 +55,23 @@ emitted before the subscription returns its cleanup function.
 ## Verification boundary
 
 This stage publishes existing standalone consumer source without changing the R6
-workspace or any application entry. It has received source-contract inspection;
-no new automated adapter test, build, real service or browser integration run is
-claimed. Historical workspace tests do not validate this later adapter. Exact-head
-CI and receiver verification remain separate from actual host wiring and backend
-acceptance. The host must provide authenticated read routing and a verified
-same-tenant order association before a selected order becomes available.
+workspace or any application entry. The adapter-specific command is:
+
+```sh
+node --test tests/execution.host-source.test.mjs
+```
+
+On 2026-10-18, the exact test, adapter and package source from commit
+`0c234d64dc88e897f2e952aae35d0aa4212f0ced` ran in an authorized remote Linux
+environment using Node `v24.18.0`: 10 passed, 0 failed, 0 skipped, exit code 0.
+These are synthetic adapter unit tests with controlled event delivery, not a
+browser, backend, database or actual authenticated host acceptance run. No local
+or Windows tests were executed for this verification, and the existing workspace
+suite was not rerun.
+
+The tests cover the synchronous initial event, same-generation activation,
+stale callbacks, unavailable associations, sanitized failures, failed clearing,
+subscription setup failures and idempotent disposal. Exact-head CI remains
+separate from the required authorized-server evidence and real integration.
+The host must provide authenticated read routing and a verified same-tenant
+order association before a selected order becomes available.
