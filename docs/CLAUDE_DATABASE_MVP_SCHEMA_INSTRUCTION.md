@@ -1,4 +1,4 @@
-# CLAUDE CODE INSTRUCTION — Giraffe Agent MVP Database Generation File
+# Giraffe Agent MVP Database Generation File
 # Version: MVP Database v1.0
 # Purpose: Generate the database layer required for the full Giraffe Agent MVP
 
