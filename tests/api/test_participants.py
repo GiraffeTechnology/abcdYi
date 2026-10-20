@@ -1,4 +1,5 @@
 import pytest
+import uuid
 
 
 @pytest.mark.asyncio
@@ -49,7 +50,7 @@ async def test_participant_execution_event_emitted(auth_client, db):
 
     result = await db.execute(
         select(ExecutionEvent).where(
-            ExecutionEvent.participant_id == participant_id,
+            ExecutionEvent.participant_id == uuid.UUID(participant_id),
             ExecutionEvent.event_type == "PARTICIPANT_REGISTERED",
         )
     )

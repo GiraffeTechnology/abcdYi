@@ -3,12 +3,16 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.order_confirmation.execution_persistence import commit_execution
+from src.integrations.execution_language import normalize_execution_input, record_input_lineage
 from api.deps import get_db, get_current_user
 from src.logistics.schemas import ShipmentCreate, TrackingEventCreate, ShipmentOut
 from src.logistics.service import create_shipment, add_tracking_event, get_shipment
 from src.db.models.logistics import ShipmentTrackingEvent
 
-router = APIRouter()
+from src.permissions.project_access import bind_request_actor
+
+router = APIRouter(dependencies=[Depends(bind_request_actor)])
 
 
 @router.post("/orders/{order_id}/shipments", status_code=status.HTTP_201_CREATED, response_model=ShipmentOut)
@@ -18,6 +22,11 @@ async def create_shipment_route(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    from src.execution_access import require_order
+    order = await require_order(db, order_id, current_user.tenant_id, lock=True)
+    if order.status != "READY_TO_SHIP":
+        raise HTTPException(status_code=409, detail="Order must pass QC before shipment")
+    body, language_evidence = await normalize_execution_input(body, "shipments")
     shipment = await create_shipment(
         db=db,
         order_id=order_id,
@@ -25,7 +34,8 @@ async def create_shipment_route(
         tenant_id=current_user.tenant_id,
         user_id=current_user.id,
     )
-    await db.commit()
+    await record_input_lineage(db, language_evidence, tenant_id=current_user.tenant_id, user_id=current_user.id, order_id=shipment.order_id)
+    await commit_execution(db, tenant_id=current_user.tenant_id, user_id=current_user.id, order_id=shipment.order_id)
     await db.refresh(shipment)
     return shipment
 
@@ -37,6 +47,7 @@ async def add_tracking(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    body, language_evidence = await normalize_execution_input(body, "shipment_tracking_events")
     event = await add_tracking_event(
         db=db,
         shipment_id=shipment_id,
@@ -47,7 +58,9 @@ async def add_tracking(
         tenant_id=current_user.tenant_id,
         user_id=current_user.id,
     )
-    await db.commit()
+    shipment = await get_shipment(db, shipment_id, current_user.tenant_id)
+    await record_input_lineage(db, language_evidence, tenant_id=current_user.tenant_id, user_id=current_user.id, order_id=shipment.order_id)
+    await commit_execution(db, tenant_id=current_user.tenant_id, user_id=current_user.id, order_id=shipment.order_id)
     await db.refresh(event)
     return {
         "id": str(event.id),

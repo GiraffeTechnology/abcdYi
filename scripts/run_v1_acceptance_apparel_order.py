@@ -14,7 +14,7 @@ Usage:
 import asyncio
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import httpx
 
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
@@ -81,7 +81,7 @@ async def run_acceptance(
             json={
                 "raw_text": (
                     "10,000 white 100% cotton T-shirts, FOB Shenzhen, "
-                    "delivery in 60 days, destination Hamburg."
+                    "delivery in 60 days, destination Hamburg. Sizes S/M/L/XL, 2,500 each. Quality AQL 2.5."
                 )
             },
             headers=H,
@@ -102,10 +102,21 @@ async def run_acceptance(
         form_version_id = str(form["id"])
         log(6, f"Dynamic form created: {form_id[:8]}...")
 
-        # Step 7: Lock form
+        # Step 7: Explicit human clarification of this synthetic apparel scenario.
+        # These are stated test inputs, never a model guess or a database bypass.
+        requirements = {
+            "product_type": "Cotton T-shirt", "quantity": 10000, "fabric_type": "100% cotton",
+            "color": "white", "size_range": "S/M/L/XL", "size_breakdown": {"S": 2500, "M": 2500, "L": 2500, "XL": 2500},
+            "delivery_deadline": (datetime.now(timezone.utc) + timedelta(days=60)).date().isoformat(),
+            "trade_term": "FOB", "destination": "Hamburg", "qc_standard": "AQL 2.5",
+        }
+        r = await client.patch(f"/api/dynamic-forms/{form_id}", headers=H,
+            json={"field_updates": requirements, "confirmed_fields": list(requirements)})
+        assert r.status_code == 200, f"Step 7 clarification FAIL: {r.text}"
+        form_version_id = r.json()["id"]
         r = await client.post(f"/api/dynamic-forms/{form_id}/lock", headers=H)
         assert r.status_code == 200, f"Step 7 FAIL: {r.text}"
-        log(7, "Form locked")
+        log(7, "Stated synthetic requirements confirmed and form locked")
 
         # Step 8: Run participant matching
         r = await client.post(
