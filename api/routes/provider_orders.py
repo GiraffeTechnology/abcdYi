@@ -9,7 +9,9 @@ from src.integrations.confirmed_orders import ConfirmedOrderError, ConfirmedOrde
 from src.order_confirmation.provider_handoff import import_confirmed_order
 from src.orders.schemas import OrderOut
 
-router = APIRouter()
+from src.permissions.project_access import bind_request_actor
+
+router = APIRouter(dependencies=[Depends(bind_request_actor)])
 
 
 class ConfirmedProviderOrderRequest(BaseModel):

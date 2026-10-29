@@ -4,13 +4,14 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.execution_access import require_order, require_order_child, require_participant
 from src.db.models.logistics import Shipment, ShipmentTrackingEvent
 from src.db.models.order import Order
 from src.orders.state_machine import transition
 from src.execution_graph.writer import emit_event
 from src.execution_graph.event_types import LOGISTICS_HANDOVER_CREATED, SHIPMENT_UPDATED
 
-DELIVERY_EVENT_TYPES = {"DELIVERED", "ARRIVAL", "POD", "PROOF_OF_DELIVERY"}
+DELIVERY_EVENT_TYPES = {"DELIVERED", "POD", "PROOF_OF_DELIVERY"}
 
 
 async def create_shipment(
@@ -20,10 +21,8 @@ async def create_shipment(
     tenant_id: uuid.UUID,
     user_id: uuid.UUID,
 ) -> Shipment:
-    order = await db.get(Order, order_id)
-    if not order:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail="Order not found")
+    order = await require_order(db, order_id, tenant_id, lock=True)
+    await require_participant(db, shipment_data.get("logistics_provider_participant_id"), tenant_id)
 
     if order.status != "READY_TO_SHIP":
         from fastapi import HTTPException
@@ -53,6 +52,7 @@ async def create_shipment(
         event_type=LOGISTICS_HANDOVER_CREATED,
         payload={"shipment_id": str(shipment.id), "order_id": str(order_id)},
         tenant_id=tenant_id,
+        project_id=order.project_id,
         order_id=order_id,
         triggered_by_user_id=user_id,
     )
@@ -69,10 +69,8 @@ async def add_tracking_event(
     tenant_id: uuid.UUID,
     user_id: uuid.UUID,
 ) -> ShipmentTrackingEvent:
-    shipment = await db.get(Shipment, shipment_id)
-    if not shipment:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail="Shipment not found")
+    shipment = await require_order_child(db, Shipment, shipment_id, tenant_id)
+    order = await require_order(db, shipment.order_id, tenant_id, lock=True)
 
     tracking_event = ShipmentTrackingEvent(
         shipment_id=shipment_id,
@@ -85,12 +83,15 @@ async def add_tracking_event(
 
     # Check if delivery event → update order to DELIVERED
     if event_type.upper() in DELIVERY_EVENT_TYPES:
-        order = await db.get(Order, shipment.order_id)
         if order and order.status == "SHIPPED":
             order.status = transition(order.status, "DELIVERED")
             shipment.actual_arrival_date = occurred_at
 
     await db.flush()
+
+    if event_type.upper() in DELIVERY_EVENT_TYPES and order.status == "DELIVERED":
+        await emit_event(db, "BUYER_SIGNOFF_REQUESTED", {"shipment_id": str(shipment_id), "tracking_event_id": str(tracking_event.id)},
+            tenant_id=tenant_id, project_id=order.project_id, order_id=order.id, triggered_by_user_id=user_id)
 
     await emit_event(
         db=db,
@@ -101,6 +102,7 @@ async def add_tracking_event(
             "order_id": str(shipment.order_id),
         },
         tenant_id=tenant_id,
+        project_id=order.project_id,
         order_id=shipment.order_id,
         triggered_by_user_id=user_id,
     )

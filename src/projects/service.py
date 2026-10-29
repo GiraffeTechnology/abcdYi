@@ -46,7 +46,9 @@ async def get_project(
             Project.tenant_id == tenant_id,
         )
     )
-    return result.scalar_one_or_none()
+    project = result.scalar_one_or_none()
+    from src.permissions.project_access import project_access_permitted
+    return project if project is not None and await project_access_permitted(db, project_id) else None
 
 
 async def list_projects(
@@ -61,7 +63,8 @@ async def list_projects(
         .offset(skip)
         .limit(limit)
     )
-    return list(result.scalars().all())
+    from src.permissions.project_access import project_access_permitted
+    return [p for p in result.scalars().all() if await project_access_permitted(db, p.id)]
 
 
 async def import_buyer_inquiry(

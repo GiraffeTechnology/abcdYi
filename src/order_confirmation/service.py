@@ -4,6 +4,9 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from fastapi import HTTPException
+from src.execution_access import require_order
+from src.order_confirmation.approval_binding import validate_quote_binding, require_commercial_actor
 from src.db.models.order import Order, OrderLine
 from src.db.models.decision import DecisionPacket, DecisionOption
 from src.db.tenant_scope import get_project_owned
@@ -40,51 +43,22 @@ async def create_order_from_approved_option(
     tenant_id: uuid.UUID,
     user_id: uuid.UUID,
 ) -> Order:
-    """
-    Pre-condition: DecisionPacket approved (the QUOTE_APPROVE approval was
-    already validated and consumed by ``approve_decision_option``; an approved
-    packet is therefore proof of prior human approval). The packet and option
-    must belong to the caller's tenant.
-    """
-    from fastapi import HTTPException
+    packet, option, form, version, approval_binding = await validate_quote_binding(
+        db, project_id=project_id, packet_id=packet_id, option_id=option_id,
+        approval_id=approval_id, tenant_id=tenant_id)
+    form_version_id, form_fields = version.id, version.fields or {}
+    # The locked packet serializes duplicate submissions of this approved quote.
+    existing = await db.scalar(select(Order).where(Order.project_id == project_id,
+        Order.approved_option_id == option_id, Order.locked_form_version_id == version.id))
+    if existing is not None:
+        return existing
 
-    packet = await get_project_owned(db, DecisionPacket, packet_id, tenant_id)
-    if not packet:
-        raise HTTPException(status_code=404, detail="DecisionPacket not found.")
-    if packet.human_approval_status != "APPROVED":
-        raise HTTPException(status_code=403, detail="DecisionPacket is not approved.")
-
-    option = await db.get(DecisionOption, option_id)
-    if not option or option.packet_id != packet.id:
-        raise HTTPException(status_code=404, detail="DecisionOption not found.")
-
-    # Find current form version
-    form_result = await db.execute(
-        select(DynamicOrderForm).where(DynamicOrderForm.project_id == project_id)
-    )
-    form = form_result.scalar_one_or_none()
-    form_version_id = None
-    form_fields = {}
-    if form:
-        ver_result = await db.execute(
-            select(DynamicOrderFormVersion)
-            .where(
-                DynamicOrderFormVersion.form_id == form.id,
-                DynamicOrderFormVersion.version_number == form.current_version,
-            )
-        )
-        version = ver_result.scalar_one_or_none()
-        if version:
-            form_version_id = version.id
-            form_fields = version.fields or {}
-
-    seq = await _next_order_seq(db)
     order = Order(
         project_id=project_id,
         approved_option_id=option_id,
         locked_form_version_id=form_version_id,
         status="DRAFT_FROM_APPROVED_QUOTE",
-        order_number=_generate_order_number(seq),
+        order_number=f"ORD-{datetime.now(timezone.utc).year}-{uuid.uuid4().hex[:12].upper()}",
     )
     db.add(order)
     await db.flush()
@@ -172,6 +146,8 @@ async def create_order_from_approved_option(
             "order_id": str(order.id),
             "order_number": order.order_number,
             "project_id": str(project_id),
+            "approval": approval_binding,
+            "locked_form_version_id": str(form_version_id),
         },
         tenant_id=tenant_id,
         project_id=project_id,
@@ -188,11 +164,20 @@ async def confirm_order(
     tenant_id: uuid.UUID,
     user_id: uuid.UUID,
 ) -> Order:
-    order = await get_project_owned(db, Order, order_id, tenant_id)
-    if not order:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail="Order not found")
-
+    order = await require_order(db, order_id, tenant_id, lock=True)
+    actor_role = await require_commercial_actor(db, user_id, tenant_id)
+    if order.confirmed_at is not None:
+        return order
+    if order.status != "DRAFT_FROM_APPROVED_QUOTE":
+        raise HTTPException(status_code=409, detail="Only an approved quotation draft can be confirmed")
+    option = await db.get(DecisionOption, order.approved_option_id)
+    binding = (option.evidence or {}).get("commercial_approval", {}) if option else {}
+    try:
+        approval_id = uuid.UUID(binding["approval_id"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=403, detail="Order quotation approval evidence is missing") from exc
+    await validate_quote_binding(db, project_id=order.project_id, packet_id=option.packet_id,
+        option_id=option.id, approval_id=approval_id, tenant_id=tenant_id)
     order.status = transition(order.status, "PENDING_BUYER_CONFIRMATION")
     order.status = transition(order.status, "CONFIRMED")
     order.confirmed_at = datetime.now(timezone.utc)
@@ -201,7 +186,9 @@ async def confirm_order(
     await emit_event(
         db=db,
         event_type=ORDER_CONFIRMED,
-        payload={"order_id": str(order_id), "order_number": order.order_number},
+        payload={"order_id": str(order_id), "order_number": order.order_number,
+            "actor_id": str(user_id), "actor_role": actor_role, "confirmed_at": order.confirmed_at.isoformat(),
+            "approval": binding},
         tenant_id=tenant_id,
         project_id=order.project_id,
         order_id=order_id,
@@ -220,13 +207,12 @@ async def buyer_sign_off(
     tenant_id: uuid.UUID,
     user_id: uuid.UUID,
 ) -> Order:
-    order = await get_project_owned(db, Order, order_id, tenant_id)
-    if not order:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail="Order not found")
+    order = await require_order(db, order_id, tenant_id, lock=True)
+    actor_role = await require_commercial_actor(db, user_id, tenant_id, buyer_only=True)
+    if order.status == "BUYER_SIGNED_OFF":
+        return order
 
     if order.status != "DELIVERED":
-        from fastapi import HTTPException
         raise HTTPException(
             status_code=409,
             detail=f"Cannot sign off order in status {order.status}. Must be DELIVERED.",
@@ -239,7 +225,8 @@ async def buyer_sign_off(
     await emit_event(
         db=db,
         event_type=BUYER_SIGNED_OFF,
-        payload={"order_id": str(order_id)},
+        payload={"order_id": str(order_id), "actor_id": str(user_id), "actor_role": actor_role,
+            "signed_off_at": order.buyer_signed_off_at.isoformat()},
         tenant_id=tenant_id,
         project_id=order.project_id,
         order_id=order_id,
@@ -248,6 +235,6 @@ async def buyer_sign_off(
 
     # Update supplier memory records after sign-off
     from src.supplier_memory.service import update_supplier_memory_after_signoff
-    await update_supplier_memory_after_signoff(db, order_id, tenant_id)
+    await update_supplier_memory_after_signoff(db, order_id, tenant_id, user_id=user_id)
 
     return order

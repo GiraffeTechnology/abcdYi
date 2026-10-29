@@ -46,15 +46,13 @@ production, QC, shipping, or sign-off progress. The local execution transaction
 persists its records and audit event together. If that transaction fails after
 the remote association commits, retrying the same PO completes the local import.
 
-This closes the bounded source association gap described by the earlier
-`3b24b30d` baseline. It does not establish full AC-2/AC-3 product acceptance.
-The selected provider owns confirmation and the import association; the existing
-execution database owns subsequent local milestones, QC, logistics, and sign-off.
-Restarting the consumer with that execution database preserves progress. Restoring
-a lost execution database from the provider's initial association alone does not
-restore later lifecycle records, and is not claimed here. The frontend link alone
-still does not prove a completed business workflow. See
-[provider handoff contract](PROVIDER_ORDER_HANDOFF.md) for configuration and checks.
+The selected provider now owns both confirmation and complete in-scope apparel
+lifecycle snapshots. The SQL execution database is a recoverable materialized
+view. Real provider readback, CAS revisions, immutable commercial source checks,
+QC/sign-off evidence validation and fresh-view recovery are covered by the
+[PRD closeout implementation and evidence](PRD_CLOSEOUT_ACCEPTANCE.md). This does
+not claim public deployment or external channel delivery. The frontend navigation
+link alone still does not establish a completed business workflow.
 
 ## Backend regression
 
