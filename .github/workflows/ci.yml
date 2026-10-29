@@ -231,3 +231,19 @@ jobs:
 
       - name: Run API + integration tests (route-layer security)
         run: uv run pytest tests/api/ tests/integration/ -q --tb=short
+
+      - name: Check out pinned Aivan source for the JWT bridge contract
+        uses: actions/checkout@v4
+        with:
+          repository: GiraffeTechnology/aivan
+          ref: 7d3dc2f8844d276d3720f99ef66ebabcf17c93c4
+          path: .contract-sources/aivan
+          persist-credentials: false
+
+      - name: Verify real code JWT bridge against synthetic execution data
+        env:
+          ABCDYI_AIVAN_CONTRACT_SOURCE: ${{ github.workspace }}/.contract-sources/aivan
+        run: |
+          PYTHONPATH="$ABCDYI_AIVAN_CONTRACT_SOURCE/src:$GITHUB_WORKSPACE" uv run pytest \
+            -o "pythonpath=$ABCDYI_AIVAN_CONTRACT_SOURCE/src ." \
+            tests/contracts/check_aivan_execution_bridge.py -q --tb=short
