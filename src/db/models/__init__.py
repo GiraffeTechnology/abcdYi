@@ -92,3 +92,4 @@ __all__ = [
 ]
 
 from src.db.models.provider_order import ProviderOrderAssociation
+from src.db.models.project_membership import ProjectMembership

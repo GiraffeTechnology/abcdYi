@@ -1,4 +1,5 @@
 import pytest
+import uuid
 
 
 @pytest.mark.asyncio
@@ -66,7 +67,7 @@ async def test_order_creates_12_milestones(auth_client, seed_approved_packet, db
     from src.db.models.production import Milestone
 
     result = await db.execute(
-        select(Milestone).where(Milestone.order_id == order_id)
+        select(Milestone).where(Milestone.order_id == uuid.UUID(order_id))
     )
     milestones = result.scalars().all()
     assert len(milestones) == 12

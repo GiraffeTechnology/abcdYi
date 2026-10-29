@@ -6,6 +6,6 @@
     "outDir": ".test-build",
     "rootDir": "src"
   },
-  "include": ["src/App.tsx", "src/lib/myAivan.ts"],
+  "include": ["src/App.tsx", "src/lib/myAivan.ts", "src/execution/store.ts", "src/execution/contracts.ts", "src/execution/transport.ts"],
   "references": []
 }

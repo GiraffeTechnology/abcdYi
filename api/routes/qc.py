@@ -5,11 +5,13 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.order_confirmation.execution_persistence import commit_execution
+from src.integrations.execution_language import normalize_execution_input, record_input_lineage
 from api.deps import get_db, get_current_user
 from src.qc.schemas import QCStandardOut, QCRecordCreate, QCRecordOut
 from src.qc.service import (
     create_qc_standard, record_qc_result,
-    mark_qc_pass, mark_qc_fail, get_qc_records_for_order,
+    mark_qc_pass, mark_qc_fail, get_qc_records_for_order, resolve_failed_qc,
 )
 from src.merchandiser.qc.qc_reference_store import (
     add_reference_image, get_reference_images, QCReferenceImage,
@@ -23,11 +25,17 @@ from src.merchandiser.qc.qc_comparison_engine import (
 from src.merchandiser.qc.qc_result_store import save_qc_report, get_qc_reports_for_project
 from src.merchandiser.b_side.b_qc_review import receive_buyer_qc_decision
 
-# NOTE: the /qc/{project_id}/* routes below are an internal MVP surface for the
-# file-based (actor/m-side) QC pipeline in src/merchandiser/qc — they intentionally
-# have no Depends(get_current_user)/tenant scoping, unlike the DB-backed,
-# tenant-scoped /orders/{order_id}/qc-* routes further down this file.
-router = APIRouter()
+# Legacy file-backed helpers remain available only for an authenticated,
+# tenant-owned project; they are not a bypass around database authorization.
+from src.permissions.project_access import bind_request_actor
+
+router = APIRouter(dependencies=[Depends(bind_request_actor)])
+
+
+async def require_legacy_qc_project(project_id: str, db: AsyncSession = Depends(get_db),
+                                    current_user=Depends(get_current_user)):
+    from src.permissions.project_access import resolve_legacy_qc_project
+    return await resolve_legacy_qc_project(db, project_id, current_user.tenant_id)
 
 
 class ReferenceImageListResponse(BaseModel):
@@ -89,7 +97,7 @@ def qc_health():
     return {"status": "ok"}
 
 
-@router.post("/qc/{project_id}/reference-images", response_model=QCReferenceImage)
+@router.post("/qc/{project_id}/reference-images", response_model=QCReferenceImage, dependencies=[Depends(require_legacy_qc_project)])
 def add_reference_image_route(project_id: str, body: AddReferenceImageBody):
     return add_reference_image(
         project_id=project_id,
@@ -100,18 +108,18 @@ def add_reference_image_route(project_id: str, body: AddReferenceImageBody):
     )
 
 
-@router.get("/qc/{project_id}/reference-images", response_model=ReferenceImageListResponse)
+@router.get("/qc/{project_id}/reference-images", response_model=ReferenceImageListResponse, dependencies=[Depends(require_legacy_qc_project)])
 def list_reference_images_route(project_id: str, milestone_type: str | None = None):
     refs = get_reference_images(project_id, milestone_type=milestone_type)
     return ReferenceImageListResponse(reference_images=refs)
 
 
-@router.post("/qc/{project_id}/process-card", response_model=QCProcessCard)
+@router.post("/qc/{project_id}/process-card", response_model=QCProcessCard, dependencies=[Depends(require_legacy_qc_project)])
 def create_process_card_route(project_id: str, body: CreateProcessCardBody):
     return create_process_card(project_id=project_id, **body.model_dump())
 
 
-@router.get("/qc/{project_id}/process-card", response_model=QCProcessCard)
+@router.get("/qc/{project_id}/process-card", response_model=QCProcessCard, dependencies=[Depends(require_legacy_qc_project)])
 def get_process_card_route(project_id: str):
     card = get_process_card(project_id)
     if card is None:
@@ -119,7 +127,7 @@ def get_process_card_route(project_id: str):
     return card
 
 
-@router.post("/qc/{project_id}/compare", response_model=QCComparisonReport)
+@router.post("/qc/{project_id}/compare", response_model=QCComparisonReport, dependencies=[Depends(require_legacy_qc_project)])
 def compare_qc_route(project_id: str, body: CompareQCBody):
     report = compare_media_against_standard(
         project_id=project_id,
@@ -136,12 +144,12 @@ def compare_qc_route(project_id: str, body: CompareQCBody):
     return report
 
 
-@router.get("/qc/{project_id}/reports", response_model=QCReportListResponse)
+@router.get("/qc/{project_id}/reports", response_model=QCReportListResponse, dependencies=[Depends(require_legacy_qc_project)])
 def list_qc_reports_route(project_id: str):
     return QCReportListResponse(reports=get_qc_reports_for_project(project_id))
 
 
-@router.post("/qc/{project_id}/buyer-decision", response_model=BuyerQCDecisionResponse)
+@router.post("/qc/{project_id}/buyer-decision", response_model=BuyerQCDecisionResponse, dependencies=[Depends(require_legacy_qc_project)])
 def buyer_qc_decision_route(project_id: str, body: BuyerQCDecisionBody):
     return receive_buyer_qc_decision(
         project_id=project_id,
@@ -174,7 +182,7 @@ async def create_qc_standard_route(
         tenant_id=current_user.tenant_id,
         user_id=current_user.id,
     )
-    await db.commit()
+    await commit_execution(db, tenant_id=current_user.tenant_id, user_id=current_user.id, order_id=std.order_id)
     await db.refresh(std)
     return std
 
@@ -186,6 +194,7 @@ async def record_qc(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    body, language_evidence = await normalize_execution_input(body, "qc_records")
     record = await record_qc_result(
         db=db,
         order_id=order_id,
@@ -194,7 +203,8 @@ async def record_qc(
         tenant_id=current_user.tenant_id,
         user_id=current_user.id,
     )
-    await db.commit()
+    await record_input_lineage(db, language_evidence, tenant_id=current_user.tenant_id, user_id=current_user.id, order_id=record.order_id)
+    await commit_execution(db, tenant_id=current_user.tenant_id, user_id=current_user.id, order_id=record.order_id)
     await db.refresh(record)
     return QCRecordOut.model_validate(record)
 
@@ -205,7 +215,7 @@ async def list_qc_records(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    return await get_qc_records_for_order(db, order_id)
+    return await get_qc_records_for_order(db, order_id, current_user.tenant_id)
 
 
 @router.post("/qc-records/{qc_record_id}/mark-pass", response_model=QCRecordOut)
@@ -214,8 +224,8 @@ async def mark_pass(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    record = await mark_qc_pass(db, qc_record_id, current_user.id)
-    await db.commit()
+    record = await mark_qc_pass(db, qc_record_id, current_user.id, current_user.tenant_id)
+    await commit_execution(db, tenant_id=current_user.tenant_id, user_id=current_user.id, order_id=record.order_id)
     await db.refresh(record)
     return record
 
@@ -227,7 +237,23 @@ async def mark_fail(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    record = await mark_qc_fail(db, qc_record_id, body.responsible_participant_id, current_user.id)
-    await db.commit()
+    record = await mark_qc_fail(db, qc_record_id, body.responsible_participant_id, current_user.id, current_user.tenant_id)
+    await commit_execution(db, tenant_id=current_user.tenant_id, user_id=current_user.id, order_id=record.order_id)
+    await db.refresh(record)
+    return record
+
+
+class QCResolutionBody(BaseModel):
+    reason: str = Field(min_length=1, max_length=4000)
+
+
+@router.post("/qc-records/{qc_record_id}/resolve", response_model=QCRecordOut)
+async def resolve_qc_route(qc_record_id: uuid.UUID, body: QCResolutionBody,
+                           db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)):
+    body, language_evidence = await normalize_execution_input(body, "qc_records")
+    record = await resolve_failed_qc(db, qc_record_id, tenant_id=current_user.tenant_id,
+                                     user_id=current_user.id, reason=body.reason)
+    await record_input_lineage(db, language_evidence, tenant_id=current_user.tenant_id, user_id=current_user.id, order_id=record.order_id)
+    await commit_execution(db, tenant_id=current_user.tenant_id, user_id=current_user.id, order_id=record.order_id)
     await db.refresh(record)
     return record

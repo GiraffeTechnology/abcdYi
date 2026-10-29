@@ -7,7 +7,9 @@ from src.matching.schemas import ParticipantMatchOut
 from src.matching.service import run_participant_matching, get_matches_for_project
 from src.db.models.participant import Participant
 
-router = APIRouter()
+from src.permissions.project_access import bind_request_actor
+
+router = APIRouter(dependencies=[Depends(bind_request_actor)])
 
 
 @router.post(

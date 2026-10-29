@@ -74,18 +74,26 @@ identities; it does not bypass the provider's business-language validator.
 
 ## Persistence boundary
 
-The provider owns the confirmed business source and its bounded import
-association. The existing abcdYi execution database owns later execution facts.
-All imported records and the import audit event commit in one local transaction.
-The authenticated actor initiating the import is distinct from the original
-approval actor and confirmation time in the preserved source evidence.
+The selected provider owns the confirmed source and subsequent apparel lifecycle
+snapshots. The local SQL database is a materialized execution view. Every
+lifecycle commit requires compare-and-set provider persistence and exact
+readback; HTTP success alone is not durable proof. Authenticated reads and
+mutations reconcile the provider revision before using local workflow state.
 
-Replay reconciles the existing provider association and does not overwrite
-progressed local state. It can finish an initial import after a local transaction
-failure. Restart/reload with the same execution database recovers local progress.
-This patch does not implement backup/recovery of all later execution records
-from the provider association, synchronize every lifecycle event to the provider,
-or claim that the full apparel order lifecycle was accepted end to end.
+Snapshots include milestones, production observations, QC criteria/results,
+human rework dispositions, shipments/tracking, buyer sign-off, supplier memory
+and audit events. The confirmed requirement is referenced by source hash, not
+repeated in every row. Recovery checks commercial terms, identity/scope and the
+QC/delivery/sign-off evidence chain, then restores the exact referenced source.
+A content hash cannot substitute for human authorization.
+
+Lost responses and interrupted local commits reconcile the same provider order.
+A fresh business database can recover the lifecycle without conversation
+context. Authentication identities and membership grants remain separately
+provisioned security configuration; recovery never creates credentials or roles.
+The provider must support the same versioned snapshot/CAS contract, and both
+ordinary records and immutable audit images retain canonical-English validation.
+See [PRD closeout evidence](PRD_CLOSEOUT_ACCEPTANCE.md).
 
 ## Verification
 
@@ -95,7 +103,7 @@ unit suites. New regression files are:
 - `tests/unit/test_dependency_service_identity.py`
 - `tests/api/test_provider_order_handoff.py`
 
-They cover service headers, tenant binding and mismatches, invalid credentials,
+They cover service headers, tenant and project memberships, invalid credentials,
 redacted dependency errors, approval/source rejection, durable readback,
 concurrent/repeated import, lost provider replies, local rollback and retry,
 existing QC progression, authentication, and source drift. The synthetic

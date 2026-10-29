@@ -6,7 +6,9 @@ from api.deps import get_db, get_current_user
 from src.rfq.schemas import RFQCreate, RFQOut, RFQSendRequest
 from src.rfq.service import create_rfq, send_rfq, get_rfq
 
-router = APIRouter()
+from src.permissions.project_access import bind_request_actor
+
+router = APIRouter(dependencies=[Depends(bind_request_actor)])
 
 
 @router.post("/projects/{project_id}/rfqs", status_code=status.HTTP_201_CREATED)

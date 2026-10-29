@@ -1,7 +1,7 @@
 from __future__ import annotations
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from src.db.models.project import Project, BuyerInquiry, RawMessage
 from src.db.models.execution_graph import ExecutionEvent
 from src.projects.schemas import ProjectCreate, BuyerInquiryCreate
@@ -46,7 +46,9 @@ async def get_project(
             Project.tenant_id == tenant_id,
         )
     )
-    return result.scalar_one_or_none()
+    project = result.scalar_one_or_none()
+    from src.permissions.project_access import project_access_permitted
+    return project if project is not None and await project_access_permitted(db, project_id) else None
 
 
 async def list_projects(
@@ -55,12 +57,30 @@ async def list_projects(
     skip: int = 0,
     limit: int = 50,
 ) -> list[Project]:
-    result = await db.execute(
-        select(Project)
-        .where(Project.tenant_id == tenant_id)
-        .offset(skip)
-        .limit(limit)
-    )
+    from src.db.models.user import User
+    from src.db.models.project_membership import ProjectMembership
+    from src.permissions.project_access import INTERNAL_ROLES, EXTERNAL_ROLES, _external_surface
+
+    query = select(Project).where(Project.tenant_id == tenant_id)
+    actor_id = db.info.get("request_actor_id")
+    if actor_id is not None:
+        user = await db.get(User, actor_id)
+        if user is None or not user.is_active or user.tenant_id != tenant_id:
+            return []
+        if not user.is_platform_admin:
+            roles = set(INTERNAL_ROLES)
+            roles.update(role for role in EXTERNAL_ROLES if _external_surface(
+                role, db.info.get("request_path", ""), db.info.get("request_method", "")))
+            membership = select(ProjectMembership.id).where(
+                ProjectMembership.project_id == Project.id,
+                ProjectMembership.user_id == actor_id,
+                ProjectMembership.revoked_at.is_(None),
+                ProjectMembership.role.in_(roles),
+            ).exists()
+            query = query.where(or_(Project.created_by == actor_id, membership))
+    # Visibility is part of the query: pagination must count authorized rows,
+    # with a stable order even when several projects share a creation timestamp.
+    result = await db.execute(query.order_by(Project.created_at, Project.id).offset(skip).limit(limit))
     return list(result.scalars().all())
 
 
