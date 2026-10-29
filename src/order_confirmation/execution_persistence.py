@@ -12,12 +12,13 @@ import uuid
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from fastapi import HTTPException
-from sqlalchemy import DateTime, Uuid, Boolean, Integer, Float, String, JSON, delete, select
+from sqlalchemy import Date, DateTime, Uuid, Boolean, Integer, Float, String, JSON, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 from src.db.models import (Order, OrderLine, Milestone, ProductionUpdate, ProductionMonitoringPacket,
     ExpediteAlert, QCStandard, QCRecord, QualityIncident, Shipment, ShipmentTrackingEvent,
-    SupplierMemoryRecord, ExecutionEvent, UploadedFileMetadata, Participant, User)
+    SupplierMemoryRecord, ExecutionEvent, UploadedFileMetadata, Participant, User,
+    DeliveryFeasibilityPacketRecord)
 from src.db.models.provider_order import ProviderOrderAssociation
 from src.db.tenant_scope import get_project_owned
 from src.integrations.confirmed_orders import ConfirmedOrderError, ConfirmedOrderProvider
@@ -25,7 +26,9 @@ from src.integrations.confirmed_orders import ConfirmedOrderError, ConfirmedOrde
 # Foreign-key order; excludes credentials, user tables and unrelated projects.
 MODELS = (OrderLine, Milestone, ProductionUpdate, ProductionMonitoringPacket, ExpediteAlert,
           QCStandard, QCRecord, QualityIncident, Shipment, ShipmentTrackingEvent,
-          SupplierMemoryRecord, ExecutionEvent, UploadedFileMetadata)
+          SupplierMemoryRecord, DeliveryFeasibilityPacketRecord, ExecutionEvent, UploadedFileMetadata)
+# Earlier v1 snapshots predate this evidence collection; all other tables remain required.
+LEGACY_OPTIONAL_MODELS = frozenset({DeliveryFeasibilityPacketRecord})
 SNAPSHOT_VERSION = "abcdYi.apparel-lifecycle.v1"
 
 
@@ -74,6 +77,7 @@ def _typed(model, row):
                 if not column.nullable: raise ValueError("null required field")
             elif isinstance(column.type, Uuid): result[column.key] = uuid.UUID(value)
             elif isinstance(column.type, DateTime): result[column.key] = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            elif isinstance(column.type, Date): result[column.key] = date.fromisoformat(value)
             elif isinstance(column.type, Boolean):
                 if type(value) is not bool: raise ValueError("invalid boolean")
             elif isinstance(column.type, Integer):
@@ -256,11 +260,13 @@ async def restore_execution(db, *, association, order, readback):
     if values["status"] not in {"IN_PRODUCTION", "QC_PENDING", "QC_FAILED", "QC_PASSED", "READY_TO_SHIP", "SHIPPED", "DELIVERED", "BUYER_SIGNED_OFF"}:
         raise ConfirmedOrderError("PROVIDER_LIFECYCLE_STATUS_INVALID", 409)
     records = lifecycle.get("records")
-    if not isinstance(records, dict) or set(records) != {m.__tablename__ for m in MODELS}:
+    expected_tables = {m.__tablename__ for m in MODELS}
+    legacy_tables = expected_tables - {m.__tablename__ for m in LEGACY_OPTIONAL_MODELS}
+    if not isinstance(records, dict) or set(records) not in (expected_tables, legacy_tables):
         raise ConfirmedOrderError("PROVIDER_LIFECYCLE_SCHEMA_INVALID", 409)
     parsed = {}
     for model in MODELS:
-        rows = records[model.__tablename__]
+        rows = records.get(model.__tablename__, [])
         if not isinstance(rows, list): raise ConfirmedOrderError("PROVIDER_LIFECYCLE_RECORD_INVALID", 409)
         parsed[model] = [_typed(model, row) for row in rows]
         ids = [row["id"] for row in parsed[model]]

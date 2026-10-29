@@ -1,5 +1,6 @@
 from __future__ import annotations
 import uuid
+from datetime import timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,6 +11,12 @@ from src.execution_graph.writer import emit_event
 from src.execution_graph.event_types import MILESTONE_UPDATED
 
 VALID_MILESTONE_STATUSES = {"PENDING", "IN_PROGRESS", "COMPLETED", "DELAYED"}
+
+
+def _as_utc(value):
+    # SQLite may return naive values for DateTime(timezone=True); only those
+    # values are interpreted as UTC. A supplied offset identifies an instant.
+    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
 
 
 async def update_milestone(
@@ -38,7 +45,7 @@ async def update_milestone(
     if predicted_date is not None:
         ms.predicted_date = predicted_date
         # Auto-mark as DELAYED if predicted > planned
-        if ms.planned_date and predicted_date.replace(tzinfo=None) > ms.planned_date.replace(tzinfo=None):
+        if ms.planned_date and _as_utc(predicted_date) > _as_utc(ms.planned_date):
             ms.status = "DELAYED"
     if notes is not None:
         ms.notes = notes

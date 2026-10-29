@@ -20,7 +20,11 @@ async def bind_request_actor(request: Request, current_user=Depends(get_current_
     # Resolve URL resource IDs before a route can use an unscoped db.get.
     route_projects = set()
     for name, value in request.path_params.items():
-        project_id, tenant_id = await resource_scope(db, name, value)
+        if name == 'project_id' and request.url.path.startswith('/api/qc/'):
+            legacy = await resolve_legacy_qc_project(db, str(value), current_user.tenant_id)
+            project_id, tenant_id = legacy.id, legacy.tenant_id
+        else:
+            project_id, tenant_id = await resource_scope(db, name, value)
         if tenant_id is not None and tenant_id != current_user.tenant_id:
             raise HTTPException(status_code=404, detail='Resource not found')
         if project_id is not None:
@@ -54,6 +58,9 @@ async def bind_request_actor(request: Request, current_user=Depends(get_current_
                 project_id, tenant_id = await resource_scope(db, scope_name, value)
                 if tenant_id is not None and tenant_id != current_user.tenant_id:
                     raise HTTPException(status_code=404, detail='Resource not found')
+                if name in {'inspector_participant_id', 'submitted_by_participant_id', 'logistics_provider_participant_id'}:
+                    for route_project in route_projects:
+                        await require_submission_identity(db, route_project, value)
                 if project_id is not None:
                     await require_project_access(db, project_id)
                     if route_projects and project_id not in route_projects:
@@ -137,3 +144,42 @@ async def resource_scope(db, name, value):
         if project is None: raise HTTPException(status_code=404, detail='Resource not found')
         return project_id, project.tenant_id
     return None, tenant
+
+
+async def require_submission_identity(db, project_id, participant_id):
+    """External submitters can attribute work only to their persisted grant."""
+    actor_id = db.info.get('request_actor_id')
+    if actor_id is None:
+        return
+    project = await db.get(Project, project_id)
+    actor = await db.get(User, actor_id)
+    if project is None or actor is None or actor.tenant_id != project.tenant_id:
+        raise HTTPException(status_code=404, detail='Project not found')
+    if project.created_by == actor_id or actor.is_platform_admin:
+        return
+    grant = await db.scalar(select(ProjectMembership).where(
+        ProjectMembership.project_id == project_id, ProjectMembership.user_id == actor_id,
+        ProjectMembership.revoked_at.is_(None)))
+    if grant is None or (grant.role in EXTERNAL_ROLES and
+            (grant.participant_id is None or str(grant.participant_id) != str(participant_id))):
+        raise HTTPException(status_code=403, detail='Submission identity is not authorized')
+
+
+async def resolve_legacy_qc_project(db, alias, tenant_id):
+    """Resolve legacy actor-side identity first without changing its file key."""
+    project = await db.scalar(select(Project).where(
+        Project.project_id == alias))
+    if project is not None and project.tenant_id != tenant_id:
+        raise HTTPException(status_code=404, detail='Project not found')
+    if project is None:
+        try:
+            identifier = uuid.UUID(alias)
+        except ValueError:
+            identifier = None
+        if identifier is not None:
+            project = await db.scalar(select(Project).where(
+                Project.id == identifier, Project.tenant_id == tenant_id))
+    if project is None:
+        raise HTTPException(status_code=404, detail='Project not found')
+    await require_project_access(db, project.id)
+    return project

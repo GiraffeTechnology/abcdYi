@@ -4,8 +4,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_
-from src.db.models.project import Project
 
 from src.order_confirmation.execution_persistence import commit_execution
 from src.integrations.execution_language import normalize_execution_input, record_input_lineage
@@ -36,16 +34,8 @@ router = APIRouter(dependencies=[Depends(bind_request_actor)])
 
 async def require_legacy_qc_project(project_id: str, db: AsyncSession = Depends(get_db),
                                     current_user=Depends(get_current_user)):
-    clauses = [Project.project_id == project_id]
-    try:
-        clauses.append(Project.id == uuid.UUID(project_id))
-    except ValueError:
-        pass
-    project = await db.scalar(select(Project).where(
-        Project.tenant_id == current_user.tenant_id, or_(*clauses)))
-    if project is None:
-        raise HTTPException(status_code=404, detail="Project not found")
-    return project
+    from src.permissions.project_access import resolve_legacy_qc_project
+    return await resolve_legacy_qc_project(db, project_id, current_user.tenant_id)
 
 
 class ReferenceImageListResponse(BaseModel):
